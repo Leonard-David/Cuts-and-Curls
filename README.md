@@ -1,6 +1,6 @@
 # Cuts & Curls
 
-<img width="756" height="756" alt="logo" src="https://github.com/user-attachments/assets/b9b4daef-1a98-437c-8722-4c14cc1472fe" />
+<img width="100" height="100" alt="logo" src="https://github.com/user-attachments/assets/b9b4daef-1a98-437c-8722-4c14cc1472fe" />
 
 ## 1. What is "Cuts & Curls"?
 
