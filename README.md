@@ -1,8 +1,9 @@
 # cuts_and_curls
 
-A new Flutter project.
+Cuts & Curls is a Boking and Marketing application, developed for to combat business related constrainst in student-driven businesses, specifically tailored for studenf barber and hairdresser. 
 
-## Getting Started
+## Getting Started with Foo
+lutter
 
 This project is a starting point for a Flutter application.
 
