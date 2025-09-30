@@ -1,6 +1,13 @@
 # Cuts & Curls
 
-<img width="100" height="100" alt="logo" src="https://github.com/user-attachments/assets/b9b4daef-1a98-437c-8722-4c14cc1472fe" />
+<div style="display: flex; align-items: center;">
+  <img src="https://github.com/user-attachments/assets/b9b4daef-1a98-437c-8722-4c14cc1472fe" alt="logo" width="100" height="100" style="margin-right: 20px;" />
+  <div>
+    <p style="color: #0F2E4A; font-family: 'Georgia', serif; font-size: 36px; font-weight: bold; margin: 0;"> Cuts &<br>Curls </p>
+    <p style="font-size: 20px; font-style: italic; margin: 0;"> Your Crown, Our Craft </p>
+  </div>
+</div>
+
 
 ## 1. What is "Cuts & Curls"?
 
