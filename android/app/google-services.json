@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "827612041429",
+    "project_id": "cuts-and-curls-38cb9",
+    "storage_bucket": "cuts-and-curls-38cb9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827612041429:android:ff1d96c81a7cf2b340925c",
+        "android_client_info": {
+          "package_name": "com.example.cuts_and_curls"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZVVfLPBrviDWyYX6hAszehmxXxSSJwiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
