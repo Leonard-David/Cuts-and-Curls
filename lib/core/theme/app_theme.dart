@@ -1,44 +1,59 @@
+// lib/core/theme/app_theme.dart
+//
+// --------------------------------------------------------
+// Global theme configuration for Cuts & Curls
+// --------------------------------------------------------
+// This defines your brand colors, text styles, and button design
+// consistent across all screens.
+// --------------------------------------------------------
+
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color text = Color(0xFF6D6D6D);
-  static const Color accent = Color(0xFFFBA506);
-  static const Color bg = Color(0xFFF4F5FF);
-  static const Color button = Color(0xFF0F2E4A);
-  static const Color notify = Color(0xFF2BFF00);
+  static const Color primary = Color(0xFF0A2940); // Navy blue (Sign In button)
+  static const Color accent = Color(0xFFFFA726); // Amber (logo accent)
+  static const Color background = Colors.white;
+  static const Color text = Colors.black87;
+  static const Color hint = Colors.grey;
 }
 
 class AppTheme {
-  static final ThemeData lightTheme = ThemeData(
-    scaffoldBackgroundColor: AppColors.bg,
-    primaryColor: AppColors.accent,
-    colorScheme: ColorScheme.fromSwatch().copyWith(
+  static ThemeData lightTheme = ThemeData(
+    scaffoldBackgroundColor: AppColors.background,
+    colorScheme: ColorScheme.light(
+      primary: AppColors.primary,
       secondary: AppColors.accent,
-      primary: AppColors.button,
-    ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.button,
-      titleTextStyle: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-      iconTheme: IconThemeData(color: Colors.white),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(color: AppColors.text),
-      bodyLarge: TextStyle(color: AppColors.text),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.button,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+      headlineMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w600,
+        color: AppColors.text,
+      ),
+      bodyMedium: TextStyle(
+        fontFamily: 'Poppins',
+        color: AppColors.text,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
-      hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.black26),
+      ),
+      hintStyle: const TextStyle(color: AppColors.hint),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
     ),
   );
 }
