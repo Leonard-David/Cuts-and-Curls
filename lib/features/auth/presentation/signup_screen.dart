@@ -1,144 +1,142 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/auth_provider.dart';
-import '../data/auth_repository.dart';
-import 'login_screen.dart';
+// lib/features/auth/presentation/signup_screen.dart
+//
+// --------------------------------------------------------
+// Cuts & Curls - Sign Up Screen
+// --------------------------------------------------------
 
-class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({super.key});
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_theme.dart';
+
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  ConsumerState<SignupScreen> createState() => _SignupScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignupScreenState extends ConsumerState<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
-  String email = '';
-  String password = '';
-  UserRole role = UserRole.client;
-  bool loading = false;
-  String? error;
+class _SignUpScreenState extends State<SignUpScreen> {
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _dob = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  String? _selectedRole; // barber or client
+  bool _isLoading = false;
 
-  void _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    _formKey.currentState!.save();
-
-    setState(() {
-      loading = true;
-      error = null;
-    });
-
-    try {
-      final repo = ref.read(authRepoProvider);
-      final user = await repo.signUpWithEmail(email, password, role);
-      // On success -> navigate to appropriate screen (hook into router)
-      // For now pop back to login
-      if (!mounted) return;
+  Future<void> _signUp() async {
+    if (_selectedRole == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Welcome ${user.email} — role: ${user.role.name}')),
+        const SnackBar(content: Text("Please select your role.")),
       );
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
-    } catch (e) {
-      setState(() => error = e.toString());
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+        email: _email.text.trim(),
+        password: _password.text.trim(),
+      );
+
+      final uid = userCredential.user!.uid;
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'firstName': _firstName.text.trim(),
+        'lastName': _lastName.text.trim(),
+        'dateOfBirth': _dob.text.trim(),
+        'email': _email.text.trim(),
+        'role': _selectedRole,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Firebase triggers navigation based on role
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Sign up failed')),
+      );
     } finally {
-      if (mounted) setState(() => loading = false);
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isWide = width > 700;
-
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: isWide ? 80 : 24, vertical: 32),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 800),
-              child: Card(
-                elevation: 6,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Logo
-                      Center(
-                        child: Column(
-                          children: [
-                            Image.asset('assets/images/logo.png', height: 84, fit: BoxFit.contain),
-                            const SizedBox(height: 12),
-                            const Text('Create account', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              decoration: const InputDecoration(hintText: 'Email'),
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (v) => v == null || !v.contains('@') ? 'Enter a valid email' : null,
-                              onSaved: (v) => email = v!.trim(),
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              decoration: const InputDecoration(hintText: 'Password'),
-                              obscureText: true,
-                              validator: (v) => (v == null || v.length < 6) ? 'Password >= 6 chars' : null,
-                              onSaved: (v) => password = v!.trim(),
-                            ),
-                            const SizedBox(height: 12),
-
-                            // Role selector
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ChoiceChip(
-                                    label: const Text('Client'),
-                                    selected: role == UserRole.client,
-                                    selectedColor: const Color(0xFFFBA506),
-                                    onSelected: (s) => setState(() => role = UserRole.client),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ChoiceChip(
-                                    label: const Text('Barber / Hairdresser'),
-                                    selected: role == UserRole.barber,
-                                    selectedColor: const Color(0xFFFBA506),
-                                    onSelected: (s) => setState(() => role = UserRole.barber),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 16),
-                            if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
-                            ElevatedButton(
-                              onPressed: loading ? null : _submit,
-                              child: loading
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : const Text('Create account'),
-                            ),
-                            const SizedBox(height: 10),
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen())),
-                              child: const Text('Already have an account? Log in'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Logo
+              Image.asset('assets/logo.png', height: 100),
+              const SizedBox(height: 24),
+              const Text(
+                'Sign Up',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _firstName,
+                decoration: const InputDecoration(labelText: 'First name'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _lastName,
+                decoration: const InputDecoration(labelText: 'Last name'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _dob,
+                decoration: const InputDecoration(labelText: 'Date of birth'),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedRole,
+                items: const [
+                  DropdownMenuItem(
+                    value: 'client',
+                    child: Text('Client'),
                   ),
+                  DropdownMenuItem(
+                    value: 'barber',
+                    child: Text('Barber / Hairdresser'),
+                  ),
+                ],
+                onChanged: (val) => setState(() => _selectedRole = val),
+                decoration: const InputDecoration(labelText: 'Select role'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _email,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Password'),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _signUp,
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Continue'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => context.push('/'),
+                child: const Text(
+                  "Already have an account? Sign In",
+                  style: TextStyle(color: Colors.blueAccent),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
