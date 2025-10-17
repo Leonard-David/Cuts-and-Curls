@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "664853342443",
+    "project_id": "cutscurls",
+    "storage_bucket": "cutscurls.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664853342443:android:15c145af575bf9006936ae",
+        "android_client_info": {
+          "package_name": "com.hair.cutscurls"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCu-SDS2zq4NjMPDhYdCGnRJsqnFroHO0s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
