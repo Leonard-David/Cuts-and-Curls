@@ -1,6 +1,4 @@
-// lib/data/models/payment_model.dart
-// Model representing a payment record.
-// Maps to /payments/{paymentId}
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PaymentModel {
   final String id;
@@ -9,10 +7,8 @@ class PaymentModel {
   final String barberId;
   final double amount;
   final String currency;
-  final String method; // e.g. stripe, payfast, mobile_money
-  final String status; // pending | succeeded | failed | refunded
-  final Map<String, dynamic>? metadata;
-  final int createdAtEpoch;
+  final String status; // success / failed / pending
+  final DateTime createdAt;
 
   PaymentModel({
     required this.id,
@@ -20,37 +16,33 @@ class PaymentModel {
     required this.clientId,
     required this.barberId,
     required this.amount,
-    this.currency = 'NAD',
-    this.method = 'stripe',
+    required this.currency,
     required this.status,
-    this.metadata,
-    required this.createdAtEpoch,
+    required this.createdAt,
   });
 
-  factory PaymentModel.fromMap(Map<String, dynamic> map, String id) {
+  factory PaymentModel.fromMap(Map<String, dynamic> data, String docId) {
     return PaymentModel(
-      id: id,
-      appointmentId: map['appointmentId'] ?? '',
-      clientId: map['clientId'] ?? '',
-      barberId: map['barberId'] ?? '',
-      amount: (map['amount'] is num) ? (map['amount'] as num).toDouble() : 0.0,
-      currency: map['currency'] ?? 'NAD',
-      method: map['method'] ?? 'stripe',
-      status: map['status'] ?? 'pending',
-      metadata: (map['metadata'] as Map?)?.cast<String, dynamic>(),
-      createdAtEpoch: map['createdAt'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      id: docId,
+      appointmentId: data['appointmentId'] ?? '',
+      clientId: data['clientId'] ?? '',
+      barberId: data['barberId'] ?? '',
+      amount: (data['amount'] ?? 0).toDouble(),
+      currency: data['currency'] ?? 'usd',
+      status: data['status'] ?? 'pending',
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
 
-  Map<String, dynamic> toMap() => {
-        'appointmentId': appointmentId,
-        'clientId': clientId,
-        'barberId': barberId,
-        'amount': amount,
-        'currency': currency,
-        'method': method,
-        'status': status,
-        'metadata': metadata,
-        'createdAt': createdAtEpoch,
-      }..removeWhere((k, v) => v == null);
+  Map<String, dynamic> toMap() {
+    return {
+      'appointmentId': appointmentId,
+      'clientId': clientId,
+      'barberId': barberId,
+      'amount': amount,
+      'currency': currency,
+      'status': status,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
 }

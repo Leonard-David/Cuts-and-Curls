@@ -14,7 +14,7 @@ class AppColors {
   static const Color background = Colors.white;
 
   // Text colors
-  static const Color textPrimary = Color(0xFF000000);
+  static const Color text = Color(0xFF000000);
   static const Color textSecondary = Color(0xFF6E6E6E);
 
   // Input border color

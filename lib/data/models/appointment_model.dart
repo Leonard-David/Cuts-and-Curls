@@ -1,71 +1,85 @@
 // lib/data/models/appointment_model.dart
-// Model for appointments/bookings.
-// Maps to /appointments/{appointmentId}
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppointmentModel {
-  final String id;
-  final String clientId;
-  final String barberId;
-  final String serviceId;
-  final DateTime startAt;
-  final DateTime endAt;
-  final String status; // pending|confirmed|rejected|completed|cancelled
-  final String? paymentId;
-  final String? notes;
-  final int createdAtEpoch;
+  final String id;               // Firestore doc ID
+  final String clientId;         // UID of the client
+  final String barberId;         // UID of the barber
+  final String serviceId;        // Optional: references a service
+  final String serviceName;
+  final double price;
+  final DateTime appointmentDate;
+  final String status;           // pending, confirmed, completed, canceled
+  final String? notes;           // optional client notes
+  final DateTime createdAt;
 
   AppointmentModel({
     required this.id,
     required this.clientId,
     required this.barberId,
     required this.serviceId,
-    required this.startAt,
-    required this.endAt,
+    required this.serviceName,
+    required this.price,
+    required this.appointmentDate,
     required this.status,
-    this.paymentId,
     this.notes,
-    required this.createdAtEpoch,
+    required this.createdAt,
   });
 
-  // Firestore stores timestamps as Timestamp type — convert safely here
-  factory AppointmentModel.fromMap(Map<String, dynamic> map, String id) {
-    DateTime parseTimestamp(dynamic v) {
-      if (v == null) return DateTime.now();
-      if (v is Timestamp) return v.toDate();
-      if (v is int) return DateTime.fromMillisecondsSinceEpoch(v * 1000);
-      if (v is String) return DateTime.parse(v);
-      return DateTime.now();
-    }
-
-    final start = parseTimestamp(map['startAt']);
-    final end = parseTimestamp(map['endAt']);
-
+  // Convert from Firestore map
+  factory AppointmentModel.fromMap(Map<String, dynamic> data, String docId) {
     return AppointmentModel(
-      id: id,
-      clientId: map['clientId'] ?? '',
-      barberId: map['barberId'] ?? '',
-      serviceId: map['serviceId'] ?? '',
-      startAt: start,
-      endAt: end,
-      status: map['status'] ?? 'pending',
-      paymentId: map['paymentId'] as String?,
-      notes: map['notes'] as String?,
-      createdAtEpoch: map['createdAt'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      id: docId,
+      clientId: data['clientId'] ?? '',
+      barberId: data['barberId'] ?? '',
+      serviceId: data['serviceId'] ?? '',
+      serviceName: data['serviceName'] ?? '',
+      price: (data['price'] ?? 0).toDouble(),
+      appointmentDate: (data['appointmentDate'] as Timestamp).toDate(),
+      status: data['status'] ?? 'pending',
+      notes: data['notes'],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
 
-  // Convert to Firestore-friendly map. Use Timestamps for better compatibility.
-  Map<String, dynamic> toMap() => {
-        'clientId': clientId,
-        'barberId': barberId,
-        'serviceId': serviceId,
-        'startAt': Timestamp.fromDate(startAt),
-        'endAt': Timestamp.fromDate(endAt),
-        'status': status,
-        'paymentId': paymentId,
-        'notes': notes,
-        'createdAt': createdAtEpoch,
-      }..removeWhere((k, v) => v == null);
+  // Convert to Firestore map
+  Map<String, dynamic> toMap() {
+    return {
+      'clientId': clientId,
+      'barberId': barberId,
+      'serviceId': serviceId,
+      'serviceName': serviceName,
+      'price': price,
+      'appointmentDate': Timestamp.fromDate(appointmentDate),
+      'status': status,
+      'notes': notes,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
+
+  AppointmentModel copyWith({
+    String? id,
+    String? clientId,
+    String? barberId,
+    String? serviceId,
+    String? serviceName,
+    double? price,
+    DateTime? appointmentDate,
+    String? status,
+    String? notes,
+    DateTime? createdAt,
+  }) {
+    return AppointmentModel(
+      id: id ?? this.id,
+      clientId: clientId ?? this.clientId,
+      barberId: barberId ?? this.barberId,
+      serviceId: serviceId ?? this.serviceId,
+      serviceName: serviceName ?? this.serviceName,
+      price: price ?? this.price,
+      appointmentDate: appointmentDate ?? this.appointmentDate,
+      status: status ?? this.status,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

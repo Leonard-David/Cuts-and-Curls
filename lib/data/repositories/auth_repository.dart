@@ -1,7 +1,4 @@
 // lib/data/repositories/auth_repository.dart
-// Handles authentication (email/password + simple wrappers).
-// Uses FirebaseAuth and keeps user creation minimal — user profile stored in Firestore via UserRepository.
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -9,68 +6,60 @@ class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  AuthRepository();
-
-  /// Register with email & password and create a basic user document in `users/{uid}`.
-  /// Returns the created `UserCredential.user`.
-  Future<User?> signUpWithEmail({
-    required String name,
+  /// Sign in user with email & password.
+  /// Returns Firebase [User] on success, or throws FirebaseAuthException.
+  Future<User?> signInWithEmail({
     required String email,
     required String password,
-    required String role, // 'client' | 'barber'
-    String? phone,
   }) async {
-    try {
-      // Create user in Firebase Auth
-      final cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final user = cred.user;
-      if (user == null) throw FirebaseAuthException(code: 'USER_NULL', message: 'User creation failed');
-
-      // Create initial Firestore profile
-      final userDoc = {
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'role': role,
-        'photoUrl': null,
-        'bio': null,
-        'rating': 0.0,
-        'createdAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      };
-
-      await _firestore.collection('users').doc(user.uid).set(userDoc);
-
-      return user;
-    } on FirebaseAuthException {
-      rethrow;
-    } catch (e) {
-      // Wrap unknown errors as FirebaseAuthException for consistency
-      throw FirebaseAuthException(code: 'SIGNUP_FAILED', message: e.toString());
-    }
+    final userCredential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    return userCredential.user;
   }
 
-  /// Sign in with email and password.
-  Future<User?> signInWithEmail({required String email, required String password}) async {
-    try {
-      final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
-      return cred.user;
-    } on FirebaseAuthException {
-      rethrow;
-    } catch (e) {
-      throw FirebaseAuthException(code: 'SIGNIN_FAILED', message: e.toString());
-    }
+  /// Create user (signup) and write initial profile to Firestore.
+  Future<User?> signUpWithEmail({
+    required String email,
+    required String password,
+    required String displayName,
+    required String role, // 'client' | 'barber'
+  }) async {
+    final userCredential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final user = userCredential.user;
+    if (user == null) return null;
+
+    // Create user profile in Firestore
+    await _firestore.collection('users').doc(user.uid).set({
+      'uid': user.uid,
+      'email': email,
+      'displayName': displayName,
+      'role': role,
+      'createdAt': FieldValue.serverTimestamp(),
+      // add any initial fields e.g., photoUrl, bio, rating, etc.
+    });
+
+    return user;
   }
 
-  /// Sign out current user.
-  Future<void> signOut() => _auth.signOut();
+  /// Get role from users collection; returns 'client' if not set.
+  Future<String> getUserRole(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    final data = doc.data();
+    if (data == null) return 'client';
+    return (data['role'] as String?) ?? 'client';
+  }
 
-  /// Returns current Firebase user (nullable).
-  User? getCurrentUser() => _auth.currentUser;
+  /// Sign out
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
 
-  /// Send password reset email.
-  Future<void> sendPasswordResetEmail(String email) => _auth.sendPasswordResetEmail(email: email);
+  /// Stream of Firebase user for auth state changes
+  Stream<User?> authStateChanges() => _auth.authStateChanges();
 }

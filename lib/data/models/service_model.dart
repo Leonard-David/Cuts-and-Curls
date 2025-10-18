@@ -1,48 +1,41 @@
-// lib/data/models/service_model.dart
-// Model representing a barber's offered service.
-// Maps to /services/{serviceId}
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ServiceModel {
   final String id;
   final String barberId;
   final String name;
-  final String? description;
   final double price;
-  final int durationMinutes; // length of service
-  final bool available;
-  final int createdAtEpoch; // unix seconds
+  final int duration; // minutes
+  final String description;
 
   ServiceModel({
     required this.id,
     required this.barberId,
     required this.name,
-    this.description,
     required this.price,
-    required this.durationMinutes,
-    this.available = true,
-    required this.createdAtEpoch,
+    required this.duration,
+    required this.description,
   });
 
-  factory ServiceModel.fromMap(Map<String, dynamic> map, String id) {
+  factory ServiceModel.fromMap(Map<String, dynamic> data, String docId) {
     return ServiceModel(
-      id: id,
-      barberId: map['barberId'] ?? '',
-      name: map['name'] ?? '',
-      description: map['description'] as String?,
-      price: (map['price'] is num) ? (map['price'] as num).toDouble() : 0.0,
-      durationMinutes: map['durationMinutes'] ?? 30,
-      available: map['available'] ?? true,
-      createdAtEpoch: map['createdAt'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      id: docId,
+      barberId: data['barberId'] ?? '',
+      name: data['name'] ?? '',
+      price: (data['price'] ?? 0).toDouble(),
+      duration: data['duration'] ?? 0,
+      description: data['description'] ?? '',
     );
   }
 
-  Map<String, dynamic> toMap() => {
-        'barberId': barberId,
-        'name': name,
-        'description': description,
-        'price': price,
-        'durationMinutes': durationMinutes,
-        'available': available,
-        'createdAt': createdAtEpoch,
-      }..removeWhere((k, v) => v == null);
+  Map<String, dynamic> toMap() {
+    return {
+      'barberId': barberId,
+      'name': name,
+      'price': price,
+      'duration': duration,
+      'description': description,
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+    };
+  }
 }

@@ -1,40 +1,30 @@
-// lib/data/repositories/service_repository.dart
-// CRUD & streaming for /services collection.
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/service_model.dart';
 
 class ServiceRepository {
-  final CollectionReference _servicesRef = FirebaseFirestore.instance.collection('services');
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String collectionPath = 'services';
 
-  ServiceRepository();
-
-  /// Create a new service for a barber. Returns generated document id.
-  Future<String> createService(ServiceModel service) async {
-    final docRef = await _servicesRef.add(service.toMap());
-    return docRef.id;
+  Future<void> addService(ServiceModel service) async {
+    await _firestore.collection(collectionPath).add(service.toMap());
   }
 
-  /// Update existing service (partial update supported).
-  Future<void> updateService(String serviceId, Map<String, dynamic> updates) async {
-    await _servicesRef.doc(serviceId).update(updates);
+  Future<void> updateService(String id, Map<String, dynamic> data) async {
+    await _firestore.collection(collectionPath).doc(id).update(data);
   }
 
-  /// Delete a service.
-  Future<void> deleteService(String serviceId) async {
-    await _servicesRef.doc(serviceId).delete();
+  Future<void> deleteService(String id) async {
+    await _firestore.collection(collectionPath).doc(id).delete();
   }
 
-  /// Stream services for a barber (real-time).
-  Stream<List<ServiceModel>> streamServicesForBarber(String barberId) {
-    return _servicesRef.where('barberId', isEqualTo: barberId).snapshots().map((snap) {
-      return snap.docs.map((d) => ServiceModel.fromMap(d.data() as Map<String, dynamic>, d.id)).toList();
-    });
-  }
-
-  /// Get services one-off for a barber.
-  Future<List<ServiceModel>> getServicesForBarber(String barberId) async {
-    final snap = await _servicesRef.where('barberId', isEqualTo: barberId).get();
-    return snap.docs.map((d) => ServiceModel.fromMap(d.data() as Map<String, dynamic>, d.id)).toList();
+  Stream<List<ServiceModel>> getServicesForBarber(String barberId) {
+    return _firestore
+        .collection(collectionPath)
+        .where('barberId', isEqualTo: barberId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ServiceModel.fromMap(doc.data(), doc.id))
+            .toList());
   }
 }

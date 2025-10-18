@@ -1,27 +1,53 @@
+// lib/main.dart
+//
+// --------------------------------------------------------
+// Entry point for the Cuts & Curls App
+// Handles Firebase, Notifications, Stripe, and Riverpod setup.
+// --------------------------------------------------------
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:cutscurls/core/notifications/fcm_service.dart';
+import 'package:cutscurls/core/notifications/local_notification_service.dart';
 import 'firebase_options.dart';
-import 'core/theme/app_theme.dart';
-import 'features/auth/screens/sign_in_screen.dart';
+import 'app.dart';
 
-void main() async {
+Future<void> main() async {
+  // Ensure all Flutter bindings and plugins are initialized
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform
+
+  // Stripe Configuration (loaded securely from environment)
+  // Use --dart-define for production: flutter run --dart-define=STRIPE_KEY=pk_test_XXXX
+  const stripeKey = String.fromEnvironment(
+    'STRIPE_KEY',
+    defaultValue: 'pk_test_XXXXXXXXXXXXXXXXXXXX', // fallback for dev
   );
-  runApp(const MyApp());
-}
+  Stripe.publishableKey = stripeKey;
+  Stripe.merchantIdentifier = 'cuts_curls_merchant';
+  Stripe.urlScheme = 'cuts_curls';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cuts & Curls',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const SignInScreen(),
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
     );
+  } catch (e, stack) {
+    debugPrint('❌ Firebase init failed: $e');
+    debugPrintStack(stackTrace: stack);
   }
+
+  // Initialize Local + Push Notifications
+  await LocalNotificationService.initialize();
+  await FCMService.initFCM();
+
+  // Global Error Handler (for debugging & Crashlytics)
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter error: ${details.exception}');
+  };
+
+  // Run the App (Riverpod + MaterialApp.router)
+  runApp(const ProviderScope(child: MyApp()));
 }
