@@ -1,7 +1,5 @@
 // lib/features/auth/screens/signin_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cutscurls/features/auth/screens/reset_password_screen.dart';
-import 'package:cutscurls/features/auth/screens/signup_step1_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,11 +15,10 @@ class SignInScreen extends ConsumerStatefulWidget {
 }
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
-  final _formKey = GlobalKey<FormState>(); // for validation
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  bool _isLoading = false; // show loading spinner
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -30,7 +27,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     super.dispose();
   }
 
-  // Basic email validator
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) return 'Email is required';
     final email = value.trim();
@@ -39,7 +35,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     return null;
   }
 
-  // Basic password validator
   String? _validatePassword(String? value) {
     if (value == null || value.trim().isEmpty) return 'Password is required';
     if (value.trim().length < 6) return 'Password must be at least 6 characters';
@@ -47,42 +42,34 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _signIn() async {
-    // Validate form fields first
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     final authRepo = ref.read(authRepositoryProvider);
 
     try {
-      // Attempt to sign in with email & password
       final user = await authRepo.signInWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       if (user == null) {
-        // Unexpected null return
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login failed. Please try again.')),
         );
         return;
       }
 
-      // Fetch role from Firestore (if not set, default to 'client')
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final role = doc.data()?['role'] ?? 'client';
 
-      // Role-based navigation using GoRouter
       if (!mounted) return;
       if (role == 'barber') {
-        // Replace with GoRouter to clear backstack
         context.go('/barber');
       } else {
         context.go('/client');
       }
     } on FirebaseAuthException catch (e) {
-      // Firebase-specific error messages
       String message;
       switch (e.code) {
         case 'user-not-found':
@@ -102,7 +89,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e, st) {
-      // Generic / unexpected errors
       debugPrint('SignIn error: $e\n$st');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An unexpected error occurred. Try again.')),
@@ -120,7 +106,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: SingleChildScrollView(
-            // Prevent overflow if keyboard opens
             child: Column(
               children: [
                 const SizedBox(height: 60),
@@ -128,8 +113,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 const SizedBox(height: 40),
                 const Text('Sign In', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text)),
                 const SizedBox(height: 24),
-
-                // Form with validators
                 Form(
                   key: _formKey,
                   child: Column(
@@ -150,55 +133,35 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          // Navigate to reset password
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
-                          );
-                        },
-                        child: const Text(
-                          'Forgot password?',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: TextButton(
+                    onPressed: () => context.push('/reset_password'),
+                    child: const Text(
+                      'Forgot password?',
+                      style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500),
+                    ),
                   ),
                 ),
-                
                 const SizedBox(height: 12),
-
-                // Sign-in button or loading indicator
                 _isLoading
                     ? const CircularProgressIndicator()
                     : ElevatedButton(
                         onPressed: _signIn,
                         child: const Text('Sign In'),
                       ),
-
                 const SizedBox(height: 16),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Don’t have an account? "),
                     GestureDetector(
-                      onTap: () {
-                        // Navigate to signup flow
-                        MaterialPageRoute(builder: (_) => const SignUpStep1Screen());
-                      },
-                      child: const Text('Sign Up', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      onTap: () => context.push('/signup_step1'),
+                      child: const Text(
+                        'Sign Up',
+                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),

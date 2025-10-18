@@ -45,23 +45,23 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const SignInScreen(),
     ),
     GoRoute(
-      path: '/signup-step1',
+      path: '/signup_step1',
       builder: (context, state) => const SignUpStep1Screen(),
     ),
     GoRoute(
-      path: '/signup-step2',
+      path: '/signup_step2',
       builder: (context, state) => const SignUpStep2Screen(prevData: {}),
     ),
     GoRoute(
-      path: '/verify-email',
+      path: '/verify_email',
       builder: (context, state) => const VerifyEmailScreen(),
     ),
     GoRoute(
-      path: '/final-touch',
+      path: '/final_touch',
       builder: (context, state) => const FinalTouchScreen(userData: {}),
     ),
     GoRoute(
-      path: '/reset-password',
+      path: '/reset_password',
       builder: (context, state) => const ResetPasswordScreen(),
     ),
     GoRoute(path: '/loader', builder: (context, state) => const LoaderScreen()),
@@ -76,11 +76,11 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const ClientHomeScreen(),
     ),
     GoRoute(
-      path: '/select-barber',
+      path: '/select_barber',
       builder: (context, state) => const SelectBarberScreen(),
     ),
     GoRoute(
-      path: '/select-service',
+      path: '/select_service',
       builder: (_, state) =>
           const SelectServiceScreen(barberId: '', barberData: {}),
     ),
@@ -89,11 +89,11 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const BarberDashboardScreen(),
     ),
     GoRoute(
-      path: '/barber-earnings',
+      path: '/barber_earnings',
       builder: (context, state) => const BarberEarningsScreen(),
     ),
     GoRoute(
-      path: '/barber-services',
+      path: '/barber_services',
       builder: (context, state) => const BarberServicesScreen(),
     ),
   ],
