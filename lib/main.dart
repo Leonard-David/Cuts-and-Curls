@@ -34,7 +34,7 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e, stack) {
-    debugPrint('❌ Firebase init failed: $e');
+    debugPrint('Firebase init failed: $e');
     debugPrintStack(stackTrace: stack);
   }
 
