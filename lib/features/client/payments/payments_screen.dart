@@ -38,7 +38,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
-          merchantDisplayName: 'Cuts & Curls',
+          merchantDisplayName: 'C',
           paymentIntentClientSecret: clientSecret,
           style: ThemeMode.light,
         ),

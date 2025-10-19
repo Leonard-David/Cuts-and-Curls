@@ -2,7 +2,7 @@
 // Temporary placeholder for client home.
 // Will later show available barbers, services, and bookings.
 
-import 'package:cutscurls/features/auth/screens/signin_screeen.dart';
+import 'package:sheersync/features/auth/screens/signin_screeen.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,7 +36,7 @@ class ClientHomeScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Welcome to Cuts & Curls!\nExplore barbers, book appointments, and chat.',
+          'Welcome to Verve Book!\nExplore barbers, book appointments, and chat.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),

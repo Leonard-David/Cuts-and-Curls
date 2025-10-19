@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cutscurls/features/barber/earnings/barber_earning_screen.dart';
-import 'package:cutscurls/features/barber/services/barber_services_screen.dart';
+import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
+import 'package:sheersync/features/barber/services/barber_services_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../appointments/barber_appointments_screen.dart';
-
 
 class BarberDashboardScreen extends StatefulWidget {
   const BarberDashboardScreen({super.key});
@@ -103,8 +102,16 @@ class _BarberDashboardScreenState extends State<BarberDashboardScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildStatCard('Total', totalAppointments, Colors.blue),
-                      _buildStatCard('Pending', pendingAppointments, Colors.orange),
-                      _buildStatCard('Completed', completedAppointments, Colors.green),
+                      _buildStatCard(
+                        'Pending',
+                        pendingAppointments,
+                        Colors.orange,
+                      ),
+                      _buildStatCard(
+                        'Completed',
+                        completedAppointments,
+                        Colors.green,
+                      ),
                     ],
                   ),
 

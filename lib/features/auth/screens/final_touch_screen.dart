@@ -5,7 +5,7 @@
 // --------------------------------------------------------
 
 import 'dart:io';
-import 'package:cutscurls/core/constants/colors.dart';
+import 'package:sheersync/core/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -63,18 +63,23 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
           child: Column(
             children: [
               const SizedBox(height: 60),
-              const Text('Final Touch',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+              const Text(
+                'Final Touch',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 40),
               GestureDetector(
                 onTap: _pickImage,
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: Colors.grey[300],
-                  backgroundImage:
-                      _image != null ? FileImage(_image!) : null,
+                  backgroundImage: _image != null ? FileImage(_image!) : null,
                   child: _image == null
-                      ? const Icon(Icons.add, color: AppColors.primary, size: 40)
+                      ? const Icon(
+                          Icons.add,
+                          color: AppColors.primary,
+                          size: 40,
+                        )
                       : null,
                 ),
               ),

@@ -1,9 +1,9 @@
 // lib/routes/app_routes.dart
-import 'package:cutscurls/features/auth/screens/signin_screeen.dart';
-import 'package:cutscurls/features/barber/earnings/barber_earning_screen.dart';
-import 'package:cutscurls/features/barber/services/barber_services_screen.dart';
-import 'package:cutscurls/features/client/bookings/select_barber_screen.dart';
-import 'package:cutscurls/features/client/bookings/select_service_screen.dart';
+import 'package:sheersync/features/auth/screens/signin_screeen.dart';
+import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
+import 'package:sheersync/features/barber/services/barber_services_screen.dart';
+import 'package:sheersync/features/client/bookings/select_barber_screen.dart';
+import 'package:sheersync/features/client/bookings/select_service_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
@@ -52,23 +52,57 @@ final GoRouter appRouter = GoRouter(
 
     // Auth / Signup Flow or sign in
     GoRoute(path: '/signin', builder: (context, state) => const SignInScreen()),
-    GoRoute(path: '/signup_step1', builder: (context, state) => const SignUpStep1Screen()),
-    GoRoute(path: '/signup_step2', builder: (context, state) => const SignUpStep2Screen(prevData: {})),
-    GoRoute(path: '/verify_email', builder: (context, state) => const VerifyEmailScreen()),
-    GoRoute(path: '/final_touch', builder: (context, state) => const FinalTouchScreen(userData: {})),
-    GoRoute(path: '/reset_password', builder: (context, state) => const ResetPasswordScreen()),
+    GoRoute(
+      path: '/signup_step1',
+      builder: (context, state) => const SignUpStep1Screen(),
+    ),
+    GoRoute(
+      path: '/signup_step2',
+      builder: (context, state) => const SignUpStep2Screen(prevData: {}),
+    ),
+    GoRoute(
+      path: '/verify_email',
+      builder: (context, state) => const VerifyEmailScreen(),
+    ),
+    GoRoute(
+      path: '/final_touch',
+      builder: (context, state) => const FinalTouchScreen(userData: {}),
+    ),
+    GoRoute(
+      path: '/reset_password',
+      builder: (context, state) => const ResetPasswordScreen(),
+    ),
     GoRoute(path: '/loader', builder: (context, state) => const LoaderScreen()),
 
     // Dashboards
-    GoRoute(path: '/barber', builder: (context, state) => const BarberDashboardScreen()),
-    GoRoute(path: '/client', builder: (context, state) => const ClientHomeScreen()),
+    GoRoute(
+      path: '/barber',
+      builder: (context, state) => const BarberDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/client',
+      builder: (context, state) => const ClientHomeScreen(),
+    ),
 
     // Client booking flow
-    GoRoute(path: '/select_barber', builder: (context, state) => const SelectBarberScreen()),
-    GoRoute(path: '/select_service', builder: (_, state) => const SelectServiceScreen(barberId: '', barberData: {})),
+    GoRoute(
+      path: '/select_barber',
+      builder: (context, state) => const SelectBarberScreen(),
+    ),
+    GoRoute(
+      path: '/select_service',
+      builder: (_, state) =>
+          const SelectServiceScreen(barberId: '', barberData: {}),
+    ),
 
     // Barber extras
-    GoRoute(path: '/barber_earnings', builder: (context, state) => const BarberEarningsScreen()),
-    GoRoute(path: '/barber_services', builder: (context, state) => const BarberServicesScreen()),
+    GoRoute(
+      path: '/barber_earnings',
+      builder: (context, state) => const BarberEarningsScreen(),
+    ),
+    GoRoute(
+      path: '/barber_services',
+      builder: (context, state) => const BarberServicesScreen(),
+    ),
   ],
 );

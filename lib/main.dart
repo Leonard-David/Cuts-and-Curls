@@ -1,7 +1,7 @@
 // lib/main.dart
 //
 // --------------------------------------------------------
-// Entry point for the Cuts & Curls App
+// Entry point for the Verve Book App
 // Handles Firebase, Notifications, Stripe, and Riverpod setup.
 // --------------------------------------------------------
 
@@ -9,9 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:cutscurls/core/notifications/fcm_service.dart';
-import 'package:cutscurls/core/notifications/local_notification_service.dart';
-import 'firebase_options.dart';
+import 'package:sheersync/core/notifications/fcm_service.dart';
+import 'package:sheersync/core/notifications/local_notification_service.dart';
+import 'package:sheersync/firebase_options.dart';
+//import 'firebase_options.dart';
 import 'app.dart';
 
 Future<void> main() async {
@@ -25,8 +26,8 @@ Future<void> main() async {
     defaultValue: 'pk_test_XXXXXXXXXXXXXXXXXXXX', // fallback for dev
   );
   Stripe.publishableKey = stripeKey;
-  Stripe.merchantIdentifier = 'cuts_curls_merchant';
-  Stripe.urlScheme = 'cuts_curls';
+  Stripe.merchantIdentifier = 'VerveBookMerchant';
+  Stripe.urlScheme = 'VerveBook';
 
   // Initialize Firebase
   try {

@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCu-SDS2zq4NjMPDhYdCGnRJsqnFroHO0s',
-    appId: '1:664853342443:android:15c145af575bf9006936ae',
-    messagingSenderId: '664853342443',
-    projectId: 'cutscurls',
-    storageBucket: 'cutscurls.firebasestorage.app',
+    apiKey: 'AIzaSyA7kLUBIkloQVAQnApY8TnhJQYh_4RUeAQ',
+    appId: '1:627376610013:android:90dc9ae041fedb69f41934',
+    messagingSenderId: '627376610013',
+    projectId: 'sheersync',
+    storageBucket: 'sheersync.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDZ9IGo_GuZHL1UAQGm0HoC3Q5_70wC_fk',
-    appId: '1:664853342443:ios:b5d829b092dcae3c6936ae',
-    messagingSenderId: '664853342443',
-    projectId: 'cutscurls',
-    storageBucket: 'cutscurls.firebasestorage.app',
-    iosBundleId: 'com.hair.cutscurls',
+    apiKey: 'AIzaSyAE0S2dcBrPZNpXLa4eP_tX_e9M7p2NNTA',
+    appId: '1:627376610013:ios:93a9ad2de5aca05cf41934',
+    messagingSenderId: '627376610013',
+    projectId: 'sheersync',
+    storageBucket: 'sheersync.firebasestorage.app',
+    iosBundleId: 'com.hair.sheersync',
   );
 }

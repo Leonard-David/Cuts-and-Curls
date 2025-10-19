@@ -16,25 +16,29 @@ class SignUpStep1Screen extends ConsumerStatefulWidget {
 class _SignUpStep1ScreenState extends ConsumerState<SignUpStep1Screen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _displayNameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
-  String _role = 'client'; // default role
+  String? _selectedRole;
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  final List<String> _roles = ['Client', 'Barber', 'Hairdresser'];
+
   @override
   void dispose() {
-    _displayNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // Basic validators
+  // 🔹 Validators
   String? _validateName(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Enter your name';
+    if (v == null || v.trim().isEmpty) return 'This field is required';
     if (v.trim().length < 2) return 'Name must be at least 2 characters';
     return null;
   }
@@ -53,29 +57,34 @@ class _SignUpStep1ScreenState extends ConsumerState<SignUpStep1Screen> {
     return null;
   }
 
+  String? _validateRole(String? v) {
+    if (v == null || v.isEmpty) return 'Please select your role';
+    return null;
+  }
+
+  // 🔹 Signup logic
   Future<void> _submit() async {
-    // Validate form
     if (!_formKey.currentState!.validate()) return;
 
-    // Defensive checks
-    final displayName = _displayNameController.text.trim();
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final fullName = '$firstName $lastName';
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final role = _selectedRole?.toLowerCase() ?? 'client';
 
     setState(() => _isLoading = true);
     final authRepo = ref.read(authRepositoryProvider);
 
     try {
-      // Create user and Firestore profile inside repository
       final user = await authRepo.signUpWithEmail(
         email: email,
         password: password,
-        displayName: displayName,
-        role: _role,
+        displayName: fullName,
+        role: role,
       );
 
       if (user == null) {
-        // Unexpected null -> show generic error
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Signup failed. Please try again.')),
@@ -83,11 +92,9 @@ class _SignUpStep1ScreenState extends ConsumerState<SignUpStep1Screen> {
         return;
       }
 
-      // On success: route to next signup step (collect additional info / verification)
       if (!mounted) return;
-      context.go('/signup-step2'); // ensure this route is registered
+      context.go('/signup_step2');
     } on FirebaseAuthException catch (e) {
-      // Map common firebase errors to friendly messages
       String message;
       switch (e.code) {
         case 'email-already-in-use':
@@ -99,16 +106,12 @@ class _SignUpStep1ScreenState extends ConsumerState<SignUpStep1Screen> {
         case 'weak-password':
           message = 'The password is too weak.';
           break;
-        case 'operation-not-allowed':
-          message = 'Email/password accounts are not enabled.';
-          break;
         default:
           message = e.message ?? 'Signup failed. Try again.';
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e, st) {
-      // Generic / unexpected errors
       debugPrint('Signup Step1 error: $e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,32 +120,6 @@ class _SignUpStep1ScreenState extends ConsumerState<SignUpStep1Screen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  // Small role toggle UI: easily extensible (e.g., later add role verification)
-  Widget _roleSelector() {
-    return Row(
-      children: [
-        Expanded(
-          child: RadioListTile<String>(
-            value: 'client',
-            groupValue: _role,
-            onChanged: (v) => setState(() => _role = v!),
-            title: const Text('Client'),
-            subtitle: const Text('Book services, pay, chat with barbers'),
-          ),
-        ),
-        Expanded(
-          child: RadioListTile<String>(
-            value: 'barber',
-            groupValue: _role,
-            onChanged: (v) => setState(() => _role = v!),
-            title: const Text('Barber / Hairdresser'),
-            subtitle: const Text('Manage bookings & promote services'),
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -156,79 +133,99 @@ class _SignUpStep1ScreenState extends ConsumerState<SignUpStep1Screen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            children: [
-              // Optional: brand logo
-              Image.asset('lib/assets/images/logo/logo.png', height: 80),
-              const SizedBox(height: 20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Image.asset('lib/assets/images/logo/logo.png', height: 80),
+                const SizedBox(height: 20),
 
-              Form(
-                key: _formKey,
-                child: Column(
+                // 🔹 First + Last Name
+                Row(
                   children: [
-                    TextFormField(
-                      controller: _displayNameController,
-                      decoration: const InputDecoration(labelText: 'Full name', hintText: 'John Doe'),
-                      validator: _validateName,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Email', hintText: 'you@example.com'),
-                      validator: _validateEmail,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        hintText: 'At least 6 characters',
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        ),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _firstNameController,
+                        decoration: const InputDecoration(labelText: 'First Name'),
+                        validator: _validateName,
                       ),
-                      validator: _validatePassword,
                     ),
-                    const SizedBox(height: 16),
-
-                    // Role selector
-                    _roleSelector(),
-
-                    const SizedBox(height: 20),
-
-                    // Submit button
-                    _isLoading
-                        ? const CircularProgressIndicator()
-                        : ElevatedButton(
-                            onPressed: _submit,
-                            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                            child: const Text('Continue'),
-                          ),
-
-                    const SizedBox(height: 12),
-                    // Link to sign in if they already have an account
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Already have an account? '),
-                        GestureDetector(
-                          onTap: () {
-                            context.go('/'); // should route to sign-in or auth wrapper
-                          },
-                          child: const Text(
-                            'Sign In',
-                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                          ),
-                        )
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _lastNameController,
+                        decoration: const InputDecoration(labelText: 'Last Name'),
+                        validator: _validateName,
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+
+                // 🔹 Email
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  validator: _validateEmail,
+                ),
+                const SizedBox(height: 12),
+
+                // 🔹 Password
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    hintText: 'At least 6 characters',
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: _validatePassword,
+                ),
+                const SizedBox(height: 16),
+
+                // 🔹 Role Dropdown
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedRole,
+                  items: _roles
+                      .map((role) => DropdownMenuItem(value: role, child: Text(role)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedRole = v),
+                  decoration: const InputDecoration(labelText: 'Select Role'),
+                  validator: _validateRole,
+                ),
+                const SizedBox(height: 24),
+
+                // 🔹 Submit Button
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton(
+                        onPressed: _submit,
+                        style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                        child: const Text('Continue'),
+                      ),
+
+                const SizedBox(height: 12),
+
+                // 🔹 Link to Sign In
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Already have an account? '),
+                    GestureDetector(
+                      onTap: () => context.go('/signin'),
+                      child: const Text(
+                        'Sign In',
+                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

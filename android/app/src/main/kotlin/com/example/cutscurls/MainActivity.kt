@@ -1,4 +1,4 @@
-package com.hair.cutscurls
+package com.hair.sheersync
 
 import io.flutter.embedding.android.FlutterActivity
 

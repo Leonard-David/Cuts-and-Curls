@@ -19,8 +19,8 @@ class LocalNotificationService {
     required String body,
   }) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'cuts_curls_channel',
-      'Cuts & Curls Notifications',
+      'sheersync_channel',
+      'sheersync Notifications',
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,

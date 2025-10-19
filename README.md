@@ -1,10 +1,10 @@
-# Cuts & Curls
+# Verve Book
 
 <img width="600" height="255" alt="logo2" src="https://github.com/user-attachments/assets/2e513068-0cbc-43c5-a5fa-b10409ccae54" />
 
-## 1. What is "Cuts & Curls"?
+## 1. What is "Verve Book"?
 
-Cuts & Curls is a proposed mobile application designed specifically for student barbers and hairdressers at the University of Namibia. It is an all-in-one digital tool that integrates appointment booking, business marketing, and basic financial tracking functionalities into a single, user-friendly platform. The app aims to replace inefficient manual methods like walk-ins and WhatsApp messaging, providing a professional and streamlined system for student entrepreneurs to manage their grooming businesses.
+Verv Book is a proposed mobile application designed specifically for student barbers and hairdressers at the University of Namibia. It is an all-in-one digital tool that integrates appointment booking, business marketing, and basic financial tracking functionalities into a single, user-friendly platform. The app aims to replace inefficient manual methods like walk-ins and WhatsApp messaging, providing a professional and streamlined system for student entrepreneurs to manage their grooming businesses.
 
 ## 2. What is it About and Why is it Being Developed?
 
@@ -13,7 +13,7 @@ The app is being developed to solve critical problems faced by student barbers a
   -	Lack of Marketing Tools: Nearly 47% lack effective tools to promote their services and attract new clients.
   -	Operational Inefficiency: Juggling academic responsibilities with a manual business leads to poor time management and limited growth.
 
-Cuts & Curls addresses these issues directly by offering:
+Verve Book addresses these issues directly by offering:
   -	A cost-effective business tool specifically tailored for student-led businesses in the hairdressing industry (student barbers and hairdresser).
   -	A booking system for clients to schedule appointments, reducing no-shows
   -	Integrated marketing tools like portfolio galleries and social media sharing to enhance visibility.
@@ -23,7 +23,7 @@ The application is being developed for reasons such as existing digital solution
 
 ## 3. Application’s Significance and Importance to the Research Body of Knowledge
 
-The development of Cuts & Curls is significant for both practical application and academic research:
+The development of Verve Book is significant for both practical application and academic research:
 
 **Bridging a Critical Research Gap:** Most studies on digital tools for barbers and or hairdressers focus on mature, commercial enterprises. This research fills a significant gap by focusing exclusively on student-run micro-enterprises in a developing context, contributing new knowledge about their specific needs and adoption behaviours.
 
@@ -35,7 +35,7 @@ The development of Cuts & Curls is significant for both practical application an
 
 ## 4. Why is it Relevant?
 
-The Cuts & Curls app is highly relevant for several reasons:
+The Verve Book is highly relevant for several reasons:
 
 **To Student Entrepreneurs:** It provides a tangible solution to real-world problems, empowering them with affordable technology to professionalize their services, increase efficiency, and boost their income potential alongside their studies.
 
@@ -43,9 +43,9 @@ The Cuts & Curls app is highly relevant for several reasons:
 
 **To Namibia's Digital and Economic Goals:** The app aligns with national goals of promoting digital inclusion and youth entrepreneurship. It serves as a scalable model that could be adapted for other student-led service businesses, contributing to broader economic development.
 
-**To the Global Context:** In a post-pandemic world where digital tools are essential for business resilience, and with a global focus on youth unemployment, Cuts & Curls represents a relevant, timely intervention that uses appropriate technology to create meaningful impact.
+**To the Global Context:** In a post-pandemic world where digital tools are essential for business resilience, and with a global focus on youth unemployment, Verve Book represents a relevant, timely intervention that uses appropriate technology to create meaningful impact.
 
-In summary, Cuts & Curls is more than just an app; it is a research-driven intervention designed to empower student barbers and hairdressers in Namibia by addressing their unique operational challenges. Its significance lies in its potential to bridge a gap in academic literature, validate theoretical models in a new context, and serve as a replicable model for leveraging technology to enhance youth entrepreneurship in resource-constrained settings.
+In summary, VerveBBook is more than just an app; it is a research-driven intervention designed to empower student barbers and hairdressers in Namibia by addressing their unique operational challenges. Its significance lies in its potential to bridge a gap in academic literature, validate theoretical models in a new context, and serve as a replicable model for leveraging technology to enhance youth entrepreneurship in resource-constrained settings.
 
  
 
