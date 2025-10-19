@@ -62,65 +62,67 @@ class _SignUpStep1ScreenState extends ConsumerState<SignUpStep1Screen> {
     return null;
   }
 
-  // 🔹 Signup logic
+  // Signup logic
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    final firstName = _firstNameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-    final fullName = '$firstName $lastName';
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    final role = _selectedRole?.toLowerCase() ?? 'client';
+  final firstName = _firstNameController.text.trim();
+  final lastName = _lastNameController.text.trim();
+  final email = _emailController.text.trim();
+  final password = _passwordController.text;
+  final role = _selectedRole?.toLowerCase() ?? 'client';
 
-    setState(() => _isLoading = true);
-    final authRepo = ref.read(authRepositoryProvider);
+  setState(() => _isLoading = true);
+  final authRepo = ref.read(authRepositoryProvider);
 
-    try {
-      final user = await authRepo.signUpWithEmail(
-        email: email,
-        password: password,
-        displayName: fullName,
-        role: role,
-      );
+  try {
+    // ✅ Step 1: Create user
+    final user = await authRepo.createUserWithEmail(email, password);
+    if (user == null) throw Exception('Failed to create account.');
 
-      if (user == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Signup failed. Please try again.')),
-        );
-        return;
-      }
+    // ✅ Step 2: Save basic info in Firestore
+    await authRepo.saveUserProfile(
+      uid: user.uid,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      role: role,
+    );
 
-      if (!mounted) return;
-      context.go('/signup_step2');
-    } on FirebaseAuthException catch (e) {
-      String message;
-      switch (e.code) {
-        case 'email-already-in-use':
-          message = 'An account already exists with this email.';
-          break;
-        case 'invalid-email':
-          message = 'The email address is invalid.';
-          break;
-        case 'weak-password':
-          message = 'The password is too weak.';
-          break;
-        default:
-          message = e.message ?? 'Signup failed. Try again.';
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e, st) {
-      debugPrint('Signup Step1 error: $e\n$st');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An unexpected error occurred. Try again.')),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    // ✅ Step 3: Go to next signup screen
+    if (!mounted) return;
+    context.go('/signup_step2', extra: {
+      'uid': user.uid,
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      'role': role,
+    });
+  } on FirebaseAuthException catch (e) {
+    String message;
+    switch (e.code) {
+      case 'email-already-in-use':
+        message = 'An account already exists with this email.';
+        break;
+      case 'invalid-email':
+        message = 'Invalid email format.';
+        break;
+      case 'weak-password':
+        message = 'Password too weak.';
+        break;
+      default:
+        message = e.message ?? 'Signup failed.';
     }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

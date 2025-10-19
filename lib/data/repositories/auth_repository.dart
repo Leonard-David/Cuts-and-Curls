@@ -1,65 +1,70 @@
 // lib/data/repositories/auth_repository.dart
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthRepository {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Sign in user with email & password.
-  /// Returns Firebase [User] on success, or throws FirebaseAuthException.
+  // 🔹 Watch user state
+  Stream<User?> authStateChanges() => _firebaseAuth.authStateChanges();
+
+  // 🔹 Create account only (no Firestore yet)
+  Future<User?> createUserWithEmail(String email, String password) async {
+    try {
+      final result = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return result.user;
+    // ignore: unused_catch_clause
+    } on FirebaseAuthException catch (e) {
+      rethrow; // handled by caller
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 🔹 Save user details to Firestore
+  Future<void> saveUserProfile({
+    required String uid,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String role,
+  }) async {
+    await _firestore.collection('users').doc(uid).set({
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      'role': role.toLowerCase(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // 🔹 Sign in
   Future<User?> signInWithEmail({
     required String email,
     required String password,
   }) async {
-    final userCredential = await _auth.signInWithEmailAndPassword(
+    final result = await _firebaseAuth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
-    return userCredential.user;
+    return result.user;
   }
 
-  /// Create user (signup) and write initial profile to Firestore.
-  Future<User?> signUpWithEmail({
-    required String email,
-    required String password,
-    required String displayName,
-    required String role, // 'client' | 'barber'
-  }) async {
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final user = userCredential.user;
-    if (user == null) return null;
-
-    // Create user profile in Firestore
-    await _firestore.collection('users').doc(user.uid).set({
-      'uid': user.uid,
-      'email': email,
-      'displayName': displayName,
-      'role': role,
-      'createdAt': FieldValue.serverTimestamp(),
-      // add any initial fields e.g., photoUrl, bio, rating, etc.
-    });
-
-    return user;
+  // 🔹 Reset password
+  Future<void> sendPasswordReset(String email) async {
+    await _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 
-  /// Get role from users collection; returns 'client' if not set.
-  Future<String> getUserRole(String uid) async {
+  // 🔹 Sign out
+  Future<void> signOut() async => _firebaseAuth.signOut();
+
+  // 🔹 Get Firestore role
+  Future<String?> getUserRole(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
-    final data = doc.data();
-    if (data == null) return 'client';
-    return (data['role'] as String?) ?? 'client';
+    return doc.data()?['role'];
   }
-
-  /// Sign out
-  Future<void> signOut() async {
-    await _auth.signOut();
-  }
-
-  /// Stream of Firebase user for auth state changes
-  Stream<User?> authStateChanges() => _auth.authStateChanges();
 }

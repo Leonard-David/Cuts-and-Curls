@@ -58,7 +58,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/signup_step2',
-      builder: (context, state) => const SignUpStep2Screen(prevData: {}),
+      builder: (context, state) {
+        final prevData = state.extra as Map<String, dynamic>? ?? {};
+        return SignUpStep2Screen(prevData: prevData);
+      },
     ),
     GoRoute(
       path: '/verify_email',

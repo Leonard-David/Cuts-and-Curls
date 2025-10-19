@@ -23,7 +23,7 @@ Future<void> main() async {
   // Use --dart-define for production: flutter run --dart-define=STRIPE_KEY=pk_test_XXXX
   const stripeKey = String.fromEnvironment(
     'STRIPE_KEY',
-    defaultValue: 'pk_test_XXXXXXXXXXXXXXXXXXXX', // fallback for dev
+    defaultValue: 'pk_test_51SG6nmFIRxOrHETmRk9v0PiWzjJuyxgcdNxoUgGyRKio8NISEq8BK7LLWj5nZk6BJW4Vfc9sMYYzFNhbWqSBdztM00O1eMG3Nm', // fallback for dev
   );
   Stripe.publishableKey = stripeKey;
   Stripe.merchantIdentifier = 'VerveBookMerchant';
