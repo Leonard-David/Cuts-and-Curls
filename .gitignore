@@ -43,3 +43,71 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+# ------------------------------
+# FLUTTER / DART STANDARD IGNORE
+# ------------------------------
+
+# Dart / Flutter build outputs
+.dart_tool/
+.packages
+.pub-cache/
+build/
+flutter_*.png
+flutter_export_environment.sh
+
+# IntelliJ / VSCode
+.idea/
+.vscode/
+*.iml
+
+# iOS / Xcode
+ios/Flutter/Flutter.framework/
+ios/Flutter/App.framework/
+ios/.symlinks/
+ios/Pods/
+ios/Podfile.lock
+ios/Runner.xcworkspace/
+ios/DerivedData/
+ios/.generated/
+xcuserdata/
+*.xcuserstate
+
+# Android / Gradle
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/key.properties
+android/captures/
+android/.idea/
+*.apk
+*.aab
+*.keystore
+
+# Firebase / Google configs
+**/google-services.json
+**/GoogleService-Info.plist
+lib/firebase_options.dart
+
+# Environment / Secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Logs
+*.log
+*.tmp
+
+# Miscellaneous
+coverage/
+.pub/
+.macos/
+windows/
+web/
+linux/
