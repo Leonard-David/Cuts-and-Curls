@@ -113,6 +113,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -120,14 +121,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
 
                 // Logo
                 Image.asset('lib/assets/images/logo/logo.png', height: 100),
                 const SizedBox(height: 40),
 
                 const Text(
-                  'Welcome Back',
+                  'Sign In',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -210,7 +211,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   children: [
                     const Text("Don't have an account? "),
                     GestureDetector(
-                      onTap: () => context.push('/signup_step1'),
+                      onTap: () => context.push('/signup'),
                       child: const Text(
                         'Sign Up',
                         style: TextStyle(

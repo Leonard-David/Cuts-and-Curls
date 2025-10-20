@@ -19,4 +19,10 @@ class AppColors {
 
   // Input border color
   static const Color border = Color(0xFFE0E0E0);
+
+  // Error red
+  static const Color error = Color(0xFFD32F2F); 
+  
+  // Success green
+  static const Color success = Color(0xFF388E3C);
 }

@@ -52,9 +52,9 @@ class AuthWrapper extends ConsumerWidget {
 
     final role = userRole.value;
 
-    // 🔹 4. Navigate based on role
-    if (role == 'barber') {
-      return const BarberDashboardScreen();
+    // 4. Navigate based on role
+    if (role == 'barber' || role == 'Hair Stylist') {
+      return const BarberDashboardPage();
     } else if (role == 'client') {
       return const ClientHomeScreen();
     } else {
