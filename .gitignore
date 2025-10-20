@@ -111,3 +111,11 @@ coverage/
 windows/
 web/
 linux/
+
+
+# Environment and secrets
+.env
+*.env
+firebase-debug.log
+google-services.json
+ios/Runner/GoogleService-Info.plist

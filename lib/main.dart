@@ -1,7 +1,7 @@
 // lib/main.dart
 //
 // --------------------------------------------------------
-// Entry point for the Verve Book App
+// Entry point for the SheerSync (Verve Book) App
 // Handles Firebase, Notifications, Stripe, and Riverpod setup.
 // --------------------------------------------------------
 
@@ -9,46 +9,61 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:sheersync/core/notifications/fcm_service.dart';
 import 'package:sheersync/core/notifications/local_notification_service.dart';
 import 'package:sheersync/firebase_options.dart';
-//import 'firebase_options.dart';
 import 'app.dart';
 
 Future<void> main() async {
-  // Ensure all Flutter bindings and plugins are initialized
+  // Ensure bindings are initialized before anything else
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Stripe Configuration (loaded securely from environment)
-  // Use --dart-define for production: flutter run --dart-define=STRIPE_KEY=pk_test_XXXX
-  const stripeKey = String.fromEnvironment(
-    'STRIPE_KEY',
-    defaultValue: 'pk_test_51SG6nmFIRxOrHETmRk9v0PiWzjJuyxgcdNxoUgGyRKio8NISEq8BK7LLWj5nZk6BJW4Vfc9sMYYzFNhbWqSBdztM00O1eMG3Nm', // fallback for dev
-  );
-  Stripe.publishableKey = stripeKey;
-  Stripe.merchantIdentifier = 'VerveBookMerchant';
-  Stripe.urlScheme = 'VerveBook';
+  // Load environment variables (.env file)
+  try {
+    await dotenv.load(fileName: ".env");
+    debugPrint("Environment loaded successfully");
+  } catch (e) {
+    debugPrint("Failed to load .env file: $e");
+  }
 
-  // Initialize Firebase
+  // Initialize Stripe securely
+  try {
+    final publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? const String.fromEnvironment('STRIPE_KEY');
+    Stripe.publishableKey = publishableKey;
+    Stripe.merchantIdentifier = 'SheerSyncMerchant';
+    Stripe.urlScheme = 'sheersync';
+    debugPrint("Stripe initialized");
+  } catch (e) {
+    debugPrint("Stripe init failed: $e");
+  }
+
+  // Initialize Firebase safely
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    debugPrint("Firebase initialized");
   } catch (e, stack) {
-    debugPrint('Firebase init failed: $e');
+    debugPrint("Firebase initialization failed: $e");
     debugPrintStack(stackTrace: stack);
   }
 
-  // Initialize Local + Push Notifications
-  await LocalNotificationService.initialize();
-  await FCMService.initFCM();
+  // Initialize Notifications
+  try {
+    await LocalNotificationService.initialize();
+    await FCMService.initFCM();
+    debugPrint("Notification services initialized");
+  } catch (e) {
+    debugPrint(" Notification service init failed: $e");
+  }
 
-  // Global Error Handler (for debugging & Crashlytics)
-  FlutterError.onError = (details) {
+  // Global error handler
+  FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('Flutter error: ${details.exception}');
   };
 
-  // Run the App (Riverpod + MaterialApp.router)
+  // Launch the app wrapped in Riverpod
   runApp(const ProviderScope(child: MyApp()));
 }

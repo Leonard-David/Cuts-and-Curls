@@ -1,261 +1,292 @@
+// lib/features/barber/dashboard/dashboard_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
-import 'package:sheersync/features/barber/services/barber_services_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
-import '../appointments/barber_appointments_screen.dart';
 
 class BarberDashboardScreen extends StatefulWidget {
   const BarberDashboardScreen({super.key});
-
   @override
   State<BarberDashboardScreen> createState() => _BarberDashboardScreenState();
 }
 
 class _BarberDashboardScreenState extends State<BarberDashboardScreen> {
   final user = FirebaseAuth.instance.currentUser;
-  bool _loading = true;
-
-  int totalAppointments = 0;
-  int completedAppointments = 0;
-  int pendingAppointments = 0;
-  double totalEarnings = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDashboardData();
-  }
-
-  Future<void> _loadDashboardData() async {
-    if (user == null) return;
-
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('appointments')
-          .where('barberId', isEqualTo: user!.uid)
-          .get();
-
-      totalAppointments = snapshot.docs.length;
-      completedAppointments = snapshot.docs
-          .where((doc) => doc['status'] == 'completed')
-          .length;
-      pendingAppointments = snapshot.docs
-          .where((doc) => doc['status'] == 'pending')
-          .length;
-
-      totalEarnings = snapshot.docs
-          .where((doc) => doc['status'] == 'completed')
-          .fold(0.0, (sum, doc) => sum + (doc['price'] as num).toDouble());
-
-      setState(() => _loading = false);
-    } catch (e, st) {
-      debugPrint('Dashboard load error: $e\n$st');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load dashboard data')),
-        );
-      }
-    }
-  }
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   Widget build(BuildContext context) {
-    if (user == null) {
+    if (user == null)
       return const Scaffold(
         body: Center(child: Text('Please log in as a barber.')),
       );
-    }
+
+    // Stream appointments for this barber
+    final appointmentsStream = _firestore
+        .collection('appointments')
+        .where('barberId', isEqualTo: user!.uid)
+        .snapshots();
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Barber Dashboard'),
-        backgroundColor: AppColors.primary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadDashboardData,
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+      body: SafeArea(
+        child: StreamBuilder<QuerySnapshot>(
+          stream: appointmentsStream,
+          builder: (context, snap) {
+            if (snap.hasError)
+              return const Center(child: Text('Failed to load'));
+            if (!snap.hasData)
+              return const Center(child: CircularProgressIndicator());
+
+            final docs = snap.data!.docs;
+            final total = docs.length;
+            final completed = docs
+                .where((d) => d['status'] == 'completed')
+                .length;
+            final pending = docs.where((d) => d['status'] == 'pending').length;
+            final totalEarnings = docs
+                .where((d) => d['status'] == 'completed')
+                .fold<double>(
+                  0.0,
+                  (sum, d) => sum + (d['price'] as num).toDouble(),
+                );
+
+            return SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Welcome Back 👋',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 🔹 Stats Cards
+                  // Profile row like mock
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildStatCard('Total', totalAppointments, Colors.blue),
-                      _buildStatCard(
-                        'Pending',
-                        pendingAppointments,
-                        Colors.orange,
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundImage: const AssetImage(
+                          'lib/assets/images/avatar_placeholder.png',
+                        ),
                       ),
-                      _buildStatCard(
-                        'Completed',
-                        completedAppointments,
-                        Colors.green,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user!.displayName ?? 'Barber Name',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Barber',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.notifications),
+                      ),
+                      PopupMenuButton<int>(
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 1,
+                            child: Text('Settings'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Overview tabs (Overview, Gallery, Services)
+                  Row(
+                    children: [
+                      _tabChip('Overview', true),
+                      const SizedBox(width: 8),
+                      _tabChip('Gallery', false),
+                      const SizedBox(width: 8),
+                      _tabChip('Services', false),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Summary cards (Total Clients, This week, Total income)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _statCard('Total Clients', '0'),
+                      ), // placeholder - compute later
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('This week', 'N\$0.00')),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _statCard(
+                          'Total Income',
+                          '\$${totalEarnings.toStringAsFixed(2)}',
+                        ),
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  // 🔹 Earnings Summary
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+                  // Booking status card
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Total Earnings',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Booking Status',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '\$${totalEarnings.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                children: [
+                                  const Icon(Icons.event),
+                                  Text(
+                                    '$total\nTotal\nAppointments',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                  ),
+                                  Text(
+                                    '$completed\nCompleted',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  const Icon(
+                                    Icons.schedule,
+                                    color: Colors.orange,
+                                  ),
+                                  Text(
+                                    '$pending\nPending',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
 
-                  // 🔹 Quick Actions
+                  // Today's appointments preview (first 2)
                   const Text(
-                    'Quick Actions',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
+                    'Today\'s Appointments',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  ...docs.take(3).map((d) {
+                    final data = d.data() as Map<String, dynamic>;
+                    final clientName = data['clientName'] ?? 'Client';
+                    final date = (data['time'] is Timestamp)
+                        ? (data['time'] as Timestamp).toDate()
+                        : DateTime.now();
+                    return Card(
+                      child: ListTile(
+                        title: Text(
+                          '${data['service'] ?? 'Service'} with $clientName',
+                        ),
+                        subtitle: Text('${date.toLocal()}'),
+                        trailing: Text(data['status'] ?? ''),
+                      ),
+                    );
+                  }).toList(),
 
-                  _buildActionTile(
-                    context,
-                    title: 'View Appointments',
-                    icon: Icons.calendar_today,
-                    color: AppColors.primary,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BarberAppointmentsScreen(),
+                  const SizedBox(height: 24),
+
+                  // Reviews area placeholder
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Reviews',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text('Average: 5.0'),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Latest review: Great service!',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  _buildActionTile(
-                    context,
-                    title: 'Manage Services',
-                    icon: Icons.cut,
-                    color: Colors.orange,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BarberServicesScreen(),
-                      ),
-                    ),
-                  ),
-                  _buildActionTile(
-                    context,
-                    title: 'View Earnings',
-                    icon: Icons.monetization_on,
-                    color: Colors.green,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BarberEarningsScreen(),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
-            ),
-    );
-  }
-
-  Widget _buildStatCard(String title, int value, Color color) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '$value',
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildActionTile(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.1),
-          child: Icon(icon, color: color),
+  Widget _tabChip(String label, bool active) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: active
+            ? AppColors.primary.withOpacity(0.12)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: active ? AppColors.primary : AppColors.textSecondary,
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _statCard(String title, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(title, style: const TextStyle(color: AppColors.textSecondary)),
+        ],
       ),
     );
   }
