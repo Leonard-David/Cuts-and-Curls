@@ -46,19 +46,3 @@ The Verve Book is highly relevant for several reasons:
 **To the Global Context:** In a post-pandemic world where digital tools are essential for business resilience, and with a global focus on youth unemployment, Verve Book represents a relevant, timely intervention that uses appropriate technology to create meaningful impact.
 
 In summary, VerveBBook is more than just an app; it is a research-driven intervention designed to empower student barbers and hairdressers in Namibia by addressing their unique operational challenges. Its significance lies in its potential to bridge a gap in academic literature, validate theoretical models in a new context, and serve as a replicable model for leveraging technology to enhance youth entrepreneurship in resource-constrained settings.
-
- 
-
-## Getting Started with Flutter
-lutter
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
