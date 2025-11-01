@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "627376610013",
+    "project_id": "sheersync",
+    "storage_bucket": "sheersync.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627376610013:android:7f0404a9513fe286f41934",
+        "android_client_info": {
+          "package_name": "com.example.sheersync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7kLUBIkloQVAQnApY8TnhJQYh_4RUeAQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627376610013:android:90dc9ae041fedb69f41934",
+        "android_client_info": {
+          "package_name": "com.hair.sheersync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7kLUBIkloQVAQnApY8TnhJQYh_4RUeAQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
