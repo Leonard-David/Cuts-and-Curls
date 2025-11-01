@@ -1,6 +1,6 @@
 # Verve Book
 
-<img width="600" height="255" alt="logo2" src="https://github.com/user-attachments/assets/2e513068-0cbc-43c5-a5fa-b10409ccae54" />
+<img width="2888" height="779" alt="logo" src="https://github.com/user-attachments/assets/79d4d940-1122-42c5-b0dd-2bac147597fc" />
 
 ## 1. What is "Verve Book"?
 
