@@ -35,12 +35,53 @@ class _SignInScreenState extends State<SignInScreen> {
     );
 
     if (!success && mounted) {
-      showCustomSnackBar(
-        context, 
-        authProvider.error ?? 'Sign in failed',
-        type: SnackBarType.error,
-      );
+      final errorMessage = authProvider.error ?? 'Sign in failed';
+      
+      // Check if the error indicates user not found
+      if (errorMessage.contains('No user found') || 
+          errorMessage.contains('user-not-found')) {
+        _showUserNotFoundDialog();
+      } else {
+        showCustomSnackBar(
+          context, 
+          errorMessage,
+          type: SnackBarType.error,
+        );
+      }
     }
+  }
+
+  void _showUserNotFoundDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Account Not Found'),
+          content: const Text(
+            'No account found with this email address. '
+            'Would you like to create a new account?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Try Again'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SignUpScreen(),
+                  ),
+                );
+              },
+              child: const Text('Sign Up'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -66,7 +107,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 // Welcome Text
                 Text(
                   'Welcome Back',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -88,6 +129,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Email Address',
                     prefixIcon: Icon(Icons.email_outlined),
+                    hintText: 'Enter your registered email',
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
@@ -109,6 +151,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
+                    hintText: 'Enter your password',
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword 
@@ -157,18 +200,33 @@ class _SignInScreenState extends State<SignInScreen> {
                 // Sign In Button
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
-                    return ElevatedButton(
-                      onPressed: authProvider.isLoading ? null : _signIn,
-                      child: authProvider.isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: authProvider.isLoading ? null : _signIn,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: authProvider.isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                                ),
+                              )
+                            : const Text('Sign In',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            )
-                          : const Text('Sign In'),
+                            
+                      ),
                     );
                   },
                 ),

@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -64,6 +55,35 @@ class DefaultFirebaseOptions {
     projectId: 'sheersync',
     storageBucket: 'sheersync.firebasestorage.app',
     iosBundleId: 'com.example.sheersync',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyAi1jg_iV-4a0KJa4sNrHOIm940Jt0yAA4',
+    appId: '1:627376610013:web:59bf219b9a4d3009f41934',
+    messagingSenderId: '627376610013',
+    projectId: 'sheersync',
+    authDomain: 'sheersync.firebaseapp.com',
+    storageBucket: 'sheersync.firebasestorage.app',
+    measurementId: 'G-2VV6TG3N5Q',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAE0S2dcBrPZNpXLa4eP_tX_e9M7p2NNTA',
+    appId: '1:627376610013:ios:05dc5eab416d9400f41934',
+    messagingSenderId: '627376610013',
+    projectId: 'sheersync',
+    storageBucket: 'sheersync.firebasestorage.app',
+    iosBundleId: 'com.example.sheersync',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyAi1jg_iV-4a0KJa4sNrHOIm940Jt0yAA4',
+    appId: '1:627376610013:web:8829f6f8a50b13aef41934',
+    messagingSenderId: '627376610013',
+    projectId: 'sheersync',
+    authDomain: 'sheersync.firebaseapp.com',
+    storageBucket: 'sheersync.firebasestorage.app',
+    measurementId: 'G-M1XXN1PH53',
   );
 
 }

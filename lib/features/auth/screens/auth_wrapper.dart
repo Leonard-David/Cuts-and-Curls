@@ -5,6 +5,7 @@ import 'package:sheersync/features/barber/barber_shell.dart';
 import 'package:sheersync/features/client/client_shell.dart';
 import '../controllers/auth_provider.dart';
 import 'loader_screen.dart';
+import 'verify_email_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -23,11 +24,17 @@ class AuthWrapper extends StatelessWidget {
       return const SignInScreen();
     }
     
+    // Check if email is verified
+    if (!authProvider.isEmailVerified) {
+      return const VerifyEmailScreen();
+    }
+    
     // Route user based on their role
-    if (authProvider.user?.userType == 'barber') {
-      return const BarberShell(); // We'll create this next
+    if (authProvider.user?.userType == 'client') {
+      return const ClientShell();
     } else {
-      return const ClientShell(); // We'll create this next
+      // Both barber and hairstylist go to barber shell
+      return const BarberShell();
     }
   }
 }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sheersync/features/auth/screens/signin_screeen.dart';
 import '../controllers/auth_provider.dart';
 import '../../../core/widgets/custom_snackbar.dart';
+import 'verify_email_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -41,7 +42,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _selectedUserType,
     );
 
-    if (!success && mounted) {
+    if (success && mounted) {
+      // Navigate to email verification screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const VerifyEmailScreen(),
+        ),
+      );
+    } else if (!success && mounted) {
       showCustomSnackBar(
         context, 
         authProvider.error ?? 'Sign up failed',
@@ -53,6 +62,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -68,17 +78,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   height: 100,
                 ),
                 
-                const SizedBox(height: 8),
+                const SizedBox(height: 24),
                 
                 // Welcome Text
                 Text(
                   'Create Account',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 
                 Text(
                   'Sign up to get started',
@@ -96,12 +106,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     labelText: 'Full Name',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
+                  autofillHints: const [AutofillHints.name],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your full name';
                     }
-                    if (value.length < 2) {
-                      return 'Name must be at least 2 characters';
+                    if (value.length < 5) {
+                      return 'Name must be at least 5 characters';
                     }
                     return null;
                   },
@@ -117,62 +128,107 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                   keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!value.contains('@')) {
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                       return 'Please enter a valid email';
                     }
                     return null;
                   },
                 ),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 
-                // User Type Selection
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'I am a:',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
+                // Professional Role Selection
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.work_outline,
+                            color: Colors.grey.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Account Type',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: RadioListTile<String>(
-                            title: const Text('Client'),
-                            value: 'client',
-                            groupValue: _selectedUserType,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedUserType = value!;
-                              });
-                            },
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Select how you plan to use VerveBooK',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
                         ),
-                        Expanded(
-                          child: RadioListTile<String>(
-                            title: const Text('Barber/Hairdresser'),
-                            value: 'barber',
-                            groupValue: _selectedUserType,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedUserType = value!;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Role Cards - Responsive layout
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final availableWidth = constraints.maxWidth;
+                          final cardWidth = (availableWidth - 24) / 3; // 24 = total spacing (12 * 2)
+                          
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _buildRoleCard(
+                                  title: 'Client',
+                                  description: 'Book appointments with professionals',
+                                  icon: Icons.person,
+                                  value: 'client',
+                                  isSelected: _selectedUserType == 'client',
+                                  cardWidth: cardWidth,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildRoleCard(
+                                  title: 'Barber',
+                                  description: 'Provide haircut and grooming services',
+                                  icon: Icons.content_cut,
+                                  value: 'barber',
+                                  isSelected: _selectedUserType == 'barber',
+                                  cardWidth: cardWidth,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildRoleCard(
+                                  title: 'Hairstylist',
+                                  description: 'Offer styling and beauty services',
+                                  icon: Icons.style,
+                                  value: 'hairstylist',
+                                  isSelected: _selectedUserType == 'hairstylist',
+                                  cardWidth: cardWidth,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 
                 // Password Field
                 TextFormField(
@@ -187,19 +243,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           : Icons.visibility_outlined,
                       ),
                       onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
+                        if (mounted) {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        }
                       },
                     ),
                   ),
                   obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.newPassword],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your password';
                     }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                    if (value.length < 8) {
+                      return 'Password must be at least 8 characters';
+                    }
+                    if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]').hasMatch(value)) {
+                      return 'Password must include uppercase, lowercase, number and special character';
                     }
                     return null;
                   },
@@ -220,13 +282,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           : Icons.visibility_outlined,
                       ),
                       onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
+                        if (mounted) {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        }
                       },
                     ),
                   ),
                   obscureText: _obscureConfirmPassword,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.newPassword],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please confirm your password';
@@ -243,24 +309,56 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 // Sign Up Button
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
-                    return ElevatedButton(
-                      onPressed: authProvider.isLoading ? null : _signUp,
-                      child: authProvider.isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: authProvider.isLoading ? null : _signUp,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: authProvider.isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            )
-                          : const Text('Create Account'),
+                      ),
                     );
                   },
                 ),
                 
                 const SizedBox(height: 24),
+
+                 // Divider
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey[300])),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey[300])),
+                  ],
+                ),
                 
+                const SizedBox(height: 24),
+
                 // Sign In Redirect
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -286,6 +384,128 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleCard({
+    required String title,
+    required String description,
+    required IconData icon,
+    required String value,
+    required bool isSelected,
+    required double cardWidth,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedUserType = value;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: cardWidth,
+        constraints: const BoxConstraints(
+          minWidth: 100, // Minimum width to ensure readability
+        ),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade50 : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade300 : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected 
+              ? [
+                  BoxShadow(
+                    color: Colors.blue.shade100.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.grey.shade100,
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  )
+                ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Column(
+              children: [
+                // Icon on top
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.blue.shade100 : Colors.grey.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isSelected ? Colors.blue.shade700 : Colors.grey.shade600,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // Role title
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.blue.shade800 : Colors.black87,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                
+                // Description
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: isSelected ? Colors.blue.shade600 : Colors.grey.shade600,
+                    fontSize: 10,
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            
+            // Selection indicator at bottom
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.blue.shade500 : Colors.grey.shade400,
+                  width: 2,
+                ),
+                color: isSelected ? Colors.blue.shade500 : Colors.transparent,
+              ),
+              child: isSelected
+                  ? const Icon(
+                      Icons.check,
+                      size: 10,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+          ],
         ),
       ),
     );
