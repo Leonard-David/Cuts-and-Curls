@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../data/models/appointment_model.dart';
 import '../../../features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/core/constants/colors.dart'; // ADD IMPORT
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -85,6 +86,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background, // UPDATE: Use theme background
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -124,7 +126,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.blue.shade800, Colors.blue.shade600],
+          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)], // UPDATE: Use primary colors
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -173,25 +175,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'Today\'s Appointments',
           _todayAppointments.toString(),
           Icons.calendar_today,
-          Colors.blue,
+          AppColors.primary, // UPDATE: Use primary color
         ),
         _buildStatCard(
           'Pending',
           _pendingAppointments.toString(),
           Icons.pending_actions,
-          Colors.orange,
+          AppColors.accent, // UPDATE: Use accent color
         ),
         _buildStatCard(
           'Today\'s Earnings',
           'N\$${_todayEarnings.toStringAsFixed(2)}',
           Icons.attach_money,
-          Colors.green,
+          AppColors.success, // UPDATE: Use success color
         ),
         _buildStatCard(
           'Total Earnings',
           'N\$${_totalEarnings.toStringAsFixed(2)}',
           Icons.bar_chart,
-          Colors.purple,
+          Colors.purple, // Keeping purple for variety
         ),
       ],
     );
@@ -220,7 +222,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppColors.textSecondary, // UPDATE: Use secondary text color
               ),
             ),
           ],
@@ -230,10 +232,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTodaysAppointments() {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final barberId = authProvider.user?.id;
+
+    if (barberId == null) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text('Please log in to view appointments'),
+        ),
+      );
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('appointments')
-          .where('barberId', isEqualTo: Provider.of<AuthProvider>(context).user?.id)
+          .where('barberId', isEqualTo: barberId)
           .where('date', isGreaterThanOrEqualTo: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day))
           .where('date', isLessThan: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day + 1))
           .orderBy('date')
@@ -244,13 +258,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Card(
+          return Card(
             child: Padding(
-              padding: EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               child: Text(
                 'No appointments today',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
               ),
             ),
           );
@@ -264,11 +278,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Today's Appointments",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.text, // UPDATE: Use text color
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -284,6 +299,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     );
   }
+
   Widget _buildAppointmentItem(AppointmentModel appointment) {
     return ListTile(
       leading: Container(
@@ -305,6 +321,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       subtitle: Text(
         '${_formatTime(appointment.date)} • ${appointment.serviceName ?? 'Service'}',
+        style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
       ),
       trailing: Text(
         'N\$${appointment.price?.toStringAsFixed(2) ?? '0.00'}',
@@ -320,11 +337,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Quick Actions',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: AppColors.text, // UPDATE: Use text color
               ),
             ),
             const SizedBox(height: 16),
@@ -334,9 +352,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _buildQuickActionButton(
                     'Add Service',
                     Icons.add,
-                    Colors.blue,
+                    AppColors.primary, // UPDATE: Use primary color
                     () {
-                      // Navigate to add service
+                      // TODO: Navigate to add service screen
+                      _showComingSoon('Add Service');
                     },
                   ),
                 ),
@@ -345,9 +364,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _buildQuickActionButton(
                     'Set Availability',
                     Icons.access_time,
-                    Colors.green,
+                    AppColors.success, // UPDATE: Use success color
                     () {
-                      // Navigate to availability settings
+                      // TODO: Navigate to availability settings
+                      _showComingSoon('Set Availability');
                     },
                   ),
                 ),
@@ -360,9 +380,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _buildQuickActionButton(
                     'View Earnings',
                     Icons.analytics,
-                    Colors.orange,
+                    AppColors.accent, // UPDATE: Use accent color
                     () {
-                      // Navigate to earnings
+                      // TODO: Navigate to earnings - already in bottom nav
+                      _showComingSoon('View Earnings');
                     },
                   ),
                 ),
@@ -371,9 +392,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _buildQuickActionButton(
                     'Client Reviews',
                     Icons.star,
-                    Colors.purple,
+                    Colors.purple, // Keeping purple for variety
                     () {
-                      // Navigate to reviews
+                      // TODO: Navigate to reviews
+                      _showComingSoon('Client Reviews');
                     },
                   ),
                 ),
@@ -412,6 +434,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Helper method to show coming soon message
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature feature coming soon!'),
+        backgroundColor: AppColors.primary, // UPDATE: Use primary color
+      ),
+    );
+  }
+
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Morning';
@@ -422,13 +454,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'confirmed':
-        return Colors.green;
+        return AppColors.success; // UPDATE: Use success color
       case 'pending':
-        return Colors.orange;
+        return AppColors.accent; // UPDATE: Use accent color
       case 'completed':
-        return Colors.blue;
+        return AppColors.primary; // UPDATE: Use primary color
       case 'cancelled':
-        return Colors.red;
+        return AppColors.error; // UPDATE: Use error color
       default:
         return Colors.grey;
     }

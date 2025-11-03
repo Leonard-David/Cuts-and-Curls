@@ -9,6 +9,8 @@ import 'package:sheersync/features/shared/widgets/bottom_nav.dart';
 import '../../features/auth/controllers/auth_provider.dart';
 import 'home/home_screen.dart';
 import 'bookings/my_bookings_screen.dart';
+import 'bookings/select_barber_screen.dart'; // ADD IMPORT for quick booking
+import 'package:sheersync/core/constants/colors.dart'; // ADD IMPORT
 
 class ClientShell extends StatefulWidget {
   const ClientShell({super.key});
@@ -65,9 +67,12 @@ class _ClientShellState extends State<ClientShell> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_navItems[_currentIndex].label),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        title: Text(
+          _navItems[_currentIndex].label,
+          style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+        ),
+        backgroundColor: AppColors.background, // UPDATE: Use background color
+        foregroundColor: AppColors.text, // UPDATE: Use text color
         elevation: 1,
         actions: _buildAppBarActions(authProvider, notificationProvider),
       ),
@@ -80,8 +85,8 @@ class _ClientShellState extends State<ClientShell> {
       floatingActionButton: _currentIndex == 0 // Home tab
           ? FloatingActionButton(
               onPressed: _quickBook,
-              backgroundColor: Colors.orange,
-              child: const Icon(Icons.cut, color: Colors.white),
+              backgroundColor: AppColors.accent, // UPDATE: Use accent color
+              child: Icon(Icons.cut, color: AppColors.onPrimary), // UPDATE: Use onPrimary color
             )
           : null,
     );
@@ -91,7 +96,7 @@ class _ClientShellState extends State<ClientShell> {
     if (_currentIndex == 3) { // Profile tab - show settings icon
       return [
         IconButton(
-          icon: const Icon(Icons.settings),
+          icon: Icon(Icons.settings, color: AppColors.text), // UPDATE: Use text color
           onPressed: _openSettings,
           tooltip: 'Settings',
         ),
@@ -107,8 +112,12 @@ class _ClientShellState extends State<ClientShell> {
               final unreadCount = snapshot.data ?? 0;
               return Badge(
                 isLabelVisible: unreadCount > 0,
-                label: Text(unreadCount.toString()),
-                child: const Icon(Icons.notifications_outlined),
+                label: Text(
+                  unreadCount.toString(),
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+                backgroundColor: AppColors.accent, // UPDATE: Use accent color
+                child: Icon(Icons.notifications_outlined, color: AppColors.text), // UPDATE: Use text color
               );
             },
           ),
@@ -139,7 +148,11 @@ class _ClientShellState extends State<ClientShell> {
 
   void _quickBook() {
     // Navigate to booking flow
-    // This would typically navigate to the barber selection screen
-    // Navigator.push(context, MaterialPageRoute(builder: (context) => SelectBarberScreen()));
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => const SelectBarberScreen(),
+      ),
+    );
   }
 }

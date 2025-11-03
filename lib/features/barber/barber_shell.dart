@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/features/barber/appointments/barber_appointments_screen.dart';
 import 'package:sheersync/features/barber/chat/barber_chat_list_screen.dart';
+import 'package:sheersync/features/barber/services/manage_availability_screen.dart';
+import 'package:sheersync/features/barber/services/add_edit_service_screen.dart';
 import 'package:sheersync/features/shared/widgets/bottom_nav.dart';
+import 'package:sheersync/features/shared/settings/settings_screen.dart';
 import '../../features/auth/controllers/auth_provider.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'earnings/barber_earning_screen.dart';
+import 'package:sheersync/core/constants/colors.dart'; // ADD IMPORT
 
 class BarberShell extends StatefulWidget {
   const BarberShell({super.key});
@@ -57,51 +61,91 @@ class _BarberShellState extends State<BarberShell> {
 
   @override
   Widget build(BuildContext context) {
+    Provider.of<AuthProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_navItems[_currentIndex].label),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        title: Text(
+          _navItems[_currentIndex].label,
+          style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+        ),
+        backgroundColor: AppColors.background, // UPDATE: Use background color
+        foregroundColor: AppColors.text, // UPDATE: Use text color
         elevation: 1,
         actions: [
           // User profile menu
           PopupMenuButton<String>(
-            icon: const CircleAvatar(
-              backgroundColor: Colors.grey,
-              child: Icon(Icons.person, color: Colors.white),
+            icon: CircleAvatar(
+              backgroundColor: AppColors.primary, // UPDATE: Use primary color
+              child: Icon(Icons.person, color: AppColors.onPrimary), // UPDATE: Use onPrimary color
             ),
             onSelected: (value) {
               _handleMenuSelection(value);
             },
             itemBuilder: (BuildContext context) => [
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'profile',
                 child: Row(
                   children: [
-                    Icon(Icons.person_outline),
-                    SizedBox(width: 8),
-                    Text('My Profile'),
+                    Icon(Icons.person_outline, color: AppColors.text), // UPDATE: Use text color
+                    const SizedBox(width: 8),
+                    Text(
+                      'My Profile',
+                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                    ),
                   ],
                 ),
               ),
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
+                value: 'availability',
+                child: Row(
+                  children: [
+                    Icon(Icons.access_time, color: AppColors.text), // UPDATE: Use text color
+                    const SizedBox(width: 8),
+                    Text(
+                      'Availability',
+                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'services',
+                child: Row(
+                  children: [
+                    Icon(Icons.cut, color: AppColors.text), // UPDATE: Use text color
+                    const SizedBox(width: 8),
+                    Text(
+                      'My Services',
+                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
                 value: 'settings',
                 child: Row(
                   children: [
-                    Icon(Icons.settings_outlined),
-                    SizedBox(width: 8),
-                    Text('Settings'),
+                    Icon(Icons.settings_outlined, color: AppColors.text), // UPDATE: Use text color
+                    const SizedBox(width: 8),
+                    Text(
+                      'Settings',
+                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                    ),
                   ],
                 ),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.logout_outlined),
-                    SizedBox(width: 8),
-                    Text('Logout'),
+                    Icon(Icons.logout_outlined, color: AppColors.error), // UPDATE: Use error color
+                    const SizedBox(width: 8),
+                    Text(
+                      'Logout',
+                      style: TextStyle(color: AppColors.error), // UPDATE: Use error color
+                    ),
                   ],
                 ),
               ),
@@ -116,13 +160,14 @@ class _BarberShellState extends State<BarberShell> {
         items: _navItems,
         onTap: _onItemTapped,
       ),
-      floatingActionButton: _currentIndex == 1 // Appointments tab
+      floatingActionButton: _currentIndex == 2 // Appointments tab
           ? FloatingActionButton(
               onPressed: () {
                 // Add new appointment functionality
                 _addNewAppointment();
               },
-              child: const Icon(Icons.add),
+              backgroundColor: AppColors.accent, // UPDATE: Use accent color
+              child: Icon(Icons.add, color: AppColors.onPrimary), // UPDATE: Use onPrimary color
             )
           : null,
     );
@@ -131,10 +176,16 @@ class _BarberShellState extends State<BarberShell> {
   void _handleMenuSelection(String value) {
     switch (value) {
       case 'profile':
-        // Navigate to profile screen
+        _navigateToProfile();
+        break;
+      case 'availability':
+        _navigateToAvailability();
+        break;
+      case 'services':
+        _navigateToServices();
         break;
       case 'settings':
-        // Navigate to settings screen
+        _navigateToSettings();
         break;
       case 'logout':
         _showLogoutConfirmation();
@@ -142,24 +193,78 @@ class _BarberShellState extends State<BarberShell> {
     }
   }
 
+  void _navigateToProfile() {
+    // TODO: Navigate to barber profile screen
+    _showComingSoon('Profile Management');
+  }
+
+  void _navigateToAvailability() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ManageAvailabilityScreen(),
+      ),
+    );
+  }
+
+  void _navigateToServices() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddEditServiceScreen(), // Navigate to service management
+      ),
+    );
+  }
+
+  void _navigateToSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
+    );
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature feature coming soon!'),
+        backgroundColor: AppColors.primary, // UPDATE: Use primary color
+      ),
+    );
+  }
+
   void _showLogoutConfirmation() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to logout?'),
+          title: Text(
+            'Logout',
+            style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+          ),
+          content: Text(
+            'Are you sure you want to logout?',
+            style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+          ),
+          backgroundColor: AppColors.background, // UPDATE: Use background color
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+              ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
                 _logout();
               },
-              child: const Text('Logout'),
+              child: Text(
+                'Logout',
+                style: TextStyle(color: AppColors.error), // UPDATE: Use error color
+              ),
             ),
           ],
         );
@@ -173,7 +278,7 @@ class _BarberShellState extends State<BarberShell> {
   }
 
   void _addNewAppointment() {
-    // Navigate to add appointment screen
-    // We'll implement this later
+    // TODO: Navigate to add appointment screen
+    _showComingSoon('Add New Appointment');
   }
 }
