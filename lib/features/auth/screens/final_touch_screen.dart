@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../controllers/auth_provider.dart';
 import 'package:sheersync/features/client/client_shell.dart';
 import 'package:sheersync/features/barber/barber_shell.dart';
+import 'package:sheersync/core/constants/colors.dart'; // ADD THIS IMPORT
 
 class FinalTouchScreen extends StatefulWidget {
   const FinalTouchScreen({super.key});
@@ -51,7 +52,7 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
     final userType = authProvider.user?.userType ?? 'client';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background, // UPDATE: Use theme background color
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -65,13 +66,13 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                 width: 150,
                 height: 150,
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: AppColors.primary.withOpacity(0.1), // UPDATE: Use primary color with opacity
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.check_circle_outline,
                   size: 80,
-                  color: Colors.green.shade700,
+                  color: AppColors.primary, // UPDATE: Use primary color
                 ),
               ),
               
@@ -81,7 +82,7 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                 'Welcome to SheerSync! 🎉',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.text, // UPDATE: Use theme text color
                 ),
               ),
               
@@ -91,7 +92,7 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                 'Your account has been successfully verified and created.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: AppColors.textSecondary, // UPDATE: Use secondary text color
                 ),
               ),
               
@@ -102,9 +103,9 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: AppColors.surfaceLight, // UPDATE: Use surface color
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: AppColors.border), // UPDATE: Use border color
                 ),
                 child: Column(
                   children: [
@@ -115,7 +116,7 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                               ? Icons.content_cut
                               : Icons.style,
                       size: 40,
-                      color: Colors.orange.shade700,
+                      color: AppColors.accent, // UPDATE: Use accent color
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -126,7 +127,7 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                               : 'Hairstylist Account',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: AppColors.text, // UPDATE: Use theme text color
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -136,7 +137,7 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                           : 'You can now manage your appointments, clients, and earnings.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
+                        color: AppColors.textSecondary, // UPDATE: Use secondary text color
                       ),
                     ),
                   ],
@@ -152,8 +153,8 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _proceedToApp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade700,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.primary, // UPDATE: Use primary color
+                    foregroundColor: AppColors.onPrimary, // UPDATE: Use onPrimary color
                     elevation: 2,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -165,14 +166,14 @@ class _FinalTouchScreenState extends State<FinalTouchScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                            valueColor: AlwaysStoppedAnimation(AppColors.onPrimary), // UPDATE: Use onPrimary color
                           ),
                         )
                       : Text(
                           'Get Started',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: AppColors.onPrimary, // UPDATE: Use onPrimary color
                           ),
                         ),
                 ),

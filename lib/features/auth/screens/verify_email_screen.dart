@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/auth_provider.dart';
 import 'final_touch_screen.dart';
+import 'package:sheersync/core/constants/colors.dart'; // ADD THIS IMPORT
 
 class VerifyEmailScreen extends StatefulWidget {
   const VerifyEmailScreen({super.key});
@@ -35,9 +36,9 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         _isChecking = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Email not verified yet. Please check your inbox.'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.error, // UPDATE: Use error color
         ),
       );
     }
@@ -53,16 +54,16 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Verification email sent successfully!'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success, // UPDATE: Use success color
         ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authProvider.error ?? 'Failed to resend email'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error, // UPDATE: Use error color
         ),
       );
     }
@@ -75,7 +76,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background, // UPDATE: Use theme background color
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -89,13 +90,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 width: 150,
                 height: 150,
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50, // Changed to blue to match sign up
+                  color: AppColors.primary.withOpacity(0.1), // UPDATE: Use primary color with opacity
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.mark_email_read_outlined,
                   size: 80,
-                  color: Colors.blue.shade700, // Changed to blue to match sign up
+                  color: AppColors.primary, // UPDATE: Use primary color
                 ),
               ),
               
@@ -105,7 +106,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 'Verify Your Email',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.text, // UPDATE: Use theme text color
                 ),
               ),
               
@@ -115,7 +116,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 'We\'ve sent a verification link to your email address.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: AppColors.textSecondary, // UPDATE: Use secondary text color
                 ),
               ),
               
@@ -125,7 +126,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 'Please check your inbox and click the link to verify your account.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: AppColors.textSecondary, // UPDATE: Use secondary text color
                 ),
               ),
               
@@ -138,10 +139,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 child: ElevatedButton(
                   onPressed: _isChecking ? null : _checkVerification,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700, // Changed to blue
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.primary, // UPDATE: Use primary color
+                    foregroundColor: AppColors.onPrimary, // UPDATE: Use onPrimary color
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // Changed to 8 to match sign up
+                      borderRadius: BorderRadius.circular(10), // UPDATE: Match theme border radius
                     ),
                   ),
                   child: _isChecking
@@ -150,14 +151,14 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                            valueColor: AlwaysStoppedAnimation(AppColors.onPrimary), // UPDATE: Use onPrimary color
                           ),
                         )
                       : Text(
                           'I\'ve Verified My Email',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: AppColors.onPrimary, // UPDATE: Use onPrimary color
                           ),
                         ),
                 ),
@@ -172,26 +173,26 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 child: OutlinedButton(
                   onPressed: _isResending ? null : _resendVerification,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue.shade700, // Changed to blue
-                    side: BorderSide(color: Colors.blue.shade700), // Changed to blue
+                    foregroundColor: AppColors.primary, // UPDATE: Use primary color
+                    side: BorderSide(color: AppColors.primary), // UPDATE: Use primary color
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // Changed to 8 to match sign up
+                      borderRadius: BorderRadius.circular(10), // UPDATE: Match theme border radius
                     ),
                   ),
                   child: _isResending
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.blue), // Changed to blue
+                            valueColor: AlwaysStoppedAnimation(AppColors.primary), // UPDATE: Use primary color
                           ),
                         )
                       : Text(
                           'Resend Verification Email',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade700, // Changed to blue
+                            color: AppColors.primary, // UPDATE: Use primary color
                           ),
                         ),
                 ),
@@ -204,7 +205,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 'Didn\'t receive the email? Check your spam folder or try resending.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade500,
+                  color: AppColors.textSecondary, // UPDATE: Use secondary text color
                 ),
               ),
             ],
