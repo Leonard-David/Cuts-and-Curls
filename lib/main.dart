@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/theme/app_theme.dart';
-import 'package:sheersync/core/utils/ofline_service.dart';
+import 'package:sheersync/core/utils/offline_service.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/data/providers/settings_provider.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
