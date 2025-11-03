@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../data/models/user_model.dart';
 import '../../../features/auth/controllers/auth_provider.dart';
 import '../bookings/select_barber_screen.dart';
+import 'package:sheersync/core/constants/colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,39 +15,30 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<UserModel> _featuredBarbers = [];
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFeaturedBarbers();
+    _searchController.addListener(_onSearchChanged);
   }
 
-  Future<void> _loadFeaturedBarbers() async {
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userType', isEqualTo: 'barber')
-          .where('isOnline', isEqualTo: true)
-          .limit(6)
-          .get();
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
-      setState(() {
-        _featuredBarbers = querySnapshot.docs
-            .map((doc) {
-              final data = doc.data() as Map<String, dynamic>? ?? {};
-              return UserModel.fromMap(data);
-            })
-            .toList();
-      });
-    } catch (e) {
-      print('Error loading barbers: $e');
-    }
+  void _onSearchChanged() {
+    setState(() {
+      _isSearching = _searchController.text.isNotEmpty;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -62,12 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
             
             const SizedBox(height: 24),
             
-            // Quick Services
-            _buildQuickServices(),
-            
-            const SizedBox(height: 24),
-            
-            // Featured Barbers
+            // Featured Barbers - Real-time Stream
             _buildFeaturedBarbers(),
             
             const SizedBox(height: 24),
@@ -89,9 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(
           'Hello, ${user?.fullName.split(' ').first ?? 'there'}! 👋',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
+            color: AppColors.text,
           ),
         ),
         const SizedBox(height: 8),
@@ -99,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'Find the perfect barber for your style',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.grey[600],
+            color: AppColors.textSecondary,
           ),
         ),
       ],
@@ -109,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -122,75 +110,23 @@ class _HomeScreenState extends State<HomeScreen> {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Search barbers, services...',
-          prefixIcon: const Icon(Icons.search),
+          hintText: 'Search barbers, hairstylists...',
+          prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          suffixIcon: _isSearching
+              ? IconButton(
+                  icon: Icon(Icons.clear, color: AppColors.textSecondary),
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                )
+              : null,
         ),
         onChanged: (value) {
-          // Implement search functionality
+          // Real-time search handled by stream
         },
       ),
-    );
-  }
-
-  Widget _buildQuickServices() {
-    final List<Map<String, dynamic>> services = [
-      {'icon': Icons.cut, 'name': 'Haircut', 'color': Colors.blue},
-      {'icon': Icons.wash, 'name': 'Wash & Style', 'color': Colors.green},
-      {'icon': Icons.color_lens, 'name': 'Coloring', 'color': Colors.orange},
-      {'icon': Icons.style, 'name': 'Styling', 'color': Colors.purple},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Quick Services',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: services.length,
-            itemBuilder: (context, index) {
-              final service = services[index];
-              return Container(
-                width: 80,
-                margin: EdgeInsets.only(right: index == services.length - 1 ? 0 : 12),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: service['color'].withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        service['icon'],
-                        color: service['color'],
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      service['name'],
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -201,11 +137,12 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Featured Barbers',
+            Text(
+              'Available Professionals',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: AppColors.text,
               ),
             ),
             TextButton(
@@ -217,30 +154,79 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
-              child: const Text('View All'),
+              child: Text(
+                'View All',
+                style: TextStyle(color: AppColors.primary),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        _featuredBarbers.isEmpty
-            ? _buildLoadingBarbers()
-            : GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.8,
-                ),
-                itemCount: _featuredBarbers.length,
-                itemBuilder: (context, index) {
-                  final barber = _featuredBarbers[index];
-                  return _buildBarberCard(barber);
-                },
+        
+        // Real-time barbers stream
+        StreamBuilder<QuerySnapshot>(
+          stream: _getBarbersStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _buildLoadingBarbers();
+            }
+
+            if (snapshot.hasError) {
+              return _buildErrorState(snapshot.error.toString());
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return _buildEmptyState();
+            }
+
+            final barbers = snapshot.data!.docs;
+            final filteredBarbers = _filterBarbers(barbers);
+
+            if (filteredBarbers.isEmpty) {
+              return _buildNoResultsState();
+            }
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.8,
               ),
+              itemCount: filteredBarbers.length,
+              itemBuilder: (context, index) {
+                final barberDoc = filteredBarbers[index];
+                final barber = UserModel.fromMap(barberDoc.data() as Map<String, dynamic>);
+                return _buildBarberCard(barber);
+              },
+            );
+          },
+        ),
       ],
     );
+  }
+
+  Stream<QuerySnapshot> _getBarbersStream() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .where('userType', whereIn: ['barber', 'hairstylist'])
+        .where('isOnline', isEqualTo: true)
+        .snapshots();
+  }
+
+  List<QueryDocumentSnapshot> _filterBarbers(List<QueryDocumentSnapshot> barbers) {
+    if (!_isSearching) {
+      return barbers.take(6).toList(); // Show only 6 barbers on home screen
+    }
+
+    final query = _searchController.text.toLowerCase();
+    return barbers.where((barberDoc) {
+      final barber = UserModel.fromMap(barberDoc.data() as Map<String, dynamic>);
+      return barber.fullName.toLowerCase().contains(query) ||
+          (barber.bio?.toLowerCase().contains(query) ?? false);
+    }).toList();
   }
 
   Widget _buildBarberCard(UserModel barber) {
@@ -248,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 2,
       child: InkWell(
         onTap: () {
-          // Navigate to barber profile
+          _viewBarberProfile(barber);
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -256,18 +242,33 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Barber Image
-              Center(
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: barber.profileImage != null
-                      ? NetworkImage(barber.profileImage!)
-                      : null,
-                  child: barber.profileImage == null
-                      ? const Icon(Icons.person, size: 30, color: Colors.grey)
-                      : null,
-                ),
+              // Barber Image with online status
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Center(
+                    child: CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: barber.profileImage != null
+                          ? NetworkImage(barber.profileImage!)
+                          : null,
+                      child: barber.profileImage == null
+                          ? Icon(Icons.person, size: 30, color: AppColors.textSecondary)
+                          : null,
+                    ),
+                  ),
+                  // Online status indicator
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: barber.isOnline ? AppColors.success : AppColors.textSecondary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.background, width: 2),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               // Barber Name
@@ -281,49 +282,76 @@ class _HomeScreenState extends State<HomeScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
-              // Rating
-              Row(
-                children: [
-                  Icon(Icons.star, color: Colors.orange.shade400, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    barber.rating?.toStringAsFixed(1) ?? '4.5',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    ' (${barber.totalRatings ?? 0})',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
+              // Rating - Real-time from Firestore
+              StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(barber.id)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    final updatedBarber = UserModel.fromMap(snapshot.data!.data() as Map<String, dynamic>);
+                    return Row(
+                      children: [
+                        Icon(Icons.star, color: AppColors.accent, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          updatedBarber.rating?.toStringAsFixed(1) ?? '0.0',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          ' (${updatedBarber.totalRatings ?? 0})',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Icon(Icons.star, color: AppColors.accent, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        barber.rating?.toStringAsFixed(1) ?? '0.0',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 4),
-              // Status
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: barber.isOnline ? Colors.green : Colors.grey,
-                      shape: BoxShape.circle,
-                    ),
+              // User Type
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: barber.userType == 'barber' 
+                      ? AppColors.primary.withOpacity(0.1)
+                      : AppColors.accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  barber.userType == 'barber' ? 'Barber' : 'Hairstylist',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: barber.userType == 'barber' ? AppColors.primary : AppColors.accent,
+                    fontWeight: FontWeight.w500,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    barber.isOnline ? 'Online' : 'Offline',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: barber.isOnline ? Colors.green : Colors.grey,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _viewBarberProfile(UserModel barber) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SelectBarberScreen(selectedBarber: barber),
       ),
     );
   }
@@ -372,6 +400,72 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildErrorState(String error) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Icon(Icons.error_outline, size: 48, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(
+            'Error loading barbers',
+            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Icon(Icons.person_off, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Text(
+            'No barbers available',
+            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later when professionals are online',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoResultsState() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Icon(Icons.search_off, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Text(
+            'No matching barbers found',
+            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your search terms',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPromotions() {
     return Container(
       width: double.infinity,
@@ -380,41 +474,50 @@ class _HomeScreenState extends State<HomeScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.orange.shade600, Colors.orange.shade400],
+          colors: [AppColors.accent, AppColors.accent.withOpacity(0.7)],
         ),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Special Offer!',
+          Text(
+            'Special Offer! 🎉',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.onPrimary,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Get 20% off your first booking with any barber',
+          Text(
+            'Get 20% off your first booking with any professional',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.onPrimary,
               fontSize: 14,
             ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              // Navigate to booking
+              _bookWithPromotion();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.orange,
+              backgroundColor: AppColors.background,
+              foregroundColor: AppColors.accent,
             ),
             child: const Text('Book Now'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _bookWithPromotion() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SelectBarberScreen(),
       ),
     );
   }

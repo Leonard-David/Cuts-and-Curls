@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../data/models/appointment_model.dart';
-import '../../../data/repositories/booking_repository.dart';
-import '../../../core/widgets/custom_snackbar.dart';
+import 'package:provider/provider.dart';
+import 'package:sheersync/core/constants/colors.dart';
+import 'package:sheersync/core/widgets/custom_snackbar.dart';
+import 'package:sheersync/data/models/appointment_model.dart';
+import 'package:sheersync/data/models/notification_model.dart';
+import 'package:sheersync/data/repositories/booking_repository.dart';
+import 'package:sheersync/data/repositories/notification_repository.dart';
+import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 
 class AppointmentDetailsScreen extends StatefulWidget {
   final AppointmentModel appointment;
@@ -15,9 +20,10 @@ class AppointmentDetailsScreen extends StatefulWidget {
 
 class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   final BookingRepository _bookingRepository = BookingRepository();
+  final NotificationRepository _notificationRepository = NotificationRepository();
   bool _isLoading = false;
 
-  Future<void> _updateAppointmentStatus(String status) async {
+  Future<void> _updateAppointmentStatus(String status, {String? reason}) async {
     setState(() {
       _isLoading = true;
     });
@@ -26,6 +32,18 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       await _bookingRepository.updateAppointmentStatus(
         widget.appointment.id,
         status,
+      );
+
+      // Send notification to client
+      final authProvider = context.read<AuthProvider>();
+      final barber = authProvider.user!;
+
+      await _notificationRepository.sendAppointmentNotification(
+        userId: widget.appointment.clientId,
+        appointmentId: widget.appointment.id,
+        title: _getNotificationTitle(status, barber.fullName),
+        message: _getNotificationMessage(status, reason),
+        type: _getNotificationType(status),
       );
 
       if (mounted) {
@@ -77,13 +95,65 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
     }
   }
 
+  Future<void> _showDeclineDialog() async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => DeclineReasonDialog(),
+    );
+
+    if (reason != null && reason.isNotEmpty) {
+      setState(() {
+      });
+      await _updateAppointmentStatus('cancelled', reason: reason);
+    }
+  }
+
+  String _getNotificationTitle(String status, String barberName) {
+    switch (status) {
+      case 'confirmed':
+        return 'Appointment Confirmed!';
+      case 'cancelled':
+        return 'Appointment Cancelled';
+      case 'completed':
+        return 'Appointment Completed';
+      default:
+        return 'Appointment Update';
+    }
+  }
+
+  String _getNotificationMessage(String status, String? reason) {
+    switch (status) {
+      case 'confirmed':
+        return 'Your appointment has been confirmed by the barber';
+      case 'cancelled':
+        return reason ?? 'Your appointment has been cancelled by the barber';
+      case 'completed':
+        return 'Your appointment has been marked as completed';
+      default:
+        return 'Your appointment status has been updated';
+    }
+  }
+
+  NotificationType _getNotificationType(String status) {
+    switch (status) {
+      case 'confirmed':
+        return NotificationType.appointment;
+      case 'cancelled':
+        return NotificationType.system;
+      case 'completed':
+        return NotificationType.appointment;
+      default:
+        return NotificationType.system;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Appointment Details'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         elevation: 1,
         actions: [
           if (widget.appointment.status == 'pending') ...[
@@ -91,6 +161,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
               onSelected: (value) {
                 if (value == 'cancel') {
                   _cancelAppointment();
+                } else if (value == 'decline') {
+                  _showDeclineDialog();
                 } else {
                   _updateAppointmentStatus(value);
                 }
@@ -107,12 +179,12 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                   ),
                 ),
                 const PopupMenuItem(
-                  value: 'cancelled',
+                  value: 'decline',
                   child: Row(
                     children: [
-                      Icon(Icons.cancel, color: Colors.red),
+                      Icon(Icons.cancel, color: Colors.orange),
                       SizedBox(width: 8),
-                      Text('Cancel'),
+                      Text('Decline with Reason'),
                     ],
                   ),
                 ),
@@ -182,7 +254,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                   Text(
                     _getStatusDescription(widget.appointment.status),
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -211,8 +283,9 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.person),
+              leading: CircleAvatar(
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Icon(Icons.person, color: AppColors.primary),
               ),
               title: Text(
                 widget.appointment.clientName ?? 'Client',
@@ -286,7 +359,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.calendar_today, color: Colors.blue.shade400),
+                Icon(Icons.calendar_today, color: AppColors.primary),
                 const SizedBox(width: 12),
                 Text(
                   DateFormat('EEEE, MMMM d, yyyy').format(widget.appointment.date),
@@ -297,7 +370,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.access_time, color: Colors.blue.shade400),
+                Icon(Icons.access_time, color: AppColors.primary),
                 const SizedBox(width: 12),
                 Text(
                   DateFormat('h:mm a').format(widget.appointment.date),
@@ -331,7 +404,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
               widget.appointment.notes!,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey[600],
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -345,13 +418,13 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: _cancelAppointment,
+            onPressed: _showDeclineDialog,
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red,
-              side: const BorderSide(color: Colors.red),
+              foregroundColor: AppColors.error,
+              side: BorderSide(color: AppColors.error),
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
-            child: const Text('Cancel Appointment'),
+            child: const Text('Decline'),
           ),
         ),
         const SizedBox(width: 16),
@@ -359,7 +432,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
           child: ElevatedButton(
             onPressed: () => _updateAppointmentStatus('confirmed'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
@@ -373,13 +446,13 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'confirmed':
-        return Colors.green;
+        return AppColors.success;
       case 'pending':
-        return Colors.orange;
+        return AppColors.accent;
       case 'completed':
-        return Colors.blue;
+        return AppColors.primary;
       case 'cancelled':
-        return Colors.red;
+        return AppColors.error;
       default:
         return Colors.grey;
     }
@@ -413,5 +486,78 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       default:
         return 'Unknown status';
     }
+  }
+}
+
+class DeclineReasonDialog extends StatefulWidget {
+  @override
+  State<DeclineReasonDialog> createState() => _DeclineReasonDialogState();
+}
+
+class _DeclineReasonDialogState extends State<DeclineReasonDialog> {
+  final TextEditingController _reasonController = TextEditingController();
+  String _selectedReason = '';
+
+  final List<String> _commonReasons = [
+    'Not available at this time',
+    'Fully booked',
+    'Service not offered',
+    'Outside working hours',
+    'Other reason'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Decline Appointment'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Please provide a reason for declining this appointment:'),
+          const SizedBox(height: 16),
+          ..._commonReasons.map((reason) {
+            return RadioListTile<String>(
+              title: Text(reason),
+              value: reason,
+              groupValue: _selectedReason,
+              onChanged: (value) {
+                setState(() {
+                  _selectedReason = value!;
+                  if (reason != 'Other reason') {
+                    _reasonController.text = reason;
+                  } else {
+                    _reasonController.clear();
+                  }
+                });
+              },
+            );
+          }),
+          if (_selectedReason == 'Other reason') ...[
+            const SizedBox(height: 16),
+            TextField(
+              controller: _reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Please specify',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _reasonController.text.isEmpty ? null : () {
+            Navigator.pop(context, _reasonController.text);
+          },
+          child: const Text('Decline Appointment'),
+        ),
+      ],
+    );
   }
 }

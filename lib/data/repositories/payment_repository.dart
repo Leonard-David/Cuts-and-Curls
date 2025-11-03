@@ -45,6 +45,19 @@ class PaymentRepository {
             })
             .toList());
   }
+   Stream<PaymentModel?> getPaymentByAppointmentStream(String appointmentId) {
+    return _firestore
+        .collection('payments')
+        .where('appointmentId', isEqualTo: appointmentId)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isNotEmpty) {
+            return PaymentModel.fromMap(snapshot.docs.first.data());
+          }
+          return null;
+        });
+  }
 
   // Update payment status
   Future<void> updatePaymentStatus(

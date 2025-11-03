@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sheersync/core/constants/colors.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/service_model.dart';
 import '../../../data/repositories/service_repository.dart';
@@ -25,31 +26,30 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
     _loadServices();
   }
 
-  Future<void> _loadServices() async {
-    try {
-      _serviceRepository
-          .getBarberServicesForClient(widget.barber.id)
-          .listen((services) {
-        setState(() {
-          _services = services;
-          _isLoading = false;
-        });
+  void _loadServices() {
+    _serviceRepository
+        .getBarberServicesForClient(widget.barber.id)
+        .listen((services) {
+      setState(() {
+        _services = services;
+        _isLoading = false;
       });
-    } catch (e) {
-      print('Error loading services: $e');
+    }, onError: (error) {
+      print('Error loading services: $error');
       setState(() {
         _isLoading = false;
       });
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Select Service'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         elevation: 1,
       ),
       body: Column(
@@ -58,7 +58,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
           // Barber Info Header
           _buildBarberHeader(),
           const SizedBox(height: 16),
-          // Services List
+          // Real-time Services List
           Expanded(
             child: _isLoading
                 ? _buildLoadingIndicator()
@@ -77,7 +77,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      color: Colors.grey[50],
+      color: AppColors.surfaceLight,
       child: Row(
         children: [
           CircleAvatar(
@@ -87,7 +87,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                 ? NetworkImage(widget.barber.profileImage!)
                 : null,
             child: widget.barber.profileImage == null
-                ? const Icon(Icons.person, color: Colors.grey)
+                ? Icon(Icons.person, color: AppColors.textSecondary)
                 : null,
           ),
           const SizedBox(width: 12),
@@ -105,7 +105,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Icon(Icons.star, color: Colors.orange.shade400, size: 16),
+                    Icon(Icons.star, color: AppColors.accent, size: 16),
                     const SizedBox(width: 4),
                     Text(
                       widget.barber.rating?.toStringAsFixed(1) ?? '4.5',
@@ -139,20 +139,20 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.style, size: 64, color: Colors.grey[400]),
+          Icon(Icons.style, size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No Services Available',
             style: TextStyle(
               fontSize: 18,
-              color: Colors.grey,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'This barber hasn\'t added any services yet',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -176,11 +176,11 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: isSelected ? 4 : 2,
-      color: isSelected ? Colors.blue.shade50 : Colors.white,
+      color: isSelected ? AppColors.primary.withOpacity(0.1) : AppColors.surfaceLight,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isSelected ? Colors.blue : Colors.transparent,
+          color: isSelected ? AppColors.primary : Colors.transparent,
           width: 2,
         ),
       ),
@@ -200,12 +200,12 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.blue : Colors.grey[100],
+                  color: isSelected ? AppColors.primary : AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   _getServiceIcon(service.category),
-                  color: isSelected ? Colors.white : Colors.grey[600],
+                  color: isSelected ? AppColors.onPrimary : AppColors.textSecondary,
                 ),
               ),
               const SizedBox(width: 16),
@@ -219,7 +219,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.blue : Colors.black,
+                        color: isSelected ? AppColors.primary : AppColors.text,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -229,19 +229,19 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                        Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
                         const SizedBox(width: 4),
                         Text(
                           '${service.duration} min',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -258,12 +258,12 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.blue : Colors.black,
+                      color: isSelected ? AppColors.primary : AppColors.text,
                     ),
                   ),
                   const SizedBox(height: 4),
                   if (isSelected)
-                    const Icon(Icons.check_circle, color: Colors.blue, size: 20),
+                    Icon(Icons.check_circle, color: AppColors.primary, size: 20),
                 ],
               ),
             ],
@@ -277,7 +277,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.background,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -301,8 +301,8 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.onPrimary,
           minimumSize: const Size(double.infinity, 50),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

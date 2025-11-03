@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../../data/models/user_model.dart';
-import '../../../data/models/service_model.dart';
-import '../../../data/models/appointment_model.dart';
-import '../../../data/repositories/booking_repository.dart';
-import '../../../features/auth/controllers/auth_provider.dart';
-import '../../../core/widgets/custom_snackbar.dart';
+import 'package:sheersync/core/constants/colors.dart';
+import 'package:sheersync/core/widgets/custom_snackbar.dart';
+import 'package:sheersync/data/models/notification_model.dart';
+import 'package:sheersync/data/models/user_model.dart';
+import 'package:sheersync/data/models/service_model.dart';
+import 'package:sheersync/data/models/appointment_model.dart';
+import 'package:sheersync/data/repositories/booking_repository.dart';
+import 'package:sheersync/data/repositories/notification_repository.dart';
+import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 
 class ConfirmBookingScreen extends StatefulWidget {
   final UserModel barber;
@@ -24,6 +27,7 @@ class ConfirmBookingScreen extends StatefulWidget {
 
 class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   final BookingRepository _bookingRepository = BookingRepository();
+  final NotificationRepository _notificationRepository = NotificationRepository();
   DateTime? _selectedDate;
   DateTime? _selectedTime;
   final TextEditingController _notesController = TextEditingController();
@@ -101,14 +105,23 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
 
       await _bookingRepository.createAppointment(appointment);
 
+      // Send notification to barber
+      await _notificationRepository.sendAppointmentNotification(
+        userId: widget.barber.id,
+        appointmentId: appointment.id,
+        title: 'New Appointment Request',
+        message: '${client.fullName} requested a ${widget.service.name} appointment',
+        type: NotificationType.appointment,
+      );
+
       if (mounted) {
         showCustomSnackBar(
           context,
-          'Appointment booked successfully!',
+          'Appointment booked successfully! The barber will confirm shortly.',
           type: SnackBarType.success,
         );
         
-        // Navigate back to bookings screen
+        // Navigate back to home screen
         Navigator.popUntil(context, (route) => route.isFirst);
       }
     } catch (e) {
@@ -151,8 +164,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Confirm Booking'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         elevation: 1,
       ),
       body: SingleChildScrollView(
@@ -196,7 +209,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                       ? NetworkImage(widget.barber.profileImage!)
                       : null,
                   child: widget.barber.profileImage == null
-                      ? const Icon(Icons.person, color: Colors.grey)
+                      ? Icon(Icons.person, color: AppColors.textSecondary)
                       : null,
                 ),
                 const SizedBox(width: 12),
@@ -216,7 +229,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                         widget.service.name,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -237,7 +250,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                       '${widget.service.duration} min',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[500],
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -288,7 +301,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         Card(
           elevation: 2,
           child: ListTile(
-            leading: const Icon(Icons.calendar_today, color: Colors.blue),
+            leading: Icon(Icons.calendar_today, color: AppColors.primary),
             title: Text(
               _selectedDate == null
                   ? 'Select a date'
@@ -318,10 +331,13 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         ),
         const SizedBox(height: 12),
         if (_selectedDate == null)
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Please select a date first'),
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Please select a date first',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
           )
         else if (_availableSlots.isEmpty)
@@ -330,12 +346,12 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Icon(Icons.info, color: Colors.orange.shade400),
+                  Icon(Icons.info, color: AppColors.accent),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'No available slots for selected date',
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                 ],
@@ -364,8 +380,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isSelected ? Colors.blue : Colors.grey[100],
-                  foregroundColor: isSelected ? Colors.white : Colors.black,
+                  backgroundColor: isSelected ? AppColors.primary : AppColors.surfaceLight,
+                  foregroundColor: isSelected ? AppColors.onPrimary : AppColors.text,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -416,8 +432,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
     return ElevatedButton(
       onPressed: _isLoading ? null : _confirmBooking,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         minimumSize: const Size(double.infinity, 50),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

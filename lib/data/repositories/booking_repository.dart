@@ -18,17 +18,17 @@ class BookingRepository {
   }
 
   // Get appointments for barber using helper
-Stream<List<AppointmentModel>> getBarberAppointments(String barberId) {
-  return _firestore
-      .collection('appointments')
-      .where('barberId', isEqualTo: barberId)
-      .orderBy('date', descending: false)
-      .snapshots()
-      .map((snapshot) => FirestoreHelper.convertDocsToModels(
-            snapshot.docs,
-            AppointmentModel.fromMap,
-          ));
-}
+  Stream<List<AppointmentModel>> getBarberAppointments(String barberId) {
+    return _firestore
+        .collection('appointments')
+        .where('barberId', isEqualTo: barberId)
+        .orderBy('date', descending: false)
+        .snapshots()
+        .map((snapshot) => FirestoreHelper.convertDocsToModels(
+              snapshot.docs,
+              AppointmentModel.fromMap,
+            ));
+  }
 
   // Get appointments for client
   Stream<List<AppointmentModel>> getClientAppointments(String clientId) {
@@ -45,6 +45,55 @@ Stream<List<AppointmentModel>> getBarberAppointments(String barberId) {
             .toList());
   }
 
+  // Get real-time appointment by ID
+  Stream<AppointmentModel?> getAppointmentByIdStream(String appointmentId) {
+    return _firestore
+        .collection('appointments')
+        .doc(appointmentId)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.exists) {
+            final data = snapshot.data() ?? {};
+            return AppointmentModel.fromMap(data);
+          }
+          return null;
+        });
+  }
+
+  // Get appointments with real-time status updates
+  Stream<List<AppointmentModel>> getAppointmentsWithStatus(
+    String userId, 
+    String userType, 
+    List<String> statuses
+  ) {
+    final field = userType == 'client' ? 'clientId' : 'barberId';
+    
+    return _firestore
+        .collection('appointments')
+        .where(field, isEqualTo: userId)
+        .where('status', whereIn: statuses)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => FirestoreHelper.convertDocsToModels(
+              snapshot.docs,
+              AppointmentModel.fromMap,
+            ));
+  }
+
+  // Check if barber has real-time availability
+  Stream<bool> checkBarberAvailabilityStream(String barberId, DateTime dateTime) {
+    final startTime = dateTime;
+    final endTime = dateTime.add(const Duration(minutes: 30));
+
+    return _firestore
+        .collection('appointments')
+        .where('barberId', isEqualTo: barberId)
+        .where('date', isGreaterThanOrEqualTo: startTime)
+        .where('date', isLessThan: endTime)
+        .where('status', whereIn: ['pending', 'confirmed'])
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isEmpty);
+  }
   // Update appointment status
   Future<void> updateAppointmentStatus(
       String appointmentId, String status) async {

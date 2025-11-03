@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../data/models/appointment_model.dart';
 import '../../../features/auth/controllers/auth_provider.dart';
-import 'package:sheersync/core/constants/colors.dart'; // ADD IMPORT
+import 'package:sheersync/core/constants/colors.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -13,80 +13,17 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _todayAppointments = 0;
-  int _pendingAppointments = 0;
-  double _todayEarnings = 0.0;
-  double _totalEarnings = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDashboardData();
-  }
-
-  Future<void> _loadDashboardData() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final barberId = authProvider.user?.id;
-    
-    if (barberId == null) return;
-
-    // Get today's date for filtering
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-    // Fetch today's appointments
-    final todayQuery = FirebaseFirestore.instance
-        .collection('appointments')
-        .where('barberId', isEqualTo: barberId)
-        .where('date', isGreaterThanOrEqualTo: todayStart)
-        .where('date', isLessThanOrEqualTo: todayEnd);
-
-    final allAppointmentsQuery = FirebaseFirestore.instance
-        .collection('appointments')
-        .where('barberId', isEqualTo: barberId);
-
-    // Listen to real-time updates
-    todayQuery.snapshots().listen((snapshot) {
-      setState(() {
-        _todayAppointments = snapshot.docs.length;
-      });
-    });
-
-    allAppointmentsQuery.snapshots().listen((snapshot) {
-      int pending = 0;
-      double totalEarnings = 0.0;
-      double todayEarnings = 0.0;
-
-      for (var doc in snapshot.docs) {
-        final appointment = AppointmentModel.fromMap(doc.data());
-        
-        if (appointment.status == 'pending') {
-          pending++;
-        }
-
-        if (appointment.status == 'completed' && appointment.price != null) {
-          totalEarnings += appointment.price!;
-          
-          // Check if completed today
-          if (appointment.date.isAfter(todayStart)) {
-            todayEarnings += appointment.price!;
-          }
-        }
-      }
-
-      setState(() {
-        _pendingAppointments = pending;
-        _totalEarnings = totalEarnings;
-        _todayEarnings = todayEarnings;
-      });
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final barberId = authProvider.user?.id;
+
+    if (barberId == null) {
+      return _buildErrorState('Please log in to view dashboard');
+    }
+
     return Scaffold(
-      backgroundColor: AppColors.background, // UPDATE: Use theme background
+      backgroundColor: AppColors.background,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -97,13 +34,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             
             const SizedBox(height: 24),
             
-            // Stats Grid
-            _buildStatsGrid(),
+            // Real-time Stats Grid
+            _buildStatsGrid(barberId),
             
             const SizedBox(height: 24),
             
-            // Today's Appointments
-            _buildTodaysAppointments(),
+            // Today's Appointments - Real-time
+            _buildTodaysAppointments(barberId),
             
             const SizedBox(height: 24),
             
@@ -126,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)], // UPDATE: Use primary colors
+          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -143,7 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            user?.fullName ?? 'Barber',
+            user?.fullName ?? 'Professional',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -163,40 +100,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildStatsGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      children: [
-        _buildStatCard(
-          'Today\'s Appointments',
-          _todayAppointments.toString(),
-          Icons.calendar_today,
-          AppColors.primary, // UPDATE: Use primary color
-        ),
-        _buildStatCard(
-          'Pending',
-          _pendingAppointments.toString(),
-          Icons.pending_actions,
-          AppColors.accent, // UPDATE: Use accent color
-        ),
-        _buildStatCard(
-          'Today\'s Earnings',
-          'N\$${_todayEarnings.toStringAsFixed(2)}',
-          Icons.attach_money,
-          AppColors.success, // UPDATE: Use success color
-        ),
-        _buildStatCard(
-          'Total Earnings',
-          'N\$${_totalEarnings.toStringAsFixed(2)}',
-          Icons.bar_chart,
-          Colors.purple, // Keeping purple for variety
-        ),
-      ],
+  Widget _buildStatsGrid(String barberId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('barberId', isEqualTo: barberId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _buildLoadingStats();
+        }
+
+        final appointments = snapshot.data!.docs;
+        final stats = _calculateStats(appointments);
+
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          children: [
+            _buildStatCard(
+              'Today\'s Appointments',
+              stats['todayAppointments'].toString(),
+              Icons.calendar_today,
+              AppColors.primary,
+            ),
+            _buildStatCard(
+              'Pending',
+              stats['pendingAppointments'].toString(),
+              Icons.pending_actions,
+              AppColors.accent,
+            ),
+            _buildStatCard(
+              'Today\'s Earnings',
+              'N\$${stats['todayEarnings'].toStringAsFixed(2)}',
+              Icons.attach_money,
+              AppColors.success,
+            ),
+            _buildStatCard(
+              'Total Earnings',
+              'N\$${stats['totalEarnings'].toStringAsFixed(2)}',
+              Icons.bar_chart,
+              Colors.purple,
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  Map<String, dynamic> _calculateStats(List<QueryDocumentSnapshot> appointments) {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    
+    int todayAppointments = 0;
+    int pendingAppointments = 0;
+    double todayEarnings = 0.0;
+    double totalEarnings = 0.0;
+
+    for (var doc in appointments) {
+      final appointment = AppointmentModel.fromMap(doc.data() as Map<String, dynamic>);
+      
+      // Today's appointments
+      if (appointment.date.isAfter(todayStart)) {
+        todayAppointments++;
+      }
+      
+      // Pending appointments
+      if (appointment.status == 'pending') {
+        pendingAppointments++;
+      }
+      
+      // Earnings calculations
+      if (appointment.status == 'completed' && appointment.price != null) {
+        totalEarnings += appointment.price!;
+        
+        if (appointment.date.isAfter(todayStart)) {
+          todayEarnings += appointment.price!;
+        }
+      }
+    }
+
+    return {
+      'todayAppointments': todayAppointments,
+      'pendingAppointments': pendingAppointments,
+      'todayEarnings': todayEarnings,
+      'totalEarnings': totalEarnings,
+    };
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
@@ -222,7 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textSecondary, // UPDATE: Use secondary text color
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -231,25 +223,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildTodaysAppointments() {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final barberId = authProvider.user?.id;
+  Widget _buildLoadingStats() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      children: List.generate(4, (index) {
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  color: Colors.grey[200],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 20,
+                  width: 60,
+                  color: Colors.grey[200],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  height: 12,
+                  width: 80,
+                  color: Colors.grey[200],
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
 
-    if (barberId == null) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Text('Please log in to view appointments'),
-        ),
-      );
-    }
+  Widget _buildTodaysAppointments(String barberId) {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('appointments')
           .where('barberId', isEqualTo: barberId)
-          .where('date', isGreaterThanOrEqualTo: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day))
-          .where('date', isLessThan: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day + 1))
+          .where('date', isGreaterThanOrEqualTo: todayStart)
+          .where('date', isLessThanOrEqualTo: todayEnd)
           .orderBy('date')
           .snapshots(),
       builder: (context, snapshot) {
@@ -264,7 +287,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Text(
                 'No appointments today',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+                style: TextStyle(color: AppColors.textSecondary),
               ),
             ),
           );
@@ -283,7 +306,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.text, // UPDATE: Use text color
+                    color: AppColors.text,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -321,7 +344,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       subtitle: Text(
         '${_formatTime(appointment.date)} • ${appointment.serviceName ?? 'Service'}',
-        style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+        style: TextStyle(color: AppColors.textSecondary),
       ),
       trailing: Text(
         'N\$${appointment.price?.toStringAsFixed(2) ?? '0.00'}',
@@ -342,7 +365,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.text, // UPDATE: Use text color
+                color: AppColors.text,
               ),
             ),
             const SizedBox(height: 16),
@@ -350,12 +373,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Expanded(
                   child: _buildQuickActionButton(
-                    'Add Service',
-                    Icons.add,
-                    AppColors.primary, // UPDATE: Use primary color
+                    'Manage Services',
+                    Icons.construction,
+                    AppColors.primary,
                     () {
-                      // TODO: Navigate to add service screen
-                      _showComingSoon('Add Service');
+                      _showComingSoon('Manage Services');
                     },
                   ),
                 ),
@@ -364,38 +386,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _buildQuickActionButton(
                     'Set Availability',
                     Icons.access_time,
-                    AppColors.success, // UPDATE: Use success color
+                    AppColors.success,
                     () {
-                      // TODO: Navigate to availability settings
                       _showComingSoon('Set Availability');
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickActionButton(
-                    'View Earnings',
-                    Icons.analytics,
-                    AppColors.accent, // UPDATE: Use accent color
-                    () {
-                      // TODO: Navigate to earnings - already in bottom nav
-                      _showComingSoon('View Earnings');
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickActionButton(
-                    'Client Reviews',
-                    Icons.star,
-                    Colors.purple, // Keeping purple for variety
-                    () {
-                      // TODO: Navigate to reviews
-                      _showComingSoon('Client Reviews');
                     },
                   ),
                 ),
@@ -434,12 +427,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Helper method to show coming soon message
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.error),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$feature feature coming soon!'),
-        backgroundColor: AppColors.primary, // UPDATE: Use primary color
+        backgroundColor: AppColors.primary,
       ),
     );
   }
@@ -454,13 +463,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'confirmed':
-        return AppColors.success; // UPDATE: Use success color
+        return AppColors.success;
       case 'pending':
-        return AppColors.accent; // UPDATE: Use accent color
+        return AppColors.accent;
       case 'completed':
-        return AppColors.primary; // UPDATE: Use primary color
+        return AppColors.primary;
       case 'cancelled':
-        return AppColors.error; // UPDATE: Use error color
+        return AppColors.error;
       default:
         return Colors.grey;
     }

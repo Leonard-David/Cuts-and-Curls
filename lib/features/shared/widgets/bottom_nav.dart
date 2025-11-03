@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sheersync/core/constants/colors.dart'; // ADD IMPORT
+import 'package:sheersync/core/constants/colors.dart'; // ADD THIS
 
 class BottomNavigationItem {
   final IconData icon;
@@ -41,7 +41,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
         currentIndex: currentIndex,
         onTap: onTap,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AppColors.background, // UPDATE: Use background color
+        backgroundColor: AppColors.surfaceLight, // UPDATE: Use surface color
         selectedItemColor: AppColors.primary, // UPDATE: Use primary color
         unselectedItemColor: AppColors.textSecondary, // UPDATE: Use secondary text color
         selectedLabelStyle: const TextStyle(

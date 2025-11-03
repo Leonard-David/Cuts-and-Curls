@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:sheersync/core/constants/colors.dart';
 import '../../../data/models/appointment_model.dart';
 import '../../../data/repositories/booking_repository.dart';
 import '../../../features/auth/controllers/auth_provider.dart';
@@ -15,12 +16,13 @@ class BarberAppointmentsScreen extends StatefulWidget {
 
 class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
   final BookingRepository _bookingRepository = BookingRepository();
-  String _selectedFilter = 'today'; // today, upcoming, all
+  String _selectedFilter = 'today';
 
-  Map<String, String> _filters = {
+  final Map<String, String> _filters = {
     'today': 'Today',
     'upcoming': 'Upcoming',
-    'all': 'All Appointments',
+    'pending': 'Pending',
+    'all': 'All',
   };
 
   @override
@@ -29,22 +31,27 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
     final barberId = authProvider.user?.id;
 
     if (barberId == null) {
-      return const Center(child: Text('Please login again'));
+      return _buildErrorState('Please login again');
     }
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           // Filter Chips
           _buildFilterChips(),
           const SizedBox(height: 16),
-          // Appointments List
+          // Real-time Appointments List
           Expanded(
             child: StreamBuilder<List<AppointmentModel>>(
               stream: _bookingRepository.getBarberAppointments(barberId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return _buildErrorState(snapshot.error.toString());
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -85,10 +92,10 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
                   });
                 },
                 backgroundColor: Colors.grey[200],
-                selectedColor: Colors.blue.shade100,
-                checkmarkColor: Colors.blue,
+                selectedColor: AppColors.primary.withOpacity(0.2),
+                checkmarkColor: AppColors.primary,
                 labelStyle: TextStyle(
-                  color: isSelected ? Colors.blue : Colors.black,
+                  color: isSelected ? AppColors.primary : AppColors.text,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -104,20 +111,20 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.calendar_today, size: 64, color: Colors.grey[400]),
+          Icon(Icons.calendar_today, size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No Appointments',
             style: TextStyle(
               fontSize: 18,
-              color: Colors.grey,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'You don\'t have any appointments yet',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -129,20 +136,42 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.filter_alt_off, size: 64, color: Colors.grey[400]),
+          Icon(Icons.filter_alt_off, size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
           Text(
-            'No ${_filters[_selectedFilter]?.toLowerCase()}',
-            style: const TextStyle(
+            'No ${_filters[_selectedFilter]?.toLowerCase()} appointments',
+            style: TextStyle(
               fontSize: 18,
-              color: Colors.grey,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Try selecting a different filter',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(
+            'Error loading appointments',
+            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -200,19 +229,19 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
                       appointment.serviceName ?? 'Service',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                        Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('MMM d, yyyy • h:mm a').format(appointment.date),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -280,6 +309,10 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
         return appointments.where((appt) {
           return appt.date.isAfter(now) && appt.status != 'completed' && appt.status != 'cancelled';
         }).toList();
+      case 'pending':
+        return appointments.where((appt) {
+          return appt.status == 'pending';
+        }).toList();
       case 'all':
       default:
         return appointments;
@@ -289,13 +322,13 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'confirmed':
-        return Colors.green;
+        return AppColors.success;
       case 'pending':
-        return Colors.orange;
+        return AppColors.accent;
       case 'completed':
-        return Colors.blue;
+        return AppColors.primary;
       case 'cancelled':
-        return Colors.red;
+        return AppColors.error;
       default:
         return Colors.grey;
     }

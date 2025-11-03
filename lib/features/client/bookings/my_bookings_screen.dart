@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/models/payment_model.dart';
 import 'package:sheersync/data/repositories/booking_repository.dart';
@@ -19,9 +20,9 @@ class MyBookingsScreen extends StatefulWidget {
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
   final BookingRepository _bookingRepository = BookingRepository();
   final PaymentRepository _paymentRepository = PaymentRepository();
-  String _selectedFilter = 'upcoming'; // upcoming, past, cancelled
+  String _selectedFilter = 'upcoming';
 
-  Map<String, String> _filters = {
+  final Map<String, String> _filters = {
     'upcoming': 'Upcoming',
     'past': 'Past',
     'cancelled': 'Cancelled',
@@ -34,22 +35,27 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final clientId = authProvider.user?.id;
 
     if (clientId == null) {
-      return const Center(child: Text('Please login again'));
+      return _buildErrorState('Please login again');
     }
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           // Filter Chips
           _buildFilterChips(),
           const SizedBox(height: 16),
-          // Bookings List
+          // Real-time Bookings List
           Expanded(
             child: StreamBuilder<List<AppointmentModel>>(
               stream: _bookingRepository.getClientAppointments(clientId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return _buildErrorState(snapshot.error.toString());
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -90,10 +96,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   });
                 },
                 backgroundColor: Colors.grey[200],
-                selectedColor: Colors.blue.shade100,
-                checkmarkColor: Colors.blue,
+                selectedColor: AppColors.primary.withOpacity(0.2),
+                checkmarkColor: AppColors.primary,
                 labelStyle: TextStyle(
-                  color: isSelected ? Colors.blue : Colors.black,
+                  color: isSelected ? AppColors.primary : AppColors.text,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -109,27 +115,30 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.calendar_today, size: 64, color: Colors.grey[400]),
+          Icon(Icons.calendar_today, size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No Bookings Yet',
             style: TextStyle(
               fontSize: 18,
-              color: Colors.grey,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Book your first appointment with a barber',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              // Navigate to home to book
               Navigator.popUntil(context, (route) => route.isFirst);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+            ),
             child: const Text('Book Now'),
           ),
         ],
@@ -142,20 +151,42 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.filter_alt_off, size: 64, color: Colors.grey[400]),
+          Icon(Icons.filter_alt_off, size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
           Text(
             'No ${_filters[_selectedFilter]?.toLowerCase()} bookings',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
-              color: Colors.grey,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Try selecting a different filter',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(
+            'Error loading bookings',
+            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -168,8 +199,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       itemCount: appointments.length,
       itemBuilder: (context, index) {
         final appointment = appointments[index];
-        return FutureBuilder<PaymentModel?>(
-          future: _paymentRepository.getPaymentByAppointment(appointment.id),
+        return StreamBuilder<PaymentModel?>(
+          stream: _paymentRepository.getPaymentByAppointmentStream(appointment.id),
           builder: (context, paymentSnapshot) {
             return _buildBookingCard(appointment, paymentSnapshot.data);
           },
@@ -219,14 +250,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             // Service and Time
             Row(
               children: [
-                Icon(Icons.cut, size: 16, color: Colors.grey[600]),
+                Icon(Icons.cut, size: 16, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     appointment.serviceName ?? 'Service',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -235,13 +266,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
                 Text(
                   DateFormat('MMM d, yyyy • h:mm a').format(appointment.date),
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -297,18 +328,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: AppColors.accent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.payment, size: 12, color: Colors.orange),
-                SizedBox(width: 4),
+                Icon(Icons.payment, size: 12, color: AppColors.accent),
+                const SizedBox(width: 4),
                 Text(
                   'Payment Required',
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.orange,
+                    color: AppColors.accent,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -325,8 +356,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               OutlinedButton(
                 onPressed: () => _cancelBooking(appointment),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(color: AppColors.error),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
                 child: const Text('Cancel'),
@@ -337,7 +368,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               ElevatedButton(
                 onPressed: () => _makePayment(appointment, payment),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
@@ -426,13 +457,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'confirmed':
-        return Colors.green;
+        return AppColors.success;
       case 'pending':
-        return Colors.orange;
+        return AppColors.accent;
       case 'completed':
-        return Colors.blue;
+        return AppColors.primary;
       case 'cancelled':
-        return Colors.red;
+        return AppColors.error;
       default:
         return Colors.grey;
     }
@@ -441,11 +472,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   Color _getPaymentStatusColor(String status) {
     switch (status) {
       case 'completed':
-        return Colors.green;
+        return AppColors.success;
       case 'pending':
-        return Colors.orange;
+        return AppColors.accent;
       case 'failed':
-        return Colors.red;
+        return AppColors.error;
       case 'refunded':
         return Colors.purple;
       default:

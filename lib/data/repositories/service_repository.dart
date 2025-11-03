@@ -45,6 +45,36 @@ class ServiceRepository {
             })
             .toList());
   }
+  
+  // Get real-time service by ID
+  Stream<ServiceModel?> getServiceByIdStream(String serviceId) {
+    return _firestore
+        .collection('services')
+        .doc(serviceId)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.exists) {
+            return ServiceModel.fromMap(snapshot.data()!);
+          }
+          return null;
+        });
+  }
+
+  // Get services with real-time updates for specific barber
+  Stream<List<ServiceModel>> getBarberServicesStream(String barberId) {
+    return _firestore
+        .collection('services')
+        .where('barberId', isEqualTo: barberId)
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) {
+              final data = doc.data() as Map<String, dynamic>? ?? {};
+              return ServiceModel.fromMap(data);
+            })
+            .toList());
+  }
+
 
   // Update service
   Future<void> updateService(ServiceModel service) async {

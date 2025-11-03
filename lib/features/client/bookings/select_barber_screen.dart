@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/core/constants/colors.dart'; // ADD THIS
 import '../../../data/models/user_model.dart';
 import 'select_service_screen.dart';
 import '../../../shared/chat/chat_screen.dart';
 import '../../../data/repositories/chat_repository.dart';
-import 'package:sheersync/core/constants/colors.dart'; // ADD IMPORT
 
 class SelectBarberScreen extends StatefulWidget {
-  const SelectBarberScreen({super.key});
+  final UserModel? selectedBarber;
+  
+  const SelectBarberScreen({super.key, this.selectedBarber});
 
   @override
   State<SelectBarberScreen> createState() => _SelectBarberScreenState();
@@ -17,15 +19,12 @@ class SelectBarberScreen extends StatefulWidget {
 
 class _SelectBarberScreenState extends State<SelectBarberScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<UserModel> _allBarbers = [];
-  List<UserModel> _filteredBarbers = [];
-  bool _isLoading = true;
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _loadBarbers();
-    _searchController.addListener(_filterBarbers);
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
@@ -34,52 +33,22 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
     super.dispose();
   }
 
-  Future<void> _loadBarbers() async {
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userType', whereIn: ['barber', 'hairstylist']) // UPDATE: Include hairstylists
-          .where('isOnline', isEqualTo: true)
-          .get();
-
-      setState(() {
-        _allBarbers = querySnapshot.docs
-            .map((doc) {
-              final data = doc.data() as Map<String, dynamic>? ?? {};
-              return UserModel.fromMap(data);
-            })
-            .toList();
-        _filteredBarbers = _allBarbers;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error loading barbers: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _filterBarbers() {
-    final query = _searchController.text.toLowerCase();
+  void _onSearchChanged() {
     setState(() {
-      _filteredBarbers = _allBarbers.where((barber) {
-        return barber.fullName.toLowerCase().contains(query) ||
-            (barber.bio?.toLowerCase().contains(query) ?? false);
-      }).toList();
+      _isSearching = _searchController.text.isNotEmpty;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background, // UPDATE: Use theme background
       appBar: AppBar(
-        title: const Text('Select Barber'),
-        backgroundColor: AppColors.background, // UPDATE: Use background color
-        foregroundColor: AppColors.text, // UPDATE: Use text color
+        title: const Text('Select Professional'),
+        backgroundColor: AppColors.primary, // UPDATE: Use primary color
+        foregroundColor: AppColors.onPrimary, // UPDATE: Use onPrimary color
         elevation: 1,
       ),
-      backgroundColor: AppColors.background, // UPDATE: Use background color
       body: Column(
         children: [
           // Search Bar
@@ -100,36 +69,107 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Search barbers...',
+                  hintText: 'Search barbers, hairstylists...',
                   prefixIcon: Icon(Icons.search, color: AppColors.textSecondary), // UPDATE: Use secondary text color
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  suffixIcon: _isSearching
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: AppColors.textSecondary), // UPDATE: Use secondary text color
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        )
+                      : null,
                 ),
               ),
             ),
           ),
-          // Barbers List
+          // Barbers List - Real-time Stream
           Expanded(
-            child: _isLoading
-                ? _buildLoadingIndicator()
-                : _filteredBarbers.isEmpty
-                    ? _buildEmptyState()
-                    : _buildBarbersList(),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('userType', whereIn: ['barber', 'hairstylist'])
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _buildLoadingIndicator();
+                }
+
+                if (snapshot.hasError) {
+                  return _buildErrorState(snapshot.error.toString());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                final barbers = snapshot.data!.docs;
+                final filteredBarbers = _filterBarbers(barbers);
+
+                if (filteredBarbers.isEmpty) {
+                  return _buildNoResultsState();
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filteredBarbers.length,
+                  itemBuilder: (context, index) {
+                    final barberDoc = filteredBarbers[index];
+                    final barber = UserModel.fromMap(barberDoc.data() as Map<String, dynamic>);
+                    return _buildBarberCard(barber);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
+  List<QueryDocumentSnapshot> _filterBarbers(List<QueryDocumentSnapshot> barbers) {
+    if (!_isSearching) {
+      return barbers;
+    }
+
+    final query = _searchController.text.toLowerCase();
+    return barbers.where((barberDoc) {
+      final barber = UserModel.fromMap(barberDoc.data() as Map<String, dynamic>);
+      return barber.fullName.toLowerCase().contains(query) ||
+          (barber.bio?.toLowerCase().contains(query) ?? false);
+    }).toList();
+  }
+
   Widget _buildLoadingIndicator() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading professionals...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: AppColors.primary), // UPDATE: Use primary color
+          Icon(Icons.error_outline, size: 64, color: AppColors.error), // UPDATE: Use error color
           const SizedBox(height: 16),
           Text(
-            'Loading barbers...',
+            'Error loading professionals',
+            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold), // UPDATE: Use error color
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error,
+            textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
           ),
         ],
@@ -145,17 +185,16 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
           Icon(Icons.person_off, size: 64, color: AppColors.textSecondary), // UPDATE: Use secondary text color
           const SizedBox(height: 16),
           Text(
-            'No barbers found',
+            'No professionals found',
             style: TextStyle(
               fontSize: 18,
-              color: AppColors.text, // UPDATE: Use text color
+              color: AppColors.textSecondary, // UPDATE: Use secondary text color
+              fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            _searchController.text.isEmpty
-                ? 'No barbers are currently available'
-                : 'No barbers match your search',
+            'Check back later when professionals are available',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
           ),
@@ -164,14 +203,28 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
     );
   }
 
-  Widget _buildBarbersList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _filteredBarbers.length,
-      itemBuilder: (context, index) {
-        final barber = _filteredBarbers[index];
-        return _buildBarberCard(barber);
-      },
+  Widget _buildNoResultsState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 64, color: AppColors.textSecondary), // UPDATE: Use secondary text color
+          const SizedBox(height: 16),
+          Text(
+            'No matching professionals found',
+            style: TextStyle(
+              color: AppColors.textSecondary, // UPDATE: Use secondary text color
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your search terms',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+          ),
+        ],
+      ),
     );
   }
 
@@ -179,7 +232,6 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      color: AppColors.surfaceLight, // UPDATE: Use surface color
       child: InkWell(
         onTap: () {
           _selectBarber(barber);
@@ -189,16 +241,31 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Barber Avatar
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: barber.profileImage != null
-                    ? NetworkImage(barber.profileImage!)
-                    : null,
-                child: barber.profileImage == null
-                    ? Icon(Icons.person, size: 30, color: AppColors.textSecondary) // UPDATE: Use secondary text color
-                    : null,
+              // Barber Avatar with Online Status
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: barber.profileImage != null
+                        ? NetworkImage(barber.profileImage!)
+                        : null,
+                    child: barber.profileImage == null
+                        ? Icon(Icons.person, size: 30, color: AppColors.textSecondary) // UPDATE: Use secondary text color
+                        : null,
+                  ),
+                  // Online Status Indicator
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: barber.isOnline ? AppColors.success : AppColors.textSecondary, // UPDATE: Use theme colors
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.background, width: 2), // UPDATE: Use background color
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(width: 16),
               // Barber Info
@@ -208,30 +275,69 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                   children: [
                     Text(
                       barber.fullName,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.text, // UPDATE: Use text color
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Rating
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: AppColors.accent, size: 16), // UPDATE: Use accent color
-                        const SizedBox(width: 4),
-                        Text(
-                          barber.rating?.toStringAsFixed(1) ?? '4.5',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                    // Real-time Rating Stream
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(barber.id)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final updatedBarber = UserModel.fromMap(snapshot.data!.data() as Map<String, dynamic>);
+                          return Row(
+                            children: [
+                              Icon(Icons.star, color: AppColors.accent, size: 16), // UPDATE: Use accent color
+                              const SizedBox(width: 4),
+                              Text(
+                                updatedBarber.rating?.toStringAsFixed(1) ?? '0.0',
+                                style: const TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                ' (${updatedBarber.totalRatings ?? 0})',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary, // UPDATE: Use secondary text color
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Icon(Icons.star, color: AppColors.accent, size: 16), // UPDATE: Use accent color
+                            const SizedBox(width: 4),
+                            Text(
+                              barber.rating?.toStringAsFixed(1) ?? '0.0',
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    // Professional Type
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: barber.userType == 'barber' 
+                            ? AppColors.primary.withOpacity(0.1)
+                            : AppColors.accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        barber.userType == 'barber' ? 'Barber' : 'Hairstylist',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: barber.userType == 'barber' ? AppColors.primary : AppColors.accent,
+                          fontWeight: FontWeight.w500,
                         ),
-                        Text(
-                          ' (${barber.totalRatings ?? 0})',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary, // UPDATE: Use secondary text color
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: 4),
                     // Bio/Description
@@ -284,7 +390,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
     if (!barber.isOnline) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('This barber is currently offline'),
+          content: Text('${barber.fullName} is currently offline'),
           backgroundColor: AppColors.accent, // UPDATE: Use accent color
         ),
       );
@@ -293,7 +399,6 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.background, // UPDATE: Use background color
       builder: (context) {
         return SafeArea(
           child: Column(
@@ -301,10 +406,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
             children: [
               ListTile(
                 leading: Icon(Icons.cut, color: AppColors.primary), // UPDATE: Use primary color
-                title: Text(
-                  'Book Appointment',
-                  style: TextStyle(color: AppColors.text), // UPDATE: Use text color
-                ),
+                title: const Text('Book Appointment'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -317,10 +419,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.chat, color: AppColors.success), // UPDATE: Use success color
-                title: Text(
-                  'Start Chat',
-                  style: TextStyle(color: AppColors.text), // UPDATE: Use text color
-                ),
+                title: const Text('Start Chat'),
                 onTap: () {
                   Navigator.pop(context);
                   _startChatWithBarber(barber);
