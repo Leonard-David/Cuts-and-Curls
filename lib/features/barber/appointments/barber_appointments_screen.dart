@@ -48,25 +48,25 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Appointments Management'),
+        title: const Text(
+          'Appointments Management',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.5,
+          ),
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
-        elevation: 1,
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 20,
+        // Professional action buttons
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateAppointmentScreen(),
-                ),
-              );
-            },
-            tooltip: 'Create New Appointment',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
+          // Refresh button
+          _buildAppBarAction(
+            icon: Icons.refresh_rounded,
+            tooltip: 'Refresh appointments',
             onPressed: () {
               if (barberId != null) {
                 appointmentsProvider.refreshAll(barberId);
@@ -77,18 +77,85 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                 );
               }
             },
-            tooltip: 'Refresh',
           ),
+          // Add appointment button
+          _buildAppBarAction(
+            icon: Icons.add_circle_outline_rounded,
+            tooltip: 'Create new appointment',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateAppointmentScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'Today'),
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Requests'),
-            Tab(text: 'All'),
-          ],
+        // Enhanced Tab Bar with professional styling
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 2,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Tab Bar
+                SizedBox(
+                  height: 48,
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    labelColor: AppColors.onPrimary,
+                    unselectedLabelColor: AppColors.onPrimary.withOpacity(0.7),
+                    indicatorColor: AppColors.accent,
+                    indicatorWeight: 3,
+                    indicatorPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    labelStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -0.2,
+                    ),
+                    tabs: [
+                      _buildProfessionalTab('All', Icons.calendar_month_rounded),
+                      _buildProfessionalTab('Today', Icons.today_rounded),
+                      _buildProfessionalTab('Upcoming', Icons.upcoming_rounded),
+                      _buildProfessionalTab('Requests', Icons.pending_actions_rounded),
+                    ],
+                  ),
+                ),
+                // Subtle divider
+                Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        AppColors.primary.withOpacity(0.3),
+                        AppColors.accent.withOpacity(0.5),
+                        AppColors.primary.withOpacity(0.3),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
       body: barberId == null
@@ -105,6 +172,56 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     );
   }
 
+  // Professional app bar action button
+  Widget _buildAppBarAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: IconButton(
+        icon: Icon(
+          icon,
+          size: 22,
+        ),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.all(8),
+        ),
+      ),
+    );
+  }
+
+  // Professional tab with icon and text
+  Widget _buildProfessionalTab(String text, IconData icon) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Rest of the methods remain the same...
   Widget _buildTodaysAppointments(String barberId, AppointmentsProvider provider) {
     return StreamBuilder<List<AppointmentModel>>(
       stream: _bookingRepository.getTodaysAppointments(barberId),
@@ -123,7 +240,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
           return _buildEmptyState(
             title: 'No Appointments Today',
             message: 'You have no appointments scheduled for today',
-            icon: Icons.calendar_today,
+            icon: Icons.calendar_today_rounded,
           );
         }
 
@@ -150,7 +267,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
           return _buildEmptyState(
             title: 'No Upcoming Appointments',
             message: 'You have no upcoming appointments in the next 7 days',
-            icon: Icons.upcoming,
+            icon: Icons.upcoming_rounded,
           );
         }
 
@@ -177,31 +294,41 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
           return _buildEmptyState(
             title: 'No Pending Requests',
             message: 'You have no pending appointment requests',
-            icon: Icons.pending_actions,
+            icon: Icons.pending_actions_rounded,
           );
         }
 
         return Column(
           children: [
-            Padding(
+            // Professional info banner
+            Container(
+              margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(16),
-              child: Card(
-                color: AppColors.accent.withOpacity(0.1),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info, color: AppColors.accent),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'You have ${requests.length} pending appointment request${requests.length > 1 ? 's' : ''}',
-                          style: TextStyle(color: AppColors.text),
-                        ),
-                      ),
-                    ],
-                  ),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.accent.withOpacity(0.2),
                 ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.accent,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'You have ${requests.length} pending appointment request${requests.length > 1 ? 's' : ''}',
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -231,7 +358,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
           return _buildEmptyState(
             title: 'No Appointments',
             message: 'You don\'t have any appointments yet',
-            icon: Icons.calendar_month,
+            icon: Icons.calendar_month_rounded,
           );
         }
 
@@ -246,55 +373,106 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     required IconData icon,
   }) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: AppColors.textSecondary),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 40,
+                color: AppColors.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                color: AppColors.text,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildErrorState(String message) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 64, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(
-            'Error loading appointments',
-            style: TextStyle(
-              color: AppColors.error, 
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 40,
+                color: AppColors.error,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+            const SizedBox(height: 24),
+            Text(
+              'Unable to Load Appointments',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                final authProvider = context.read<AuthProvider>();
+                final barberId = authProvider.user?.id;
+                if (barberId != null) {
+                  context.read<AppointmentsProvider>().refreshAll(barberId);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -321,6 +499,9 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     
     return Card(
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
         onTap: () {
           _viewAppointmentDetails(appointment);
@@ -353,7 +534,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                             appointment.clientName ?? 'Client',
                             style: const TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -361,9 +542,9 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                         ),
                         if (isToday) 
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.accent.withOpacity(0.2),
+                              color: AppColors.accent.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -371,7 +552,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                               style: TextStyle(
                                 fontSize: 10,
                                 color: AppColors.accent,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -390,7 +571,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
+                        Icon(Icons.access_time_rounded, size: 14, color: AppColors.textSecondary),
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('MMM d, yyyy • h:mm a').format(appointment.date),
@@ -414,7 +595,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                             _getStatusText(appointment.status).toUpperCase(),
                             style: TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: _getStatusColor(appointment.status),
                             ),
                           ),
@@ -424,7 +605,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                           'N\$${appointment.price?.toStringAsFixed(2) ?? '0.00'}',
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             color: Colors.green,
                           ),
                         ),
@@ -436,13 +617,14 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                         padding: const EdgeInsets.only(top: 8),
                         child: Row(
                           children: [
-                            Icon(Icons.notifications_active, size: 14, color: AppColors.accent),
+                            Icon(Icons.notifications_active_rounded, size: 14, color: AppColors.accent),
                             const SizedBox(width: 4),
                             Text(
                               'Reminder: ${appointment.reminderMinutes}min before',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.accent,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],

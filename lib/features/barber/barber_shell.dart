@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/features/barber/appointments/barber_appointments_screen.dart';
+import 'package:sheersync/features/barber/appointments/create_appointment_screen.dart';
 import 'package:sheersync/features/barber/chat/barber_chat_list_screen.dart';
 import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
 import 'package:sheersync/features/barber/services/barber_services_screen.dart';
@@ -60,9 +61,150 @@ class _BarberShellState extends State<BarberShell> {
     });
   }
 
+  // Method to show appointment options bottom sheet
+  void _showAppointmentOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Options
+              _buildActionOption(
+                icon: Icons.add_circle_outline_rounded,
+                title: 'Create Appointment',
+                subtitle: 'Schedule a new appointment',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateAppointmentScreen(),
+                    ),
+                  );
+                },
+              ),
+              _buildActionOption(
+                icon: Icons.construction_rounded,
+                title: 'Add Service',
+                subtitle: 'Create a new service',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BarberServicesScreen(),
+                    ),
+                  );
+                },
+              ),
+              _buildActionOption(
+                icon: Icons.access_time_rounded,
+                title: 'Manage Availability',
+                subtitle: 'Set working hours',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ManageAvailabilityScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              // Cancel Button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    side: BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      color: AppColors.background,
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppColors.primary),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textSecondary),
+        onTap: onTap,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context); // FIX: Store provider in variable
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -81,7 +223,7 @@ class _BarberShellState extends State<BarberShell> {
               child: Icon(Icons.person, color: AppColors.onPrimary), 
             ),
             onSelected: (value) {
-              _handleMenuSelection(value, authProvider); // FIX: Pass authProvider
+              _handleMenuSelection(value, authProvider);
             },
             itemBuilder: (BuildContext context) => [
               PopupMenuItem<String>(
@@ -163,21 +305,20 @@ class _BarberShellState extends State<BarberShell> {
       ),
       floatingActionButton: _currentIndex == 2 // Appointments tab
           ? FloatingActionButton(
-              onPressed: () {
-                // Add new appointment functionality
-                _addNewAppointment();
-              },
-              backgroundColor: AppColors.accent, // UPDATE: Use accent color
-              child: Icon(Icons.add, color: AppColors.onPrimary), // UPDATE: Use onPrimary color
+              onPressed: _showAppointmentOptions,
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              elevation: 4,
+              child: const Icon(Icons.add_rounded, size: 28),
             )
           : null,
     );
   }
 
-  void _handleMenuSelection(String value, AuthProvider authProvider) { // FIX: Add authProvider parameter
+  void _handleMenuSelection(String value, AuthProvider authProvider) {
     switch (value) {
       case 'profile':
-        _navigateToProfile(authProvider); // FIX: Pass authProvider
+        _navigateToProfile(authProvider);
         break;
       case 'availability':
         _navigateToAvailability();
@@ -189,17 +330,17 @@ class _BarberShellState extends State<BarberShell> {
         _navigateToSettings();
         break;
       case 'logout':
-        _showLogoutConfirmation(authProvider); // FIX: Pass authProvider
+        _showLogoutConfirmation(authProvider);
         break;
     }
   }
 
-  void _navigateToProfile(AuthProvider authProvider) { // FIX: Add authProvider parameter
+  void _navigateToProfile(AuthProvider authProvider) {
     if (authProvider.user != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => BarberProfileScreen(barber: authProvider.user!), // FIX: Pass current user as barber
+          builder: (context) => BarberProfileScreen(barber: authProvider.user!),
         ),
       );
     } else {
@@ -225,7 +366,7 @@ class _BarberShellState extends State<BarberShell> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const BarberServicesScreen(), // Navigate to service management
+        builder: (context) => const BarberServicesScreen(),
       ),
     );
   }
@@ -239,16 +380,7 @@ class _BarberShellState extends State<BarberShell> {
     );
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature coming soon!'),
-        backgroundColor: AppColors.primary, // UPDATE: Use primary color
-      ),
-    );
-  }
-
-  void _showLogoutConfirmation(AuthProvider authProvider) { // FIX: Add authProvider parameter
+  void _showLogoutConfirmation(AuthProvider authProvider) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -273,7 +405,7 @@ class _BarberShellState extends State<BarberShell> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                _logout(authProvider); // FIX: Pass authProvider
+                _logout(authProvider);
               },
               child: Text(
                 'Logout',
@@ -286,12 +418,7 @@ class _BarberShellState extends State<BarberShell> {
     );
   }
 
-  void _logout(AuthProvider authProvider) { // FIX: Add authProvider parameter
+  void _logout(AuthProvider authProvider) {
     authProvider.signOut();
-  }
-
-  void _addNewAppointment() {
-    // TODO: Navigate to add appointment screen
-    _showComingSoon('Add New Appointment');
   }
 }

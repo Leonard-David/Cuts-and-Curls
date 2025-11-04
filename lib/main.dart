@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/theme/app_theme.dart';
 import 'package:sheersync/core/utils/offline_service.dart';
+import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/data/providers/settings_provider.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
@@ -42,6 +43,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
+        ChangeNotifierProvider(create: (_) => AppointmentsProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, child) {

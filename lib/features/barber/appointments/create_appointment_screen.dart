@@ -1,4 +1,3 @@
-// Create create_appointment_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -33,13 +32,28 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Appointment'),
+        title: const Text(
+          'Create Appointment',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.5,
+          ),
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
-        elevation: 1,
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 20,
+        actions: [
+          _buildAppBarAction(
+            icon: Icons.help_outline_rounded,
+            tooltip: 'Help & Guidelines',
+            onPressed: _showHelpDialog,
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -50,264 +64,260 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Header Section
+                    _buildHeaderSection(),
+                    const SizedBox(height: 24),
+                    
                     // Client Information
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Client Information',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _clientNameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Client Name *',
-                                border: OutlineInputBorder(),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter client name';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
+                    _buildSectionCard(
+                      title: 'Client Information',
+                      icon: Icons.person_outline_rounded,
+                      children: [
+                        TextFormField(
+                          controller: _clientNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Client Name *',
+                            hintText: 'Enter client full name',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person_rounded),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter client name';
+                            }
+                            return null;
+                          },
                         ),
-                      ),
+                      ],
                     ),
+                    
                     const SizedBox(height: 16),
+                    
                     // Service Information
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Service Information',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _serviceNameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Service Name *',
-                                border: OutlineInputBorder(),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter service name';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _priceController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Price (N\$) *',
-                                border: OutlineInputBorder(),
-                                prefixText: 'N\$',
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter price';
-                                }
-                                final price = double.tryParse(value);
-                                if (price == null || price <= 0) {
-                                  return 'Please enter valid price';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
+                    _buildSectionCard(
+                      title: 'Service Details',
+                      icon: Icons.construction_rounded,
+                      children: [
+                        TextFormField(
+                          controller: _serviceNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Service Name *',
+                            hintText: 'e.g., Classic Haircut, Hair Coloring',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.work_outline_rounded),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter service name';
+                            }
+                            return null;
+                          },
                         ),
-                      ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _priceController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Price (N\$) *',
+                            hintText: '0.00',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.attach_money_rounded),
+                            prefixText: 'N\$',
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter price';
+                            }
+                            final price = double.tryParse(value);
+                            if (price == null || price <= 0) {
+                              return 'Please enter valid price';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                     ),
+                    
                     const SizedBox(height: 16),
+                    
                     // Date & Time Selection
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    _buildSectionCard(
+                      title: 'Schedule',
+                      icon: Icons.calendar_today_rounded,
+                      children: [
+                        Row(
                           children: [
-                            const Text(
-                              'Date & Time',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: _buildDateTimeTile(
+                                icon: Icons.calendar_today_rounded,
+                                title: 'Date',
+                                subtitle: DateFormat('MMM d, yyyy').format(_selectedDate),
+                                onTap: _selectDate,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ListTile(
-                                    leading: const Icon(Icons.calendar_today),
-                                    title: const Text('Date'),
-                                    subtitle: Text(DateFormat('MMM d, yyyy').format(_selectedDate)),
-                                    onTap: () => _selectDate(),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: ListTile(
-                                    leading: const Icon(Icons.access_time),
-                                    title: const Text('Time'),
-                                    subtitle: Text(_selectedTime.format(context)),
-                                    onTap: () => _selectTime(),
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildDateTimeTile(
+                                icon: Icons.access_time_rounded,
+                                title: 'Time',
+                                subtitle: _selectedTime.format(context),
+                                onTap: _selectTime,
+                              ),
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
+                    
                     const SizedBox(height: 16),
+                    
                     // Reminder Settings
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    _buildSectionCard(
+                      title: 'Reminder Settings',
+                      icon: Icons.notifications_active_rounded,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.notifications),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Set Reminder',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        _hasReminder 
-                                            ? 'You will be reminded before the appointment'
-                                            : 'No reminder set',
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
+                            Icon(Icons.notifications_none_rounded, color: AppColors.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Set Appointment Reminder',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.text,
+                                    ),
                                   ),
-                                ),
-                                Switch(
-                                  value: _hasReminder,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _hasReminder = value;
-                                    });
-                                  },
-                                  activeColor: AppColors.primary,
-                                ),
-                              ],
-                            ),
-                            if (_hasReminder) ...[
-                              const SizedBox(height: 16),
-                              Text(
-                                'Remind me before appointment:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              DropdownButtonFormField<int>(
-                                value: _reminderMinutes,
-                                items: const [
-                                  DropdownMenuItem(value: 15, child: Text('15 minutes before')),
-                                  DropdownMenuItem(value: 30, child: Text('30 minutes before')),
-                                  DropdownMenuItem(value: 60, child: Text('1 hour before')),
-                                  DropdownMenuItem(value: 120, child: Text('2 hours before')),
-                                  DropdownMenuItem(value: 1440, child: Text('1 day before')),
+                                  Text(
+                                    _hasReminder 
+                                        ? 'You will be reminded before the appointment'
+                                        : 'No reminder set',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ],
-                                onChanged: (value) {
-                                  setState(() {
-                                    _reminderMinutes = value!;
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                ),
                               ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                onChanged: (value) => _reminderNote = value,
-                                maxLines: 2,
-                                decoration: const InputDecoration(
-                                  labelText: 'Reminder Note (Optional)',
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Add a note for the reminder...',
-                                ),
-                              ),
+                            ),
+                            Switch(
+                              value: _hasReminder,
+                              onChanged: (value) {
+                                setState(() {
+                                  _hasReminder = value;
+                                });
+                              },
+                              activeColor: AppColors.primary,
+                            ),
+                          ],
+                        ),
+                        
+                        if (_hasReminder) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            'Remind me before appointment:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<int>(
+                            value: _reminderMinutes,
+                            items: const [
+                              DropdownMenuItem(value: 15, child: Text('15 minutes before')),
+                              DropdownMenuItem(value: 30, child: Text('30 minutes before')),
+                              DropdownMenuItem(value: 60, child: Text('1 hour before')),
+                              DropdownMenuItem(value: 120, child: Text('2 hours before')),
+                              DropdownMenuItem(value: 1440, child: Text('1 day before')),
                             ],
-                          ],
-                        ),
-                      ),
+                            onChanged: (value) {
+                              setState(() {
+                                _reminderMinutes = value!;
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.timer_outlined),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            onChanged: (value) => _reminderNote = value,
+                            maxLines: 2,
+                            decoration: const InputDecoration(
+                              labelText: 'Reminder Note (Optional)',
+                              border: OutlineInputBorder(),
+                              hintText: 'Add a note for the reminder...',
+                              prefixIcon: Icon(Icons.note_add_outlined),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                    
                     const SizedBox(height: 16),
+                    
                     // Additional Notes
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Additional Notes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _notesController,
-                              maxLines: 3,
-                              decoration: const InputDecoration(
-                                hintText: 'Add any additional notes about this appointment...',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
+                    _buildSectionCard(
+                      title: 'Additional Notes',
+                      icon: Icons.notes_rounded,
+                      children: [
+                        TextFormField(
+                          controller: _notesController,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            hintText: 'Add any additional notes about this appointment...',
+                            border: OutlineInputBorder(),
+                            alignLabelWithHint: true,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
+                    
                     const SizedBox(height: 32),
+                    
                     // Create Button
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 54,
                       child: ElevatedButton(
                         onPressed: _createAppointment,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
                         ),
-                        child: const Text(
-                          'Create Appointment',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_circle_outline_rounded, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Create Appointment',
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
+                    
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -315,6 +325,228 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
     );
   }
 
+  Widget _buildHeaderSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.accent.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.calendar_month_rounded,
+              size: 32,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'New Appointment',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Schedule a new appointment with your client',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTimeTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 20, color: AppColors.primary),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBarAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: IconButton(
+        icon: Icon(icon, size: 22),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.all(8),
+        ),
+      ),
+    );
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.help_outline_rounded, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text('Appointment Guidelines'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHelpItem('Client Name', 'Enter the full name of your client'),
+            _buildHelpItem('Service Details', 'Specify the service and pricing'),
+            _buildHelpItem('Schedule', 'Select date and time for the appointment'),
+            _buildHelpItem('Reminders', 'Set notifications for upcoming appointments'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got It'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHelpItem(String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.circle, size: 6, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Rest of the methods remain the same...
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -364,13 +596,13 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
       final appointment = AppointmentModel(
         id: 'appt_${DateTime.now().millisecondsSinceEpoch}',
         barberId: barber.id,
-        clientId: 'manual_${DateTime.now().millisecondsSinceEpoch}', // Temporary client ID
+        clientId: 'manual_${DateTime.now().millisecondsSinceEpoch}',
         clientName: _clientNameController.text.trim(),
         barberName: barber.fullName,
         date: appointmentDateTime,
         serviceName: _serviceNameController.text.trim(),
         price: double.parse(_priceController.text),
-        status: 'confirmed', // Directly confirmed for manually created appointments
+        status: 'confirmed',
         notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
         createdAt: DateTime.now(),
         hasReminder: _hasReminder,

@@ -28,6 +28,379 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
   ];
 
   @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Manage Availability',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.5,
+          ),
+        ),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 20,
+        actions: [
+          if (!_isLoading)
+            _buildAppBarAction(
+              icon: Icons.save_rounded,
+              tooltip: 'Save Availability',
+              onPressed: _isSaving ? null : _saveAvailability,
+            ),
+          _buildAppBarAction(
+            icon: Icons.help_outline_rounded,
+            tooltip: 'Availability Guide',
+            onPressed: _showAvailabilityGuide,
+          ),
+        ],
+      ),
+      backgroundColor: AppColors.background,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // Header Section
+                _buildHeaderSection(),
+                const SizedBox(height: 16),
+                // Days List
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _days.length,
+                    itemBuilder: (context, index) {
+                      final day = _days[index];
+                      final slots = _weeklyAvailability[day]!;
+                      final isDayAvailable = slots.isNotEmpty;
+                      return _buildDayCard(day, slots, isDayAvailable);
+                    },
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildHeaderSection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.accent.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.access_time_rounded,
+              size: 32,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Working Hours',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Set your available hours for each day of the week',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayCard(String day, List<TimeSlot> slots, bool isDayAvailable) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Day header with toggle
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      day,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Switch(
+                  value: isDayAvailable,
+                  onChanged: (value) => _toggleDayAvailability(day, value),
+                  activeColor: AppColors.success,
+                  inactiveTrackColor: AppColors.error.withOpacity(0.5),
+                ),
+              ],
+            ),
+            
+            if (isDayAvailable) ...[
+              const SizedBox(height: 16),
+              // Time slots header
+              Row(
+                children: [
+                  Icon(Icons.schedule_rounded, size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Available Time Slots',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${slots.length} slot${slots.length != 1 ? 's' : ''}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Time slots list
+              ...slots.asMap().entries.map((entry) {
+                final slotIndex = entry.key;
+                final slot = entry.value;
+                
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.access_time_filled_rounded, size: 18, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '${_formatTimeOfDay(slot.startTime)} - ${_formatTimeOfDay(slot.endTime)}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.primary),
+                        onPressed: () => _editTimeSlot(day, slotIndex),
+                        tooltip: 'Edit Time Slot',
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                        onPressed: () => _removeTimeSlot(day, slotIndex),
+                        tooltip: 'Remove Time Slot',
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              
+              const SizedBox(height: 12),
+              
+              // Add time slot button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => _addTimeSlot(day),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Text('Add Time Slot'),
+                    ],
+                  ),
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.error.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.do_not_disturb_rounded, size: 16, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Not available for bookings',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBarAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: IconButton(
+        icon: _isSaving && icon == Icons.save_rounded
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              )
+            : Icon(icon, size: 22),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.all(8),
+        ),
+      ),
+    );
+  }
+
+  void _showAvailabilityGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.tips_and_updates_rounded, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text('Availability Guide'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildGuideItem('Toggle Days', 'Enable/disable days you work'),
+            _buildGuideItem('Multiple Slots', 'Add different time slots per day'),
+            _buildGuideItem('Realistic Hours', 'Set hours you can actually work'),
+            _buildGuideItem('Save Changes', 'Remember to save your settings'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got It'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuideItem(String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Rest of the methods remain the same...
+  @override
   void initState() {
     super.initState();
     _loadAvailability();
@@ -60,7 +433,7 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
               return TimeSlot.fromMap(Map<String, dynamic>.from(slot));
             }).toList();
           } else {
-            _weeklyAvailability[day] = []; // Default empty slots
+            _weeklyAvailability[day] = [];
           }
         }
       } else {
@@ -89,8 +462,7 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // FIX: Convert availability to Firestore format with proper typing
-      final Map<String, dynamic> availabilityData = {}; // FIX: Specify type explicitly
+      final Map<String, dynamic> availabilityData = {};
       for (final day in _days) {
         availabilityData[day.toLowerCase()] = _weeklyAvailability[day]!
             .map((slot) => slot.toMap())
@@ -106,6 +478,7 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
         SnackBar(
           content: const Text('Availability saved successfully!'),
           backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
@@ -113,6 +486,7 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
         SnackBar(
           content: Text('Failed to save availability: $e'),
           backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -163,137 +537,14 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
   void _toggleDayAvailability(String day, bool isAvailable) {
     setState(() {
       if (isAvailable && _weeklyAvailability[day]!.isEmpty) {
-        // Add default time slot when enabling a day
         _weeklyAvailability[day]!.add(TimeSlot(
           startTime: const TimeOfDay(hour: 9, minute: 0),
           endTime: const TimeOfDay(hour: 17, minute: 0),
         ));
       } else if (!isAvailable) {
-        // Clear all slots when disabling a day
         _weeklyAvailability[day]!.clear();
       }
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Availability'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.text,
-        elevation: 1,
-        actions: [
-          if (!_isLoading)
-            IconButton(
-              icon: _isSaving
-                  ? const CircularProgressIndicator()
-                  : const Icon(Icons.save),
-              onPressed: _isSaving ? null : _saveAvailability,
-            ),
-        ],
-      ),
-      backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _days.length,
-              itemBuilder: (context, index) {
-                final day = _days[index];
-                final slots = _weeklyAvailability[day]!;
-                final isDayAvailable = slots.isNotEmpty;
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Day header with toggle
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              day,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Switch(
-                              value: isDayAvailable,
-                              onChanged: (value) => _toggleDayAvailability(day, value),
-                              activeColor: AppColors.primary,
-                            ),
-                          ],
-                        ),
-                        
-                        if (isDayAvailable) ...[
-                          const SizedBox(height: 12),
-                          // Time slots list
-                          ...slots.asMap().entries.map((entry) {
-                            final slotIndex = entry.key;
-                            final slot = entry.value;
-                            
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${_formatTimeOfDay(slot.startTime)} - ${_formatTimeOfDay(slot.endTime)}',
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, size: 20),
-                                    onPressed: () => _editTimeSlot(day, slotIndex),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, size: 20),
-                                    onPressed: () => _removeTimeSlot(day, slotIndex),
-                                    color: AppColors.error,
-                                  ),
-                                ],
-                              ),
-                            );
-                          }),
-                          
-                          const SizedBox(height: 8),
-                          
-                          // Add time slot button
-                          ElevatedButton(
-                            onPressed: () => _addTimeSlot(day),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.onPrimary,
-                            ),
-                            child: const Text('Add Time Slot'),
-                          ),
-                        ] else ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Not available',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
   }
 
   String _formatTimeOfDay(TimeOfDay time) {
@@ -304,7 +555,7 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
   }
 }
 
-// TimeSlot model for availability
+// TimeSlot model remains the same
 class TimeSlot {
   final TimeOfDay startTime;
   final TimeOfDay endTime;
@@ -314,7 +565,6 @@ class TimeSlot {
     required this.endTime,
   });
 
-  // Convert to Map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'startHour': startTime.hour,
@@ -324,7 +574,6 @@ class TimeSlot {
     };
   }
 
-  // Create from Firestore data
   factory TimeSlot.fromMap(Map<String, dynamic> map) {
     return TimeSlot(
       startTime: TimeOfDay(
