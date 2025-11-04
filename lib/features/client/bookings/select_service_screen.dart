@@ -7,8 +7,9 @@ import 'confirm_booking_screen.dart';
 
 class SelectServiceScreen extends StatefulWidget {
   final UserModel barber;
+  final ServiceModel? preselectedService;
 
-  const SelectServiceScreen({super.key, required this.barber});
+  const SelectServiceScreen({super.key, required this.barber, this.preselectedService});
 
   @override
   State<SelectServiceScreen> createState() => _SelectServiceScreenState();

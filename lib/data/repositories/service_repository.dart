@@ -4,35 +4,23 @@ import '../models/service_model.dart';
 class ServiceRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Create new service
-  Future<void> createService(ServiceModel service) async {
-    try {
-      await _firestore
-          .collection('services')
-          .doc(service.id)
-          .set(service.toMap());
-    } catch (e) {
-      throw Exception('Failed to create service: $e');
-    }
-  }
-
-  // Get services for barber
+  // Get services for barber (for barber's view)
   Stream<List<ServiceModel>> getBarberServices(String barberId) {
-    return _firestore
-        .collection('services')
-        .where('barberId', isEqualTo: barberId)
-        .where('isActive', isEqualTo: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
-              final data = doc.data() as Map<String, dynamic>? ?? {};
-              return ServiceModel.fromMap(data);
-            })
-            .toList());
+    return _getServicesQuery(barberId);
   }
 
   // Get all active services (for clients to view)
   Stream<List<ServiceModel>> getBarberServicesForClient(String barberId) {
+    return _getServicesQuery(barberId);
+  }
+
+  // Get services with real-time updates for specific barber
+  Stream<List<ServiceModel>> getBarberServicesStream(String barberId) {
+    return _getServicesQuery(barberId);
+  }
+
+  // Private helper method to avoid code duplication
+  Stream<List<ServiceModel>> _getServicesQuery(String barberId) {
     return _firestore
         .collection('services')
         .where('barberId', isEqualTo: barberId)
@@ -45,7 +33,7 @@ class ServiceRepository {
             })
             .toList());
   }
-  
+
   // Get real-time service by ID
   Stream<ServiceModel?> getServiceByIdStream(String serviceId) {
     return _firestore
@@ -60,21 +48,17 @@ class ServiceRepository {
         });
   }
 
-  // Get services with real-time updates for specific barber
-  Stream<List<ServiceModel>> getBarberServicesStream(String barberId) {
-    return _firestore
-        .collection('services')
-        .where('barberId', isEqualTo: barberId)
-        .where('isActive', isEqualTo: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
-              final data = doc.data() as Map<String, dynamic>? ?? {};
-              return ServiceModel.fromMap(data);
-            })
-            .toList());
+  // Create new service
+  Future<void> createService(ServiceModel service) async {
+    try {
+      await _firestore
+          .collection('services')
+          .doc(service.id)
+          .set(service.toMap());
+    } catch (e) {
+      throw Exception('Failed to create service: $e');
+    }
   }
-
 
   // Update service
   Future<void> updateService(ServiceModel service) async {
@@ -99,7 +83,7 @@ class ServiceRepository {
     }
   }
 
-  // Get service by ID
+  // Get service by ID (one-time fetch)
   Future<ServiceModel?> getServiceById(String serviceId) async {
     try {
       final doc = await _firestore.collection('services').doc(serviceId).get();

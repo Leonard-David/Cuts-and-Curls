@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
+import 'package:sheersync/features/barber/services/barber_services_screen.dart';
+import 'package:sheersync/features/barber/services/manage_availability_screen.dart';
 import '../../../data/models/appointment_model.dart';
 import '../../../features/auth/controllers/auth_provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
@@ -19,7 +22,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final barberId = authProvider.user?.id;
 
     if (barberId == null) {
-      return _buildErrorState('Please log in to view dashboard');
+      return _buildErrorState('Please log in to view your dashboard.');
     }
 
     return Scaffold(
@@ -377,7 +380,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icons.construction,
                     AppColors.primary,
                     () {
-                      _showComingSoon('Manage Services');
+                      // Navigate to services management
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BarberServicesScreen(),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -388,7 +397,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icons.access_time,
                     AppColors.success,
                     () {
-                      _showComingSoon('Set Availability');
+                      // Navigate to availability settings
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ManageAvailabilityScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickActionButton(
+                    'View Earnings',
+                    Icons.analytics,
+                    AppColors.accent,
+                    () {
+                      // Navigate to earnings screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BarberEarningScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickActionButton(
+                    'Client Reviews',
+                    Icons.star,
+                    Colors.purple,
+                    () {
+                      // Navigate to reviews screen
+                      _showComingSoon('Client Reviews');
                     },
                   ),
                 ),

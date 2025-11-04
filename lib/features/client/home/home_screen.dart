@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
 import '../../../data/models/user_model.dart';
 import '../../../features/auth/controllers/auth_provider.dart';
 import '../bookings/select_barber_screen.dart';
@@ -322,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: 4),
-              // User Type
+              // Professional Type and Specialization
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -332,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  barber.userType == 'barber' ? 'Barber' : 'Hairstylist',
+                  barber.userType == 'barber' ? 'Professional Barber' : 'Hairstylist',
                   style: TextStyle(
                     fontSize: 10,
                     color: barber.userType == 'barber' ? AppColors.primary : AppColors.accent,
@@ -340,6 +341,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+              // Bio preview
+              if (barber.bio != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  barber.bio!.length > 40 
+                      ? '${barber.bio!.substring(0, 40)}...' 
+                      : barber.bio!,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),
@@ -351,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SelectBarberScreen(selectedBarber: barber),
+        builder: (context) => BarberProfileScreen(barber: barber),
       ),
     );
   }
