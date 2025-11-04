@@ -38,6 +38,15 @@ class AppointmentModel {
   @HiveField(11)
   final DateTime? updatedAt;
 
+  @HiveField(12)
+  final bool hasReminder;
+  
+  @HiveField(13)
+  final int? reminderMinutes;
+  
+  @HiveField(14)
+  final String? reminderNote;
+
   AppointmentModel({
     required this.id,
     required this.barberId,
@@ -51,6 +60,9 @@ class AppointmentModel {
     this.notes,
     required this.createdAt,
     this.updatedAt,
+    this.hasReminder = false,
+    this.reminderMinutes,
+    this.reminderNote,
   });
 
   // Convert model to map for Firestore
@@ -68,6 +80,9 @@ class AppointmentModel {
       'notes': notes,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt?.millisecondsSinceEpoch,
+      'hasReminder': hasReminder,
+      'reminderMinutes': reminderMinutes,
+      'reminderNote': reminderNote,
     };
   }
 
@@ -88,6 +103,9 @@ class AppointmentModel {
       updatedAt: map['updatedAt'] != null 
           ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'])
           : null,
+      hasReminder: map['hasReminder'] ?? false,
+      reminderMinutes: map['reminderMinutes'],
+      reminderNote: map['reminderNote'],
     );
   }
 
@@ -103,6 +121,9 @@ class AppointmentModel {
     String? status,
     String? notes,
     DateTime? updatedAt,
+     bool? hasReminder,
+    int? reminderMinutes,
+    String? reminderNote,
   }) {
     return AppointmentModel(
       id: id,
@@ -117,6 +138,9 @@ class AppointmentModel {
       notes: notes ?? this.notes,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      hasReminder: hasReminder ?? this.hasReminder,
+      reminderMinutes: reminderMinutes ?? this.reminderMinutes,
+      reminderNote: reminderNote ?? this.reminderNote,
     );
   }
 }

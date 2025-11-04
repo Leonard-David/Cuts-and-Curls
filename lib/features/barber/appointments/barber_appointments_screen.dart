@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:sheersync/core/constants/colors.dart';
+import 'package:sheersync/core/widgets/custom_snackbar.dart';
+import 'package:sheersync/data/providers/appointments_provider.dart';
+import 'package:sheersync/features/barber/appointments/create_appointment_screen.dart';
 import '../../../data/models/appointment_model.dart';
 import '../../../data/repositories/booking_repository.dart';
 import '../../../features/auth/controllers/auth_provider.dart';
@@ -14,111 +17,242 @@ class BarberAppointmentsScreen extends StatefulWidget {
   State<BarberAppointmentsScreen> createState() => _BarberAppointmentsScreenState();
 }
 
-class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
+class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> with SingleTickerProviderStateMixin {
   final BookingRepository _bookingRepository = BookingRepository();
-  String _selectedFilter = 'today';
 
-  final Map<String, String> _filters = {
-    'today': 'Today',
-    'upcoming': 'Upcoming',
-    'pending': 'Pending',
-    'completed': 'Completed',
-    'all': 'All',
-  };
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    
+    // Load initial data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      final appointmentsProvider = context.read<AppointmentsProvider>();
+      final barberId = authProvider.user?.id;
+      
+      if (barberId != null) {
+        appointmentsProvider.refreshAll(barberId);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final appointmentsProvider = Provider.of<AppointmentsProvider>(context);
     final barberId = authProvider.user?.id;
-
-    if (barberId == null) {
-      return _buildErrorState('Please login again');
-    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('My Appointments'),
+        title: const Text('Appointments Management'),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
         elevation: 1,
-      ),
-      body: Column(
-        children: [
-          // Filter Chips
-          _buildFilterChips(),
-          const SizedBox(height: 8),
-          // Real-time Appointments List
-          Expanded(
-            child: StreamBuilder<List<AppointmentModel>>(
-              stream: _bookingRepository.getBarberAppointments(barberId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return _buildErrorState(snapshot.error.toString());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return _buildEmptyState();
-                }
-
-                final appointments = _filterAppointments(snapshot.data!);
-                
-                if (appointments.isEmpty) {
-                  return _buildEmptyFilterState();
-                }
-
-                return _buildAppointmentsList(appointments);
-              },
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateAppointmentScreen(),
+                ),
+              );
+            },
+            tooltip: 'Create New Appointment',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              if (barberId != null) {
+                appointmentsProvider.refreshAll(barberId);
+                showCustomSnackBar(
+                  context,
+                  'Appointments refreshed',
+                  type: SnackBarType.success,
+                );
+              }
+            },
+            tooltip: 'Refresh',
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Wrap(
-          spacing: 8,
-          children: _filters.entries.map((entry) {
-            final isSelected = _selectedFilter == entry.key;
-            return ChoiceChip(
-              selected: isSelected,
-              label: Text(entry.value),
-              onSelected: (selected) {
-                setState(() {
-                  _selectedFilter = entry.key;
-                });
-              },
-              backgroundColor: Colors.grey[200],
-              selectedColor: AppColors.primary.withOpacity(0.2),
-              labelStyle: TextStyle(
-                color: isSelected ? AppColors.primary : AppColors.text,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            );
-          }).toList(),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Today'),
+            Tab(text: 'Upcoming'),
+            Tab(text: 'Requests'),
+            Tab(text: 'All'),
+          ],
         ),
       ),
+      body: barberId == null
+          ? _buildErrorState('Please login again')
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildTodaysAppointments(barberId, appointmentsProvider),
+                _buildUpcomingAppointments(barberId, appointmentsProvider),
+                _buildAppointmentRequests(barberId, appointmentsProvider),
+                _buildAllAppointments(barberId, appointmentsProvider),
+              ],
+            ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildTodaysAppointments(String barberId, AppointmentsProvider provider) {
+    return StreamBuilder<List<AppointmentModel>>(
+      stream: _bookingRepository.getTodaysAppointments(barberId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        final appointments = snapshot.data ?? [];
+        
+        if (appointments.isEmpty) {
+          return _buildEmptyState(
+            title: 'No Appointments Today',
+            message: 'You have no appointments scheduled for today',
+            icon: Icons.calendar_today,
+          );
+        }
+
+        return _buildAppointmentsList(appointments);
+      },
+    );
+  }
+
+  Widget _buildUpcomingAppointments(String barberId, AppointmentsProvider provider) {
+    return StreamBuilder<List<AppointmentModel>>(
+      stream: _bookingRepository.getUpcomingAppointments(barberId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        final appointments = snapshot.data ?? [];
+        
+        if (appointments.isEmpty) {
+          return _buildEmptyState(
+            title: 'No Upcoming Appointments',
+            message: 'You have no upcoming appointments in the next 7 days',
+            icon: Icons.upcoming,
+          );
+        }
+
+        return _buildAppointmentsList(appointments);
+      },
+    );
+  }
+
+  Widget _buildAppointmentRequests(String barberId, AppointmentsProvider provider) {
+    return StreamBuilder<List<AppointmentModel>>(
+      stream: _bookingRepository.getAppointmentRequests(barberId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        final requests = snapshot.data ?? [];
+        
+        if (requests.isEmpty) {
+          return _buildEmptyState(
+            title: 'No Pending Requests',
+            message: 'You have no pending appointment requests',
+            icon: Icons.pending_actions,
+          );
+        }
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Card(
+                color: AppColors.accent.withOpacity(0.1),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: AppColors.accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'You have ${requests.length} pending appointment request${requests.length > 1 ? 's' : ''}',
+                          style: TextStyle(color: AppColors.text),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _buildAppointmentsList(requests),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAllAppointments(String barberId, AppointmentsProvider provider) {
+    return StreamBuilder<List<AppointmentModel>>(
+      stream: _bookingRepository.getBarberAppointments(barberId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        final appointments = snapshot.data ?? [];
+        
+        if (appointments.isEmpty) {
+          return _buildEmptyState(
+            title: 'No Appointments',
+            message: 'You don\'t have any appointments yet',
+            icon: Icons.calendar_month,
+          );
+        }
+
+        return _buildAppointmentsList(appointments);
+      },
+    );
+  }
+
+  Widget _buildEmptyState({
+    required String title,
+    required String message,
+    required IconData icon,
+  }) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.calendar_today, size: 64, color: AppColors.textSecondary),
+          Icon(icon, size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
           Text(
-            'No Appointments',
+            title,
             style: TextStyle(
               fontSize: 18,
               color: AppColors.textSecondary,
@@ -127,33 +261,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'You don\'t have any appointments yet',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyFilterState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.filter_alt_off, size: 64, color: AppColors.textSecondary),
-          const SizedBox(height: 16),
-          Text(
-            'No ${_filters[_selectedFilter]?.toLowerCase()} appointments',
-            style: TextStyle(
-              fontSize: 18,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try selecting a different filter',
+            message,
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
           ),
@@ -209,7 +317,6 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
   }
 
   Widget _buildAppointmentCard(AppointmentModel appointment) {
-    appointment.date.isBefore(DateTime.now());
     final isToday = _isToday(appointment.date);
     
     return Card(
@@ -323,6 +430,24 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
                         ),
                       ],
                     ),
+                    // Reminder indicator
+                    if (appointment.hasReminder && appointment.reminderMinutes != null) 
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.notifications_active, size: 14, color: AppColors.accent),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Reminder: ${appointment.reminderMinutes}min before',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.accent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -340,54 +465,6 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
         builder: (context) => AppointmentDetailsScreen(appointment: appointment),
       ),
     );
-  }
-
-  List<AppointmentModel> _filterAppointments(List<AppointmentModel> appointments) {
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-    List<AppointmentModel> filteredAppointments;
-
-    switch (_selectedFilter) {
-      case 'today':
-        filteredAppointments = appointments.where((appt) {
-          return appt.date.isAfter(todayStart) && appt.date.isBefore(todayEnd);
-        }).toList();
-        break;
-      case 'upcoming':
-        filteredAppointments = appointments.where((appt) {
-          return appt.date.isAfter(now) && 
-                 appt.status != 'completed' && 
-                 appt.status != 'cancelled';
-        }).toList();
-        break;
-      case 'pending':
-        filteredAppointments = appointments.where((appt) {
-          return appt.status == 'pending';
-        }).toList();
-        break;
-      case 'completed':
-        filteredAppointments = appointments.where((appt) {
-          return appt.status == 'completed';
-        }).toList();
-        break;
-      case 'all':
-      default:
-        filteredAppointments = appointments;
-        break;
-    }
-
-    // Sort by date (most recent first for past, upcoming first for future)
-    filteredAppointments.sort((a, b) {
-      if (_selectedFilter == 'completed' || _selectedFilter == 'all') {
-        return b.date.compareTo(a.date); // Most recent first
-      } else {
-        return a.date.compareTo(b.date); // Soonest first
-      }
-    });
-
-    return filteredAppointments;
   }
 
   bool _isToday(DateTime date) {
@@ -425,5 +502,11 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
       default:
         return 'Unknown';
     }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 }

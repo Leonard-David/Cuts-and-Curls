@@ -12,22 +12,50 @@ class BookingRepository {
           .collection('appointments')
           .doc(appointment.id)
           .set(appointment.toMap());
+      // Schedule reminder if enabled
+      if (appointment.hasReminder && appointment.reminderMinutes != null) {
+        await _scheduleAppointmentReminder(appointment);
+      }
     } catch (e) {
       throw Exception('Failed to create appointment: $e');
     }
   }
+  // Schedule reminder notification
+  Future<void> _scheduleAppointmentReminder(AppointmentModel appointment) async {
+    final reminderTime = appointment.date.subtract(
+      Duration(minutes: appointment.reminderMinutes!),
+    );
+    
+    // local notifications for reminders
+    // You can integrate with your notification service
+    print('Reminder scheduled for ${reminderTime} for appointment ${appointment.id}');
+  }
 
-  // Get appointments for barber using helper
-  Stream<List<AppointmentModel>> getBarberAppointments(String barberId) {
+   // Get appointments with real-time updates and filtering
+  Stream<List<AppointmentModel>> getBarberAppointments(String barberId, {String? statusFilter}) {
+    Query query = _firestore
+        .collection('appointments')
+        .where('barberId', isEqualTo: barberId)
+        .orderBy('date', descending: false);
+
+    if (statusFilter != null && statusFilter != 'all') {
+      query = query.where('status', isEqualTo: statusFilter);
+    }
+
+    return query.snapshots().map((snapshot) => 
+        FirestoreHelper.convertDocsToModels(snapshot.docs, AppointmentModel.fromMap));
+  }
+
+  // Get appointment requests (pending appointments)
+  Stream<List<AppointmentModel>> getAppointmentRequests(String barberId) {
     return _firestore
         .collection('appointments')
         .where('barberId', isEqualTo: barberId)
-        .orderBy('date', descending: false)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => FirestoreHelper.convertDocsToModels(
-              snapshot.docs,
-              AppointmentModel.fromMap,
-            ));
+        .map((snapshot) => 
+            FirestoreHelper.convertDocsToModels(snapshot.docs, AppointmentModel.fromMap));
   }
 
   // Get appointments for client
@@ -94,17 +122,81 @@ class BookingRepository {
         .snapshots()
         .map((snapshot) => snapshot.docs.isEmpty);
   }
-  // Update appointment status
+  
+  // Update appointment status with notification
   Future<void> updateAppointmentStatus(
-      String appointmentId, String status) async {
+    String appointmentId, 
+    String status, {
+    String? reason,
+  }) async {
     try {
-      await _firestore.collection('appointments').doc(appointmentId).update({
+      final updateData = {
         'status': status,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      });
+      };
+
+      if (reason != null) {
+        updateData['cancellationReason'] = reason;
+      }
+
+      await _firestore.collection('appointments').doc(appointmentId).update(updateData);
     } catch (e) {
       throw Exception('Failed to update appointment: $e');
     }
+  }
+
+  // Set appointment reminder
+  Future<void> setAppointmentReminder({
+    required String appointmentId,
+    required bool hasReminder,
+    required int reminderMinutes,
+    String? reminderNote,
+  }) async {
+    try {
+      await _firestore.collection('appointments').doc(appointmentId).update({
+        'hasReminder': hasReminder,
+        'reminderMinutes': reminderMinutes,
+        'reminderNote': reminderNote,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (e) {
+      throw Exception('Failed to set reminder: $e');
+    }
+  }
+
+  // Get today's appointments
+  Stream<List<AppointmentModel>> getTodaysAppointments(String barberId) {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    return _firestore
+        .collection('appointments')
+        .where('barberId', isEqualTo: barberId)
+        .where('date', isGreaterThanOrEqualTo: startOfDay)
+        .where('date', isLessThanOrEqualTo: endOfDay)
+        .where('status', whereIn: ['confirmed', 'pending'])
+        .orderBy('date', descending: false)
+        .snapshots()
+        .map((snapshot) => 
+            FirestoreHelper.convertDocsToModels(snapshot.docs, AppointmentModel.fromMap));
+  }
+
+  // Get upcoming appointments (next 7 days)
+  Stream<List<AppointmentModel>> getUpcomingAppointments(String barberId) {
+    final now = DateTime.now();
+    final nextWeek = now.add(const Duration(days: 7));
+
+    return _firestore
+        .collection('appointments')
+        .where('barberId', isEqualTo: barberId)
+        .where('date', isGreaterThan: now)
+        .where('date', isLessThan: nextWeek)
+        .where('status', whereIn: ['confirmed', 'pending'])
+        .orderBy('date', descending: false)
+        .snapshots()
+        .map((snapshot) => 
+            FirestoreHelper.convertDocsToModels(snapshot.docs, AppointmentModel.fromMap));
   }
 
   // Cancel appointment

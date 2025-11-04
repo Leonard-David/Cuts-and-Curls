@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sheersync/features/barber/appointments/barber_appointments_screen.dart';
+import 'package:sheersync/features/barber/appointments/create_appointment_screen.dart';
 import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
 import 'package:sheersync/features/barber/services/barber_services_screen.dart';
 import 'package:sheersync/features/barber/services/manage_availability_screen.dart';
@@ -34,19 +36,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             // Welcome Section
             _buildWelcomeSection(),
-            
+
             const SizedBox(height: 24),
-            
+
             // Real-time Stats Grid
             _buildStatsGrid(barberId),
-            
+
             const SizedBox(height: 24),
-            
+
             // Today's Appointments - Real-time
             _buildTodaysAppointments(barberId),
-            
+
             const SizedBox(height: 24),
-            
+
             // Quick Actions
             _buildQuickActions(),
           ],
@@ -58,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildWelcomeSection() {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -154,32 +156,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Map<String, dynamic> _calculateStats(List<QueryDocumentSnapshot> appointments) {
+  Map<String, dynamic> _calculateStats(
+      List<QueryDocumentSnapshot> appointments) {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    
+
     int todayAppointments = 0;
     int pendingAppointments = 0;
     double todayEarnings = 0.0;
     double totalEarnings = 0.0;
 
     for (var doc in appointments) {
-      final appointment = AppointmentModel.fromMap(doc.data() as Map<String, dynamic>);
-      
+      final appointment =
+          AppointmentModel.fromMap(doc.data() as Map<String, dynamic>);
+
       // Today's appointments
       if (appointment.date.isAfter(todayStart)) {
         todayAppointments++;
       }
-      
+
       // Pending appointments
       if (appointment.status == 'pending') {
         pendingAppointments++;
       }
-      
+
       // Earnings calculations
       if (appointment.status == 'completed' && appointment.price != null) {
         totalEarnings += appointment.price!;
-        
+
         if (appointment.date.isAfter(todayStart)) {
           todayEarnings += appointment.price!;
         }
@@ -194,7 +198,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     };
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -287,10 +292,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Text(
-                'No appointments today',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Today's Appointments",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No appointments scheduled for today.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
               ),
             ),
           );
@@ -376,6 +394,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Expanded(
                   child: _buildQuickActionButton(
+                    'Create Appointment',
+                    Icons.add_circle,
+                    AppColors.primary,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateAppointmentScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickActionButton(
                     'Manage Services',
                     Icons.construction,
                     AppColors.primary,
@@ -390,18 +424,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     },
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickActionButton(
+                    'Manage Appointments',
+                    Icons.calendar_month,
+                    AppColors.success,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const BarberAppointmentsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildQuickActionButton(
                     'Set Availability',
                     Icons.access_time,
-                    AppColors.success,
+                    Colors.purple,
                     () {
-                      // Navigate to availability settings
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ManageAvailabilityScreen(),
+                          builder: (context) =>
+                              const ManageAvailabilityScreen(),
                         ),
                       );
                     },
@@ -409,7 +464,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -431,12 +486,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildQuickActionButton(
-                    'Client Reviews',
-                    Icons.star,
-                    Colors.purple,
+                    'View Requests',
+                    Icons.pending_actions,
+                    AppColors.accent,
                     () {
-                      // Navigate to reviews screen
-                      _showComingSoon('Client Reviews');
+                      // Navigate to appointment requests
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const BarberAppointmentsScreen(),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -448,7 +509,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickActionButton(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionButton(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
@@ -488,15 +550,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(color: AppColors.error),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature coming soon!'),
-        backgroundColor: AppColors.primary,
       ),
     );
   }
