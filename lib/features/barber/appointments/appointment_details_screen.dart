@@ -102,9 +102,31 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
     );
 
     if (reason != null && reason.isNotEmpty) {
-      setState(() {
-      });
       await _updateAppointmentStatus('cancelled', reason: reason);
+    }
+  }
+
+  Future<void> _markAsCompleted() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark as Completed'),
+        content: const Text('Are you sure you want to mark this appointment as completed?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, Complete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _updateAppointmentStatus('completed');
     }
   }
 
@@ -147,8 +169,17 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
     }
   }
 
+  bool _canEditAppointment() {
+    return widget.appointment.status == 'pending' || 
+           widget.appointment.status == 'confirmed';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isBarber = authProvider.user?.userType == 'barber' || 
+                     authProvider.user?.userType == 'hairstylist';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Appointment Details'),
@@ -156,38 +187,64 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
         foregroundColor: AppColors.onPrimary,
         elevation: 1,
         actions: [
-          if (widget.appointment.status == 'pending') ...[
+          if (isBarber && _canEditAppointment()) ...[
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'cancel') {
                   _cancelAppointment();
                 } else if (value == 'decline') {
                   _showDeclineDialog();
+                } else if (value == 'complete') {
+                  _markAsCompleted();
                 } else {
                   _updateAppointmentStatus(value);
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'confirmed',
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text('Confirm'),
-                    ],
+                if (widget.appointment.status == 'pending') ...[
+                  const PopupMenuItem(
+                    value: 'confirmed',
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green),
+                        SizedBox(width: 8),
+                        Text('Confirm'),
+                      ],
+                    ),
                   ),
-                ),
-                const PopupMenuItem(
-                  value: 'decline',
-                  child: Row(
-                    children: [
-                      Icon(Icons.cancel, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text('Decline with Reason'),
-                    ],
+                  const PopupMenuItem(
+                    value: 'decline',
+                    child: Row(
+                      children: [
+                        Icon(Icons.cancel, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text('Decline with Reason'),
+                      ],
+                    ),
                   ),
-                ),
+                ],
+                if (widget.appointment.status == 'confirmed') ...[
+                  const PopupMenuItem(
+                    value: 'complete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.done_all, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text('Mark as Completed'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'cancelled',
+                    child: Row(
+                      children: [
+                        Icon(Icons.cancel, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Cancel Appointment'),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -203,8 +260,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                   // Status Card
                   _buildStatusCard(),
                   const SizedBox(height: 24),
-                  // Client Information
-                  _buildClientInfo(),
+                  // Client/Barber Information
+                  isBarber ? _buildClientInfo() : _buildBarberInfo(),
                   const SizedBox(height: 24),
                   // Service Information
                   _buildServiceInfo(),
@@ -218,7 +275,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                   ],
                   const SizedBox(height: 32),
                   // Action Buttons
-                  if (widget.appointment.status == 'pending') _buildActionButtons(),
+                  if (isBarber && _canEditAppointment()) _buildActionButtons(),
                 ],
               ),
             ),
@@ -243,7 +300,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.appointment.status.toUpperCase(),
+                    _getStatusText(widget.appointment.status).toUpperCase(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -299,6 +356,39 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
     );
   }
 
+  Widget _buildBarberInfo() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Barber Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Icon(Icons.person, color: AppColors.primary),
+              ),
+              title: Text(
+                widget.appointment.barberName ?? 'Barber',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: const Text('Professional'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildServiceInfo() {
     return Card(
       elevation: 2,
@@ -318,11 +408,28 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  widget.appointment.serviceName ?? 'Service',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.appointment.serviceName ?? 'Service',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (widget.appointment.serviceName != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Service booked',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 Text(
@@ -342,6 +449,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   }
 
   Widget _buildAppointmentTime() {
+    final isPast = widget.appointment.date.isBefore(DateTime.now());
+    
     return Card(
       elevation: 2,
       child: Padding(
@@ -349,12 +458,33 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Appointment Time',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Appointment Time',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (isPast) 
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Past',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 16),
             Row(
@@ -414,33 +544,65 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   }
 
   Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: _showDeclineDialog,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              side: BorderSide(color: AppColors.error),
-              padding: const EdgeInsets.symmetric(vertical: 16),
+    if (widget.appointment.status == 'pending') {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _showDeclineDialog,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: BorderSide(color: AppColors.error),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('Decline'),
             ),
-            child: const Text('Decline'),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () => _updateAppointmentStatus('confirmed'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () => _updateAppointmentStatus('confirmed'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('Confirm'),
             ),
-            child: const Text('Confirm'),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    } else if (widget.appointment.status == 'confirmed') {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _cancelAppointment,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: BorderSide(color: AppColors.error),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('Cancel'),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: _markAsCompleted,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('Mark Complete'),
+            ),
+          ),
+        ],
+      );
+    }
+    
+    return Container(); // No actions for other statuses
   }
 
   Color _getStatusColor(String status) {
@@ -470,6 +632,21 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
         return Icons.cancel;
       default:
         return Icons.help;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'confirmed':
+        return 'Confirmed';
+      case 'pending':
+        return 'Pending';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Unknown';
     }
   }
 

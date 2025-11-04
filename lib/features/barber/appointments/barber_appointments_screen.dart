@@ -22,6 +22,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
     'today': 'Today',
     'upcoming': 'Upcoming',
     'pending': 'Pending',
+    'completed': 'Completed',
     'all': 'All',
   };
 
@@ -36,11 +37,17 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('My Appointments'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+        elevation: 1,
+      ),
       body: Column(
         children: [
           // Filter Chips
           _buildFilterChips(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           // Real-time Appointments List
           Expanded(
             child: StreamBuilder<List<AppointmentModel>>(
@@ -74,30 +81,27 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
   }
 
   Widget _buildFilterChips() {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(
+        child: Wrap(
+          spacing: 8,
           children: _filters.entries.map((entry) {
             final isSelected = _selectedFilter == entry.key;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                selected: isSelected,
-                label: Text(entry.value),
-                onSelected: (selected) {
-                  setState(() {
-                    _selectedFilter = entry.key;
-                  });
-                },
-                backgroundColor: Colors.grey[200],
-                selectedColor: AppColors.primary.withOpacity(0.2),
-                checkmarkColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  color: isSelected ? AppColors.primary : AppColors.text,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
+            return ChoiceChip(
+              selected: isSelected,
+              label: Text(entry.value),
+              onSelected: (selected) {
+                setState(() {
+                  _selectedFilter = entry.key;
+                });
+              },
+              backgroundColor: Colors.grey[200],
+              selectedColor: AppColors.primary.withOpacity(0.2),
+              labelStyle: TextStyle(
+                color: isSelected ? AppColors.primary : AppColors.text,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             );
           }).toList(),
@@ -118,6 +122,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
             style: TextStyle(
               fontSize: 18,
               color: AppColors.textSecondary,
+              fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
@@ -143,6 +148,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
             style: TextStyle(
               fontSize: 18,
               color: AppColors.textSecondary,
+              fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
@@ -165,13 +171,20 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
           const SizedBox(height: 16),
           Text(
             'Error loading appointments',
-            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: AppColors.error, 
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
           const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
         ],
       ),
@@ -179,19 +192,27 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
   }
 
   Widget _buildAppointmentsList(List<AppointmentModel> appointments) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: appointments.length,
-      itemBuilder: (context, index) {
-        final appointment = appointments[index];
-        return _buildAppointmentCard(appointment);
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {});
       },
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: appointments.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final appointment = appointments[index];
+          return _buildAppointmentCard(appointment);
+        },
+      ),
     );
   }
 
   Widget _buildAppointmentCard(AppointmentModel appointment) {
+    appointment.date.isBefore(DateTime.now());
+    final isToday = _isToday(appointment.date);
+    
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       child: InkWell(
         onTap: () {
@@ -204,11 +225,11 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
             children: [
               // Status Indicator
               Container(
-                width: 8,
-                height: 60,
+                width: 4,
+                height: 80,
                 decoration: BoxDecoration(
                   color: _getStatusColor(appointment.status),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(width: 16),
@@ -217,12 +238,37 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      appointment.clientName ?? 'Client',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            appointment.clientName ?? 'Client',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isToday) 
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'TODAY',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -231,8 +277,10 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
                         fontSize: 14,
                         color: AppColors.textSecondary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
@@ -246,38 +294,37 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(appointment.status).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _getStatusText(appointment.status).toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: _getStatusColor(appointment.status),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'N\$${appointment.price?.toStringAsFixed(2) ?? '0.00'}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ),
-              // Price and Status
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'N\$${appointment.price?.toStringAsFixed(2) ?? '0.00'}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(appointment.status).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      appointment.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _getStatusColor(appointment.status),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -300,23 +347,54 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
     final todayStart = DateTime(now.year, now.month, now.day);
     final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
+    List<AppointmentModel> filteredAppointments;
+
     switch (_selectedFilter) {
       case 'today':
-        return appointments.where((appt) {
+        filteredAppointments = appointments.where((appt) {
           return appt.date.isAfter(todayStart) && appt.date.isBefore(todayEnd);
         }).toList();
+        break;
       case 'upcoming':
-        return appointments.where((appt) {
-          return appt.date.isAfter(now) && appt.status != 'completed' && appt.status != 'cancelled';
+        filteredAppointments = appointments.where((appt) {
+          return appt.date.isAfter(now) && 
+                 appt.status != 'completed' && 
+                 appt.status != 'cancelled';
         }).toList();
+        break;
       case 'pending':
-        return appointments.where((appt) {
+        filteredAppointments = appointments.where((appt) {
           return appt.status == 'pending';
         }).toList();
+        break;
+      case 'completed':
+        filteredAppointments = appointments.where((appt) {
+          return appt.status == 'completed';
+        }).toList();
+        break;
       case 'all':
       default:
-        return appointments;
+        filteredAppointments = appointments;
+        break;
     }
+
+    // Sort by date (most recent first for past, upcoming first for future)
+    filteredAppointments.sort((a, b) {
+      if (_selectedFilter == 'completed' || _selectedFilter == 'all') {
+        return b.date.compareTo(a.date); // Most recent first
+      } else {
+        return a.date.compareTo(b.date); // Soonest first
+      }
+    });
+
+    return filteredAppointments;
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && 
+           date.month == now.month && 
+           date.day == now.day;
   }
 
   Color _getStatusColor(String status) {
@@ -331,6 +409,21 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> {
         return AppColors.error;
       default:
         return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'confirmed':
+        return 'Confirmed';
+      case 'pending':
+        return 'Pending';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Unknown';
     }
   }
 }

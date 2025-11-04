@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/features/barber/appointments/barber_appointments_screen.dart';
 import 'package:sheersync/features/barber/chat/barber_chat_list_screen.dart';
+import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
+import 'package:sheersync/features/barber/services/barber_services_screen.dart';
 import 'package:sheersync/features/barber/services/manage_availability_screen.dart';
-import 'package:sheersync/features/barber/services/add_edit_service_screen.dart';
 import 'package:sheersync/features/shared/widgets/bottom_nav.dart';
 import 'package:sheersync/features/shared/settings/settings_screen.dart';
 import '../../features/auth/controllers/auth_provider.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'earnings/barber_earning_screen.dart';
-import 'package:sheersync/core/constants/colors.dart'; // ADD IMPORT
+import 'package:sheersync/core/constants/colors.dart'; 
 
 class BarberShell extends StatefulWidget {
   const BarberShell({super.key});
@@ -24,7 +25,7 @@ class _BarberShellState extends State<BarberShell> {
   // Screens for bottom navigation
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const BarberChatListScreen(), // Updated
+    const BarberChatListScreen(), 
     const BarberAppointmentsScreen(),
     const BarberEarningScreen(),
   ];
@@ -61,37 +62,37 @@ class _BarberShellState extends State<BarberShell> {
 
   @override
   Widget build(BuildContext context) {
-    Provider.of<AuthProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context); // FIX: Store provider in variable
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           _navItems[_currentIndex].label,
-          style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+          style: TextStyle(color: AppColors.text),  
         ),
-        backgroundColor: AppColors.background, // UPDATE: Use background color
-        foregroundColor: AppColors.text, // UPDATE: Use text color
+        backgroundColor: AppColors.background,  
+        foregroundColor: AppColors.text, 
         elevation: 1,
         actions: [
           // User profile menu
           PopupMenuButton<String>(
             icon: CircleAvatar(
-              backgroundColor: AppColors.primary, // UPDATE: Use primary color
-              child: Icon(Icons.person, color: AppColors.onPrimary), // UPDATE: Use onPrimary color
+              backgroundColor: AppColors.primary, 
+              child: Icon(Icons.person, color: AppColors.onPrimary), 
             ),
             onSelected: (value) {
-              _handleMenuSelection(value);
+              _handleMenuSelection(value, authProvider); // FIX: Pass authProvider
             },
             itemBuilder: (BuildContext context) => [
               PopupMenuItem<String>(
                 value: 'profile',
                 child: Row(
                   children: [
-                    Icon(Icons.person_outline, color: AppColors.text), // UPDATE: Use text color
+                    Icon(Icons.person_outline, color: AppColors.text), 
                     const SizedBox(width: 8),
                     Text(
                       'My Profile',
-                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                      style: TextStyle(color: AppColors.text),
                     ),
                   ],
                 ),
@@ -100,11 +101,11 @@ class _BarberShellState extends State<BarberShell> {
                 value: 'availability',
                 child: Row(
                   children: [
-                    Icon(Icons.access_time, color: AppColors.text), // UPDATE: Use text color
+                    Icon(Icons.access_time, color: AppColors.text), 
                     const SizedBox(width: 8),
                     Text(
                       'Availability',
-                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                      style: TextStyle(color: AppColors.text), 
                     ),
                   ],
                 ),
@@ -113,11 +114,11 @@ class _BarberShellState extends State<BarberShell> {
                 value: 'services',
                 child: Row(
                   children: [
-                    Icon(Icons.cut, color: AppColors.text), // UPDATE: Use text color
+                    Icon(Icons.cut, color: AppColors.text),  
                     const SizedBox(width: 8),
                     Text(
                       'My Services',
-                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                      style: TextStyle(color: AppColors.text),  
                     ),
                   ],
                 ),
@@ -126,11 +127,11 @@ class _BarberShellState extends State<BarberShell> {
                 value: 'settings',
                 child: Row(
                   children: [
-                    Icon(Icons.settings_outlined, color: AppColors.text), // UPDATE: Use text color
+                    Icon(Icons.settings_outlined, color: AppColors.text),  
                     const SizedBox(width: 8),
                     Text(
                       'Settings',
-                      style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+                      style: TextStyle(color: AppColors.text),  
                     ),
                   ],
                 ),
@@ -140,11 +141,11 @@ class _BarberShellState extends State<BarberShell> {
                 value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.logout_outlined, color: AppColors.error), // UPDATE: Use error color
+                    Icon(Icons.logout_outlined, color: AppColors.error),  
                     const SizedBox(width: 8),
                     Text(
                       'Logout',
-                      style: TextStyle(color: AppColors.error), // UPDATE: Use error color
+                      style: TextStyle(color: AppColors.error),  
                     ),
                   ],
                 ),
@@ -173,10 +174,10 @@ class _BarberShellState extends State<BarberShell> {
     );
   }
 
-  void _handleMenuSelection(String value) {
+  void _handleMenuSelection(String value, AuthProvider authProvider) { // FIX: Add authProvider parameter
     switch (value) {
       case 'profile':
-        _navigateToProfile();
+        _navigateToProfile(authProvider); // FIX: Pass authProvider
         break;
       case 'availability':
         _navigateToAvailability();
@@ -188,14 +189,27 @@ class _BarberShellState extends State<BarberShell> {
         _navigateToSettings();
         break;
       case 'logout':
-        _showLogoutConfirmation();
+        _showLogoutConfirmation(authProvider); // FIX: Pass authProvider
         break;
     }
   }
 
-  void _navigateToProfile() {
-    // TODO: Navigate to barber profile screen
-    _showComingSoon('Profile Management');
+  void _navigateToProfile(AuthProvider authProvider) { // FIX: Add authProvider parameter
+    if (authProvider.user != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BarberProfileScreen(barber: authProvider.user!), // FIX: Pass current user as barber
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('User data not available'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   void _navigateToAvailability() {
@@ -211,7 +225,7 @@ class _BarberShellState extends State<BarberShell> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const AddEditServiceScreen(), // Navigate to service management
+        builder: (context) => const BarberServicesScreen(), // Navigate to service management
       ),
     );
   }
@@ -234,36 +248,36 @@ class _BarberShellState extends State<BarberShell> {
     );
   }
 
-  void _showLogoutConfirmation() {
+  void _showLogoutConfirmation(AuthProvider authProvider) { // FIX: Add authProvider parameter
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
             'Logout',
-            style: TextStyle(color: AppColors.text), // UPDATE: Use text color
+            style: TextStyle(color: AppColors.text),  
           ),
           content: Text(
             'Are you sure you want to logout?',
-            style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+            style: TextStyle(color: AppColors.textSecondary),  
           ),
-          backgroundColor: AppColors.background, // UPDATE: Use background color
+          backgroundColor: AppColors.background,  
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'Cancel',
-                style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+                style: TextStyle(color: AppColors.textSecondary),  
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                _logout();
+                _logout(authProvider); // FIX: Pass authProvider
               },
               child: Text(
                 'Logout',
-                style: TextStyle(color: AppColors.error), // UPDATE: Use error color
+                style: TextStyle(color: AppColors.error),  
               ),
             ),
           ],
@@ -272,8 +286,7 @@ class _BarberShellState extends State<BarberShell> {
     );
   }
 
-  void _logout() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  void _logout(AuthProvider authProvider) { // FIX: Add authProvider parameter
     authProvider.signOut();
   }
 
