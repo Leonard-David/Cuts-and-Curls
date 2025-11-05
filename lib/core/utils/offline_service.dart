@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:sheersync/data/adapters/hive_adapters.dart';
@@ -41,37 +40,50 @@ class OfflineService {
   final ServiceRepository _serviceRepository = ServiceRepository();
   final ChatRepository _chatRepository = ChatRepository();
 
+  bool _isInitialized = false;
+
   // Initialize Hive and open boxes
   Future<void> initialize() async {
-    await Hive.initFlutter();
-    
-    // Register adapters
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(AppointmentModelAdapter());
+    if (_isInitialized) return;
+
+     try {
+      await Hive.initFlutter();
+      
+      // Register adapters only if not already registered
+      if (!Hive.isAdapterRegistered(0)) {
+        Hive.registerAdapter(AppointmentModelAdapter());
+      }
+      if (!Hive.isAdapterRegistered(1)) {
+        Hive.registerAdapter(PaymentModelAdapter());
+      }
+      if (!Hive.isAdapterRegistered(2)) {
+        Hive.registerAdapter(ServiceModelAdapter());
+      }
+      if (!Hive.isAdapterRegistered(3)) {
+        Hive.registerAdapter(ChatRoomAdapter());
+      }
+      if (!Hive.isAdapterRegistered(4)) {
+        Hive.registerAdapter(ChatMessageAdapter());
+      }
+      if (!Hive.isAdapterRegistered(5)) {
+        Hive.registerAdapter(MessageTypeAdapter());
+      }
+      
+      // Open boxes with error handling
+      _appointments = await Hive.openBox<AppointmentModel>(_appointmentsBox);
+      _payments = await Hive.openBox<PaymentModel>(_paymentsBox);
+      _services = await Hive.openBox<ServiceModel>(_servicesBox);
+      _syncQueue = await Hive.openBox<Map<dynamic, dynamic>>(_syncQueueBox);
+      _chatRooms = await Hive.openBox<ChatRoom>(_chatRoomsBox);
+      _chatMessages = await Hive.openBox<ChatMessage>(_chatMessagesBox);
+      _offlineMessages = await Hive.openBox<ChatMessage>(_offlineMessagesBox);
+      
+      _isInitialized = true;
+      print('Offline service initialized successfully');
+    } catch (e) {
+      print('Error initializing offline service: $e');
+      rethrow;
     }
-    if (!Hive.isAdapterRegistered(1)) {
-      Hive.registerAdapter(PaymentModelAdapter());
-    }
-    if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(ServiceModelAdapter());
-    }
-    if (!Hive.isAdapterRegistered(3)) {
-      Hive.registerAdapter(ChatRoomAdapter());
-    }
-    if (!Hive.isAdapterRegistered(4)) {
-      Hive.registerAdapter(ChatMessageAdapter());
-    }
-    if (!Hive.isAdapterRegistered(5)) {
-      Hive.registerAdapter(MessageTypeAdapter());
-    }
-    
-    _appointments = await Hive.openBox<AppointmentModel>(_appointmentsBox);
-    _payments = await Hive.openBox<PaymentModel>(_paymentsBox);
-    _services = await Hive.openBox<ServiceModel>(_servicesBox);
-    _syncQueue = await Hive.openBox<Map<dynamic, dynamic>>(_syncQueueBox);
-    _chatRooms = await Hive.openBox<ChatRoom>(_chatRoomsBox);
-    _chatMessages = await Hive.openBox<ChatMessage>(_chatMessagesBox);
-    _offlineMessages = await Hive.openBox<ChatMessage>(_offlineMessagesBox);
   }
 
   // Check connectivity

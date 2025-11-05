@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/models/payment_model.dart';
 import 'package:sheersync/data/repositories/payment_repository.dart';
@@ -28,7 +29,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   final TextEditingController _cardHolderController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
 
-  String _selectedPaymentMethod = 'cash'; // cash, card, mobile_money
+  String _selectedPaymentMethod = 'card'; // card, mobile_money, cash
   bool _isProcessing = false;
   bool _saveCard = false;
 
@@ -51,21 +52,33 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     super.dispose();
   }
 
+  // Process payment with Stripe Connect integration
   Future<void> _processPayment() async {
     if (_selectedPaymentMethod == 'cash') {
       await _handleCashPayment();
       return;
     }
 
-    setState(() {
-      _isProcessing = true;
-    });
+    setState(() => _isProcessing = true);
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final client = authProvider.user!;
 
-      // Create or get payment record
+      // Get barber's Stripe account ID
+      final barberDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.appointment.barberId)
+          .get();
+      
+      final barberData = barberDoc.data();
+      final barberStripeAccountId = barberData?['stripeAccountId'];
+      
+      if (barberStripeAccountId == null) {
+        throw Exception('Barber payment account not set up');
+      }
+
+      // Create payment record
       final payment = widget.existingPayment ?? PaymentModel(
         id: 'pay_${DateTime.now().millisecondsSinceEpoch}',
         appointmentId: widget.appointment.id,
@@ -73,6 +86,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         barberId: widget.appointment.barberId,
         amount: widget.appointment.price ?? 0.0,
         paymentMethod: _selectedPaymentMethod,
+        status: 'pending',
         createdAt: DateTime.now(),
       );
 
@@ -83,64 +97,75 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       Map<String, dynamic> result;
 
       if (_selectedPaymentMethod == 'card') {
-        // Validate card details
-        if (!_validateCardDetails()) {
-          throw Exception('Please check your card details');
-        }
-
-        result = await _paymentRepository.processPayment(
+        // Process with Stripe Connect
+        result = await _paymentRepository.processStripePayment(
           paymentId: payment.id,
           amount: payment.amount,
-          paymentMethod: _selectedPaymentMethod,
-          cardNumber: _cardNumberController.text.replaceAll(' ', ''),
-          expiryDate: _expiryController.text,
-          cvv: _cvvController.text,
-          cardHolder: _cardHolderController.text,
+          barberStripeAccountId: barberStripeAccountId,
+          clientEmail: client.email,
+          currency: 'usd',
         );
-      } else if (_selectedPaymentMethod == 'mobile_money') {
-        // Validate phone number
-        if (_phoneNumberController.text.isEmpty) {
-          throw Exception('Please enter your phone number');
-        }
 
+        if (result['success'] == true) {
+          final paymentIntentId = result['paymentIntentId'];
+          final clientSecret = result['clientSecret'];
+          
+          // Confirm payment with Stripe
+          final confirmationResult = await _paymentRepository.confirmStripePayment(
+            paymentIntentId: paymentIntentId,
+            clientSecret: clientSecret,
+          );
+
+          if (confirmationResult['success'] == true) {
+            await _paymentRepository.updatePaymentStatus(
+              payment.id,
+              'completed',
+              confirmationResult['transactionId'],
+            );
+
+            // Send payment confirmation notification
+            await _sendPaymentConfirmation(payment);
+
+            if (mounted) {
+              showCustomSnackBar(
+                context,
+                'Payment completed successfully!',
+                type: SnackBarType.success,
+              );
+              Navigator.pop(context);
+            }
+          } else {
+            throw Exception(confirmationResult['error']);
+          }
+        } else {
+          throw Exception(result['error']);
+        }
+      } else if (_selectedPaymentMethod == 'mobile_money') {
+        // Process mobile money payment
         result = await _paymentRepository.processMobileMoneyPayment(
           paymentId: payment.id,
           amount: payment.amount,
           phoneNumber: _phoneNumberController.text,
-          provider: 'mtn', // You can make this selectable
-        );
-      } else {
-        throw Exception('Unsupported payment method');
-      }
-
-      if (result['success'] == true) {
-        await _paymentRepository.updatePaymentStatus(
-          payment.id,
-          'completed',
-          result['transactionId'],
+          provider: 'mtn',
         );
 
-        if (mounted) {
-          showCustomSnackBar(
-            context,
-            result['message'] ?? 'Payment completed successfully!',
-            type: SnackBarType.success,
+        if (result['success'] == true) {
+          await _paymentRepository.updatePaymentStatus(
+            payment.id,
+            'completed',
+            result['transactionId'],
           );
-          Navigator.pop(context);
-        }
-      } else {
-        await _paymentRepository.updatePaymentStatus(
-          payment.id,
-          'failed',
-          null,
-        );
 
-        if (mounted) {
-          showCustomSnackBar(
-            context,
-            result['error'] ?? 'Payment failed. Please try again.',
-            type: SnackBarType.error,
-          );
+          if (mounted) {
+            showCustomSnackBar(
+              context,
+              result['message'] ?? 'Mobile money payment initiated!',
+              type: SnackBarType.success,
+            );
+            Navigator.pop(context);
+          }
+        } else {
+          throw Exception(result['error']);
         }
       }
     } catch (e) {
@@ -153,9 +178,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
+        setState(() => _isProcessing = false);
       }
     }
   }
@@ -198,26 +221,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
   }
 
-  bool _validateCardDetails() {
-    if (_cardNumberController.text.isEmpty ||
-        _expiryController.text.isEmpty ||
-        _cvvController.text.isEmpty ||
-        _cardHolderController.text.isEmpty) {
-      return false;
-    }
-
-    // Basic card number validation (16 digits)
-    final cardNumber = _cardNumberController.text.replaceAll(' ', '');
-    if (cardNumber.length != 16) return false;
-
-    // Basic expiry validation (MM/YY)
-    if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(_expiryController.text)) return false;
-
-    // Basic CVV validation (3 or 4 digits)
-    if (!RegExp(r'^\d{3,4}$').hasMatch(_cvvController.text)) return false;
-
-    return true;
-  }
 
   void _formatCardNumber(String value) {
     final cleaned = value.replaceAll(' ', '');
@@ -240,6 +243,34 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     if (value.length == 2 && !value.contains('/')) {
       _expiryController.text = '$value/';
       _expiryController.selection = TextSelection.collapsed(offset: 3);
+    }
+  }
+
+  Future<void> _sendPaymentConfirmation(PaymentModel payment) async {
+    try {
+      // Send notification to barber
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'userId': payment.barberId,
+        'title': 'Payment Received',
+        'message': 'Payment of N\$${payment.amount.toStringAsFixed(2)} received from client',
+        'type': 'payment',
+        'relatedId': payment.id,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Send confirmation to client
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'userId': payment.clientId,
+        'title': 'Payment Confirmed',
+        'message': 'Your payment of N\$${payment.amount.toStringAsFixed(2)} has been confirmed',
+        'type': 'payment',
+        'relatedId': payment.id,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (e) {
+      print('Error sending payment confirmation: $e');
     }
   }
 
@@ -298,9 +329,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  // In the _buildPaymentSummary method:
   Widget _buildPaymentSummary() {
-    // If no appointment is provided, show a generic payment form
     return Card(
       elevation: 2,
       child: Padding(
@@ -348,7 +377,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   ),
                 ),
                 Text(
-                  'N\${widget.appointment!.price?.toStringAsFixed(2) ?? "0.00"}',
+                  'N\$${widget.appointment.price?.toStringAsFixed(2) ?? "0.00"}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

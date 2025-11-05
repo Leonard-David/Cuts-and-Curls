@@ -1,10 +1,14 @@
+// lib/data/repositories/payment_repository.dart
+// Updated with Stripe Connect integration
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sheersync/core/utils/stripe_helper.dart';
 import '../models/payment_model.dart';
 
 class PaymentRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Create payment record
+  // Create payment record with Stripe Connect integration
   Future<void> createPayment(PaymentModel payment) async {
     try {
       await _firestore
@@ -25,7 +29,7 @@ class PaymentRepository {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) {
-              final data = doc.data() as Map<String, dynamic>? ?? {};
+              final data = doc.data();
               return PaymentModel.fromMap(data);
             })
             .toList());
@@ -40,7 +44,7 @@ class PaymentRepository {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) {
-              final data = doc.data() as Map<String, dynamic>? ?? {};
+              final data = doc.data();
               return PaymentModel.fromMap(data);
             })
             .toList());
@@ -60,11 +64,11 @@ class PaymentRepository {
         });
   }
 
-  // Update payment status
+  // Update payment status with Stripe webhook integration
   Future<void> updatePaymentStatus(
       String paymentId, String status, String? transactionId) async {
     try {
-      final updateData = {
+      final updateData = <String, dynamic>{
         'status': status,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
       };
@@ -101,33 +105,64 @@ class PaymentRepository {
     }
   }
 
-  // Simulate payment processing (for demo purposes)
-  Future<Map<String, dynamic>> processPayment({
+  // Process payment with Stripe Connect
+  Future<Map<String, dynamic>> processStripePayment({
     required String paymentId,
     required double amount,
-    required String paymentMethod,
-    required String cardNumber,
-    required String expiryDate,
-    required String cvv,
-    required String cardHolder,
+    required String barberStripeAccountId,
+    required String clientEmail,
+    required String currency,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Create payment intent with Stripe Connect
+      final paymentIntent = await StripeHelper.createPaymentIntent(
+        amount: amount,
+        currency: currency,
+        stripeAccountId: barberStripeAccountId,
+        customerEmail: clientEmail,
+      );
 
-    // Simulate payment processing logic
-    final success = cardNumber.endsWith('4242'); // Test card pattern
-    final transactionId = 'txn_${DateTime.now().millisecondsSinceEpoch}';
-
-    if (success) {
       return {
         'success': true,
-        'transactionId': transactionId,
-        'message': 'Payment processed successfully',
+        'paymentIntentId': paymentIntent['id'],
+        'clientSecret': paymentIntent['client_secret'],
+        'message': 'Payment intent created successfully',
       };
-    } else {
+    } catch (e) {
       return {
         'success': false,
-        'error': 'Payment declined. Please check your card details.',
+        'error': 'Stripe payment failed: $e',
+      };
+    }
+  }
+
+  // Confirm Stripe payment
+  Future<Map<String, dynamic>> confirmStripePayment({
+    required String paymentIntentId,
+    required String clientSecret,
+  }) async {
+    try {
+      final result = await StripeHelper.confirmPayment(
+        paymentIntentId: paymentIntentId,
+        clientSecret: clientSecret,
+      );
+
+      if (result['success'] == true) {
+        return {
+          'success': true,
+          'transactionId': paymentIntentId,
+          'message': 'Payment completed successfully',
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'Payment confirmation failed',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Payment confirmation error: $e',
       };
     }
   }
@@ -137,7 +172,7 @@ class PaymentRepository {
     required String paymentId,
     required double amount,
     required String phoneNumber,
-    required String provider, // mtn, airtel, etc.
+    required String provider,
   }) async {
     // Simulate API call delay
     await Future.delayed(const Duration(seconds: 3));
@@ -156,6 +191,38 @@ class PaymentRepository {
       return {
         'success': false,
         'error': 'Failed to initiate mobile money payment',
+      };
+    }
+  }
+
+  // Get barber's Stripe account status
+  Future<Map<String, dynamic>> getBarberStripeStatus(String barberId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(barberId).get();
+      final userData = userDoc.data();
+      
+      if (userData == null || userData['stripeAccountId'] == null) {
+        return {
+          'connected': false,
+          'verified': false,
+          'message': 'Stripe account not set up',
+        };
+      }
+
+      final stripeAccountId = userData['stripeAccountId'];
+      final isVerified = await StripeHelper.isAccountVerified(stripeAccountId);
+
+      return {
+        'connected': true,
+        'verified': isVerified,
+        'stripeAccountId': stripeAccountId,
+        'message': isVerified ? 'Account verified' : 'Account pending verification',
+      };
+    } catch (e) {
+      return {
+        'connected': false,
+        'verified': false,
+        'error': 'Failed to check Stripe status: $e',
       };
     }
   }

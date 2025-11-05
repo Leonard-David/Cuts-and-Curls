@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/theme/app_theme.dart';
 import 'package:sheersync/core/utils/offline_service.dart';
+import 'package:sheersync/core/utils/stripe_helper.dart';
 import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
@@ -16,34 +16,62 @@ import 'core/notifications/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize Hive and register adapters
-  await Hive.initFlutter();
-
-  Hive.registerAdapter(AppointmentModelAdapter());
-  Hive.registerAdapter(PaymentModelAdapter());
-  Hive.registerAdapter(MessageTypeAdapter());
-  Hive.registerAdapter(ChatMessageAdapter());
-  Hive.registerAdapter(ChatRoomAdapter());
-  Hive.registerAdapter(ServiceModelAdapter());
-
-  // Initialize Firebase with new API
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
+  
+  print('Starting app initialization...');
+  
   try {
-    // Initialize offline service
-    await OfflineService().initialize();
-    OfflineService().startSyncTimer();
-    print('Offline service initialized successfully');
-  } catch (e) {
-    print('Error initializing offline service: $e');
+    // Initialize Hive and register adapters
+    await Hive.initFlutter();
+    print('Hive initialized');
+
+    // Register adapters
+    Hive.registerAdapter(AppointmentModelAdapter());
+    Hive.registerAdapter(PaymentModelAdapter());
+    Hive.registerAdapter(MessageTypeAdapter());
+    Hive.registerAdapter(ChatMessageAdapter());
+    Hive.registerAdapter(ChatRoomAdapter());
+    Hive.registerAdapter(ServiceModelAdapter());
+    print('Hive adapters registered');
+
+    // Initialize Firebase with new API
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized');
+
+    // Initialize offline service with error handling
+    try {
+      await OfflineService().initialize();
+      OfflineService().startSyncTimer();
+      print('Offline service initialized successfully');
+    } catch (e) {
+      print('Offline service initialization warning: $e');
+      // Continue without offline service
+    }
+
+    // Initialize FCM
+    await FCMService.initialize();
+    print('FCM initialized');
+
+    // Initialize Stripe with error handling
+    try {
+      await StripeHelper.initialize();
+      print('Stripe initialized');
+    } catch (e) {
+      print('Stripe initialization failed: $e');
+      // Continue without Stripe for now
+    }
+
+    print('🎉 All services initialized successfully');
+    
+    runApp(const MyApp());
+  } catch (e, stackTrace) {
+    print('CRITICAL: App initialization failed: $e');
+    print('Stack trace: $stackTrace');
+    
+    // Fallback app without dependencies
+    runApp(const FallbackApp());
   }
-
-  // Initialize FCM
-  await FCMService.initialize();
-
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -61,7 +89,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, child) {
           return MaterialApp(
-            title: 'VerveBook',
+            title: 'SheerSync',
             theme: settingsProvider.settings.isDarkMode
                 ? AppTheme.darkTheme
                 : AppTheme.lightTheme,
@@ -69,6 +97,50 @@ class MyApp extends StatelessWidget {
             home: const AuthWrapper(),
           );
         },
+      ),
+    );
+  }
+}
+
+// Fallback app in case of initialization failures
+class FallbackApp extends StatelessWidget {
+  const FallbackApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red),
+              SizedBox(height: 20),
+              Text(
+                'App Initialization Failed',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  'Please restart the app. If the problem persists, contact support.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  // Try to restart
+                  main();
+                },
+                child: Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

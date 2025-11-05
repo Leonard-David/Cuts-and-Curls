@@ -1,8 +1,12 @@
+// lib/features/barber/earnings/barber_earning_screen.dart
+// Updated with Stripe Connect earnings tracking
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/payment_model.dart';
-import 'package:sheersync/data/repositories/payment_repository.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 
 class BarberEarningScreen extends StatefulWidget {
@@ -13,8 +17,7 @@ class BarberEarningScreen extends StatefulWidget {
 }
 
 class _BarberEarningScreenState extends State<BarberEarningScreen> {
-  final PaymentRepository _paymentRepository = PaymentRepository();
-  String _selectedPeriod = 'week'; // week, month, year
+  String _selectedTimeRange = 'today'; // today, week, month, all
 
   @override
   Widget build(BuildContext context) {
@@ -22,54 +25,364 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
     final barberId = authProvider.user?.id;
 
     if (barberId == null) {
-      return const Center(child: Text('Please login again'));
+      return _buildErrorState('Please login again');
     }
 
     return Scaffold(
-      body: StreamBuilder<List<PaymentModel>>(
-        stream: _paymentRepository.getBarberPayments(barberId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          final payments = snapshot.data!;
-          final filteredPayments = _filterPaymentsByPeriod(payments);
-          final earningsData = _calculateEarnings(filteredPayments);
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Period Selector
-                _buildPeriodSelector(),
-                const SizedBox(height: 24),
-                // Earnings Overview
-                _buildEarningsOverview(earningsData),
-                const SizedBox(height: 24),
-                // Recent Transactions
-                _buildRecentTransactions(filteredPayments),
-              ],
-            ),
-          );
-        },
+      appBar: AppBar(
+        title: const Text('Earnings'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+        elevation: 1,
+      ),
+      body: Column(
+        children: [
+          // Time Range Filter
+          _buildTimeRangeFilter(),
+          const SizedBox(height: 16),
+          // Earnings Summary
+          _buildEarningsSummary(barberId),
+          const SizedBox(height: 16),
+          // Recent Payments
+          Expanded(
+            child: _buildRecentPayments(barberId),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildTimeRangeFilter() {
+    const timeRanges = {
+      'today': 'Today',
+      'week': 'This Week',
+      'month': 'This Month',
+      'all': 'All Time',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: timeRanges.entries.map((entry) {
+            final isSelected = _selectedTimeRange == entry.key;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                selected: isSelected,
+                label: Text(entry.value),
+                onSelected: (selected) {
+                  setState(() {
+                    _selectedTimeRange = entry.key;
+                  });
+                },
+                backgroundColor: Colors.grey[200],
+                selectedColor: AppColors.primary.withOpacity(0.2),
+                checkmarkColor: AppColors.primary,
+                labelStyle: TextStyle(
+                  color: isSelected ? AppColors.primary : Colors.black,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEarningsSummary(String barberId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('payments')
+          .where('barberId', isEqualTo: barberId)
+          .where('status', isEqualTo: 'completed')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _buildLoadingSummary();
+        }
+
+        final payments = snapshot.data!.docs;
+        final filteredPayments = _filterPaymentsByTimeRange(payments);
+        final stats = _calculateEarningsStats(filteredPayments);
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primary.withOpacity(0.1),
+                AppColors.accent.withOpacity(0.05),
+            ]),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+          ),
+          child: Column(
+            children: [
+              // Total Earnings
+              Text(
+                'N\$${stats['totalEarnings'].toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Total Earnings',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Stats Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatItem(
+                    'Completed',
+                    stats['completedPayments'].toString(),
+                    Icons.check_circle,
+                    AppColors.success,
+                  ),
+                  _buildStatItem(
+                    'Average',
+                    'N\$${stats['averageEarning'].toStringAsFixed(2)}',
+                    Icons.trending_up,
+                    AppColors.primary,
+                  ),
+                  _buildStatItem(
+                    'Services',
+                    stats['totalServices'].toString(),
+                    Icons.work,
+                    AppColors.accent,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecentPayments(String barberId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('payments')
+          .where('barberId', isEqualTo: barberId)
+          .where('status', isEqualTo: 'completed')
+          .orderBy('completedAt', descending: true)
+          .limit(20)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final payments = snapshot.data!.docs;
+        
+        if (payments.isEmpty) {
+          return _buildEmptyPaymentsState();
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: payments.length,
+          itemBuilder: (context, index) {
+            final payment = PaymentModel.fromMap(
+                payments[index].data() as Map<String, dynamic>);
+            return _buildPaymentItem(payment);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPaymentItem(PaymentModel payment) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.success.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.payment_rounded,
+            color: AppColors.success,
+          ),
+        ),
+        title: Text(
+          'Payment #${payment.id.substring(0, 8)}',
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Via ${_formatPaymentMethod(payment.paymentMethod)}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              DateFormat('MMM d, yyyy • h:mm a').format(payment.completedAt!),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'N\$${payment.amount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'PAID',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppColors.success,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ... Helper methods for filtering, calculations, etc.
+  List<QueryDocumentSnapshot> _filterPaymentsByTimeRange(List<QueryDocumentSnapshot> payments) {
+    final now = DateTime.now();
+    switch (_selectedTimeRange) {
+      case 'today':
+        final today = DateTime(now.year, now.month, now.day);
+        return payments.where((doc) {
+          final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+          return payment.completedAt!.isAfter(today);
+        }).toList();
+      case 'week':
+        final weekAgo = now.subtract(const Duration(days: 7));
+        return payments.where((doc) {
+          final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+          return payment.completedAt!.isAfter(weekAgo);
+        }).toList();
+      case 'month':
+        final monthAgo = DateTime(now.year, now.month - 1, now.day);
+        return payments.where((doc) {
+          final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+          return payment.completedAt!.isAfter(monthAgo);
+        }).toList();
+      case 'all':
+      default:
+        return payments;
+    }
+  }
+
+  Map<String, dynamic> _calculateEarningsStats(List<QueryDocumentSnapshot> payments) {
+    double totalEarnings = 0.0;
+    int completedPayments = payments.length;
+    int totalServices = payments.length;
+
+    for (final doc in payments) {
+      final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+      totalEarnings += payment.amount;
+    }
+
+    final averageEarning = completedPayments > 0 ? totalEarnings / completedPayments : 0.0;
+
+    return {
+      'totalEarnings': totalEarnings,
+      'completedPayments': completedPayments,
+      'averageEarning': averageEarning,
+      'totalServices': totalServices,
+    };
+  }
+
+  String _formatPaymentMethod(String method) {
+    switch (method) {
+      case 'card': return 'Credit Card';
+      case 'mobile_money': return 'Mobile Money';
+      case 'cash': return 'Cash';
+      default: return method;
+    }
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingSummary() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Widget _buildEmptyPaymentsState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.attach_money, size: 64, color: Colors.grey[400]),
+          Icon(Icons.payment, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           const Text(
-            'No Earnings Yet',
+            'No Payments Yet',
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey,
@@ -77,7 +390,7 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Your earnings will appear here once clients start paying',
+            'Your completed payment records will appear here',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey),
           ),
@@ -86,274 +399,38 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
     );
   }
 
-  Widget _buildPeriodSelector() {
-    const periods = {
-      'week': 'This Week',
-      'month': 'This Month',
-      'year': 'This Year',
-      'all': 'All Time',
-    };
-
-    return Card(
+  Widget _buildErrorState(String message) {
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Earnings Period',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: periods.entries.map((entry) {
-                  final isSelected = _selectedPeriod == entry.key;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(entry.value),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedPeriod = entry.key;
-                        });
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEarningsOverview(Map<String, dynamic> earningsData) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      children: [
-        _buildEarningCard(
-          'Total Earnings',
-          'N\$${earningsData['totalEarnings'].toStringAsFixed(2)}',
-          Icons.attach_money,
-          Colors.green,
-        ),
-        _buildEarningCard(
-          'Completed Payments',
-          earningsData['completedCount'].toString(),
-          Icons.check_circle,
-          Colors.blue,
-        ),
-        _buildEarningCard(
-          'Pending Payments',
-          earningsData['pendingCount'].toString(),
-          Icons.pending,
-          Colors.orange,
-        ),
-        _buildEarningCard(
-          'Average per Service',
-          'N\$${earningsData['averageEarning'].toStringAsFixed(2)}',
-          Icons.trending_up,
-          Colors.purple,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEarningCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentTransactions(List<PaymentModel> payments) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Recent Transactions',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
             const SizedBox(height: 16),
-            ...payments.take(10).map((payment) {
-              return _buildTransactionItem(payment);
-            }).toList(),
-            if (payments.length > 10)
-              TextButton(
-                onPressed: () {
-                  // Show all transactions
-                },
-                child: const Text('View All Transactions'),
+            Text(
+              'Unable to Load Earnings',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w500,
+                fontSize: 18,
               ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildTransactionItem(PaymentModel payment) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: _getPaymentStatusColor(payment.status).withOpacity(0.1),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          _getPaymentStatusIcon(payment.status),
-          color: _getPaymentStatusColor(payment.status),
-        ),
-      ),
-      title: Text(
-        'Payment #${payment.id.substring(0, 8)}',
-        style: const TextStyle(fontWeight: FontWeight.w500),
-      ),
-      subtitle: Text(
-        DateFormat('MMM d, yyyy • h:mm a').format(payment.createdAt),
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            'N\$${payment.amount.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.green,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: _getPaymentStatusColor(payment.status).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              payment.status.toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                color: _getPaymentStatusColor(payment.status),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<PaymentModel> _filterPaymentsByPeriod(List<PaymentModel> payments) {
-    final now = DateTime.now();
-    DateTime startDate;
-
-    switch (_selectedPeriod) {
-      case 'week':
-        startDate = now.subtract(const Duration(days: 7));
-        break;
-      case 'month':
-        startDate = DateTime(now.year, now.month, 1);
-        break;
-      case 'year':
-        startDate = DateTime(now.year, 1, 1);
-        break;
-      case 'all':
-      default:
-        return payments;
-    }
-
-    return payments.where((payment) {
-      return payment.createdAt.isAfter(startDate);
-    }).toList();
-  }
-
-  Map<String, dynamic> _calculateEarnings(List<PaymentModel> payments) {
-    final completedPayments = payments.where((p) => p.status == 'completed').toList();
-    final pendingPayments = payments.where((p) => p.status == 'pending').toList();
-    
-    final totalEarnings = completedPayments.fold(0.0, (sum, payment) => sum + payment.amount);
-    final averageEarning = completedPayments.isNotEmpty 
-        ? totalEarnings / completedPayments.length 
-        : 0.0;
-
-    return {
-      'totalEarnings': totalEarnings,
-      'completedCount': completedPayments.length,
-      'pendingCount': pendingPayments.length,
-      'averageEarning': averageEarning,
-    };
-  }
-
-  Color _getPaymentStatusColor(String status) {
-    switch (status) {
-      case 'completed':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      case 'failed':
-        return Colors.red;
-      case 'refunded':
-        return Colors.purple;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getPaymentStatusIcon(String status) {
-    switch (status) {
-      case 'completed':
-        return Icons.check_circle;
-      case 'pending':
-        return Icons.pending;
-      case 'failed':
-        return Icons.error;
-      case 'refunded':
-        return Icons.refresh;
-      default:
-        return Icons.help;
-    }
   }
 }
