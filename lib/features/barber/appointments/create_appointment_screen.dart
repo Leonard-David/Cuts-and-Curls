@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/models/appointment_model.dart';
+import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/repositories/booking_repository.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 
@@ -546,7 +547,6 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
     );
   }
 
-  // Rest of the methods remain the same...
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -582,6 +582,7 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
 
     try {
       final authProvider = context.read<AuthProvider>();
+      final appointmentsProvider = context.read<AppointmentsProvider>();
       final barber = authProvider.user!;
 
       // Combine date and time
@@ -594,23 +595,27 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
       );
 
       final appointment = AppointmentModel(
-        id: 'appt_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'appt_${DateTime.now().millisecondsSinceEpoch}_${_clientNameController.text.replaceAll(' ', '_')}',
         barberId: barber.id,
-        clientId: 'manual_${DateTime.now().millisecondsSinceEpoch}',
+        clientId: 'manual_${DateTime.now().millisecondsSinceEpoch}', // Mark as manually created
         clientName: _clientNameController.text.trim(),
         barberName: barber.fullName,
         date: appointmentDateTime,
         serviceName: _serviceNameController.text.trim(),
         price: double.parse(_priceController.text),
-        status: 'confirmed',
+        status: 'confirmed', // Auto-confirm barber-created appointments
         notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
         hasReminder: _hasReminder,
         reminderMinutes: _hasReminder ? _reminderMinutes : null,
         reminderNote: _reminderNote,
       );
 
       await _bookingRepository.createAppointment(appointment);
+
+      // Update local state for immediate UI update
+      appointmentsProvider.addAppointment(appointment);
 
       if (mounted) {
         showCustomSnackBar(

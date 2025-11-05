@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
-import 'package:sheersync/core/constants/colors.dart'; // ADD THIS
+import 'package:sheersync/core/constants/colors.dart';
 import '../../../data/models/user_model.dart';
 import 'select_service_screen.dart';
 import '../../../shared/chat/chat_screen.dart';
@@ -42,11 +42,11 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background, // UPDATE: Use theme background
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Select Professional'),
-        backgroundColor: AppColors.primary, // UPDATE: Use primary color
-        foregroundColor: AppColors.onPrimary, // UPDATE: Use onPrimary color
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         elevation: 1,
       ),
       body: Column(
@@ -56,7 +56,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
             padding: const EdgeInsets.all(16),
             child: Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight, // UPDATE: Use surface color
+                color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -70,12 +70,12 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search barbers, hairstylists...',
-                  prefixIcon: Icon(Icons.search, color: AppColors.textSecondary), // UPDATE: Use secondary text color
+                  prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
                   suffixIcon: _isSearching
                       ? IconButton(
-                          icon: Icon(Icons.clear, color: AppColors.textSecondary), // UPDATE: Use secondary text color
+                          icon: Icon(Icons.clear, color: AppColors.textSecondary),
                           onPressed: () {
                             _searchController.clear();
                           },
@@ -85,7 +85,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
               ),
             ),
           ),
-          // Barbers List - Real-time Stream
+          // Real-time Professionals List
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -117,7 +117,8 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                   itemCount: filteredBarbers.length,
                   itemBuilder: (context, index) {
                     final barberDoc = filteredBarbers[index];
-                    final barber = UserModel.fromMap(barberDoc.data() as Map<String, dynamic>);
+                    final barberData = barberDoc.data() as Map<String, dynamic>;
+                    final barber = UserModel.fromMap(barberData);
                     return _buildBarberCard(barber);
                   },
                 );
@@ -136,9 +137,11 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
 
     final query = _searchController.text.toLowerCase();
     return barbers.where((barberDoc) {
-      final barber = UserModel.fromMap(barberDoc.data() as Map<String, dynamic>);
+      final barberData = barberDoc.data() as Map<String, dynamic>;
+      final barber = UserModel.fromMap(barberData);
       return barber.fullName.toLowerCase().contains(query) ||
-          (barber.bio?.toLowerCase().contains(query) ?? false);
+          (barber.bio?.toLowerCase().contains(query) ?? false) ||
+          barber.userType.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -157,48 +160,75 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
 
   Widget _buildErrorState(String error) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 64, color: AppColors.error), // UPDATE: Use error color
-          const SizedBox(height: 16),
-          Text(
-            'Error loading professionals',
-            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold), // UPDATE: Use error color
-          ),
-          const SizedBox(height: 8),
-          Text(
-            error,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading professionals',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {});
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person_off, size: 64, color: AppColors.textSecondary), // UPDATE: Use secondary text color
-          const SizedBox(height: 16),
-          Text(
-            'No professionals found',
-            style: TextStyle(
-              fontSize: 18,
-              color: AppColors.textSecondary, // UPDATE: Use secondary text color
-              fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.person_off, size: 80, color: AppColors.textSecondary),
+            const SizedBox(height: 16),
+            Text(
+              'No Professionals Available',
+              style: TextStyle(
+                fontSize: 20,
+                color: AppColors.text,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Check back later when professionals are available',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Check back later when professionals join the platform',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -208,12 +238,12 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search_off, size: 64, color: AppColors.textSecondary), // UPDATE: Use secondary text color
+          Icon(Icons.search_off, size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
           Text(
             'No matching professionals found',
             style: TextStyle(
-              color: AppColors.textSecondary, // UPDATE: Use secondary text color
+              color: AppColors.textSecondary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -221,7 +251,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
           Text(
             'Try adjusting your search terms',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary), // UPDATE: Use secondary text color
+            style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -232,6 +262,9 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
         onTap: () {
           _selectBarber(barber);
@@ -252,7 +285,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                         ? NetworkImage(barber.profileImage!)
                         : null,
                     child: barber.profileImage == null
-                        ? Icon(Icons.person, size: 30, color: AppColors.textSecondary) // UPDATE: Use secondary text color
+                        ? Icon(Icons.person, size: 30, color: AppColors.textSecondary)
                         : null,
                   ),
                   // Online Status Indicator
@@ -260,9 +293,9 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                     width: 14,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: barber.isOnline ? AppColors.success : AppColors.textSecondary, // UPDATE: Use theme colors
+                      color: barber.isOnline ? AppColors.success : AppColors.textSecondary,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.background, width: 2), // UPDATE: Use background color
+                      border: Border.all(color: AppColors.background, width: 2),
                     ),
                   ),
                 ],
@@ -289,10 +322,11 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.hasData) {
-                          final updatedBarber = UserModel.fromMap(snapshot.data!.data() as Map<String, dynamic>);
+                          final updatedData = snapshot.data!.data() as Map<String, dynamic>;
+                          final updatedBarber = UserModel.fromMap(updatedData);
                           return Row(
                             children: [
-                              Icon(Icons.star, color: AppColors.accent, size: 16), // UPDATE: Use accent color
+                              Icon(Icons.star, color: AppColors.accent, size: 16),
                               const SizedBox(width: 4),
                               Text(
                                 updatedBarber.rating?.toStringAsFixed(1) ?? '0.0',
@@ -302,7 +336,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                                 ' (${updatedBarber.totalRatings ?? 0})',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textSecondary, // UPDATE: Use secondary text color
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -310,7 +344,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                         }
                         return Row(
                           children: [
-                            Icon(Icons.star, color: AppColors.accent, size: 16), // UPDATE: Use accent color
+                            Icon(Icons.star, color: AppColors.accent, size: 16),
                             const SizedBox(width: 4),
                             Text(
                               barber.rating?.toStringAsFixed(1) ?? '0.0',
@@ -348,37 +382,50 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.textSecondary, // UPDATE: Use secondary text color
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 4),
                     ],
-                    // Status
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: barber.isOnline ? AppColors.success : AppColors.textSecondary, // UPDATE: Use theme colors
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          barber.isOnline ? 'Available Now' : 'Offline',
-                          style: TextStyle(
-                            color: barber.isOnline ? AppColors.success : AppColors.textSecondary, // UPDATE: Use theme colors
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    // Real-time Status
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(barber.id)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        final isOnline = snapshot.hasData 
+                            ? (snapshot.data!.data() as Map<String, dynamic>)['isOnline'] ?? false
+                            : barber.isOnline;
+                            
+                        return Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: isOnline ? AppColors.success : AppColors.textSecondary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isOnline ? 'Available Now' : 'Offline',
+                              style: TextStyle(
+                                color: isOnline ? AppColors.success : AppColors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
               // Navigation Icon
-              Icon(Icons.chevron_right, color: AppColors.textSecondary), // UPDATE: Use secondary text color
+              Icon(Icons.chevron_right, color: AppColors.textSecondary),
             ],
           ),
         ),
@@ -387,45 +434,125 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
   }
 
   void _selectBarber(UserModel barber) {
-    if (!barber.isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${barber.fullName} is currently offline'),
-          backgroundColor: AppColors.accent, // UPDATE: Use accent color
-        ),
-      );
-      return;
-    }
-
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(Icons.cut, color: AppColors.primary), // UPDATE: Use primary color
-                title: const Text('Book Appointment'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SelectServiceScreen(barber: barber),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.chat, color: AppColors.success), // UPDATE: Use success color
-                title: const Text('Start Chat'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _startChatWithBarber(barber);
-                },
+        return Container(
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
               ),
             ],
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: barber.profileImage != null
+                            ? NetworkImage(barber.profileImage!)
+                            : null,
+                        child: barber.profileImage == null
+                            ? Icon(Icons.person, color: AppColors.textSecondary)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              barber.fullName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              barber.userType == 'barber' ? 'Professional Barber' : 'Hairstylist',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Options
+                ListTile(
+                  leading: Icon(Icons.calendar_today, color: AppColors.primary),
+                  title: const Text('Book Appointment'),
+                  subtitle: Text(
+                    barber.isOnline 
+                        ? 'Schedule a service with ${barber.fullName}'
+                        : '${barber.fullName} is currently offline',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (barber.isOnline) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SelectServiceScreen(barber: barber),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${barber.fullName} is currently offline and cannot accept bookings'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.chat, color: AppColors.success),
+                  title: const Text('Start Chat'),
+                  subtitle: const Text('Send a message to this professional'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _startChatWithBarber(barber);
+                  },
+                ),
+                // Cancel Button
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textSecondary,
+                        side: BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -455,7 +582,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to start chat: $e'),
-          backgroundColor: AppColors.error, // UPDATE: Use error color
+          backgroundColor: AppColors.error,
         ),
       );
     }

@@ -19,7 +19,6 @@ class BarberAppointmentsScreen extends StatefulWidget {
 
 class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> with SingleTickerProviderStateMixin {
   final BookingRepository _bookingRepository = BookingRepository();
-
   late TabController _tabController;
 
   @override
@@ -29,14 +28,18 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     
     // Load initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = context.read<AuthProvider>();
-      final appointmentsProvider = context.read<AppointmentsProvider>();
-      final barberId = authProvider.user?.id;
-      
-      if (barberId != null) {
-        appointmentsProvider.refreshAll(barberId);
-      }
+      _initializeData();
     });
+  }
+
+  void _initializeData() {
+    final authProvider = context.read<AuthProvider>();
+    final appointmentsProvider = context.read<AppointmentsProvider>();
+    final barberId = authProvider.user?.id;
+    
+    if (barberId != null) {
+      appointmentsProvider.refreshAll(barberId);
+    }
   }
 
   @override
@@ -88,7 +91,12 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                 MaterialPageRoute(
                   builder: (context) => const CreateAppointmentScreen(),
                 ),
-              );
+              ).then((_) {
+                // Refresh data when returning from create screen
+                if (barberId != null) {
+                  appointmentsProvider.refreshAll(barberId);
+                }
+              });
             },
           ),
           const SizedBox(width: 12),
@@ -163,10 +171,14 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildTodaysAppointments(barberId, appointmentsProvider),
-                _buildUpcomingAppointments(barberId, appointmentsProvider),
-                _buildAppointmentRequests(barberId, appointmentsProvider),
+                // All Appointments Tab
                 _buildAllAppointments(barberId, appointmentsProvider),
+                // Today's Appointments Tab
+                _buildTodaysAppointments(barberId, appointmentsProvider),
+                // Upcoming Appointments Tab
+                _buildUpcomingAppointments(barberId, appointmentsProvider),
+                // Appointment Requests Tab
+                _buildAppointmentRequests(barberId, appointmentsProvider),
               ],
             ),
     );
@@ -221,7 +233,35 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     );
   }
 
-  // Rest of the methods remain the same...
+  // All Appointments Tab
+  Widget _buildAllAppointments(String barberId, AppointmentsProvider provider) {
+    return StreamBuilder<List<AppointmentModel>>(
+      stream: _bookingRepository.getBarberAppointments(barberId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        final appointments = snapshot.data ?? [];
+        
+        if (appointments.isEmpty) {
+          return _buildEmptyState(
+            title: 'No Appointments',
+            message: 'You don\'t have any appointments yet',
+            icon: Icons.calendar_month_rounded,
+          );
+        }
+
+        return _buildAppointmentsList(appointments, 'All Appointments');
+      },
+    );
+  }
+
+  // Today's Appointments Tab
   Widget _buildTodaysAppointments(String barberId, AppointmentsProvider provider) {
     return StreamBuilder<List<AppointmentModel>>(
       stream: _bookingRepository.getTodaysAppointments(barberId),
@@ -244,11 +284,12 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
           );
         }
 
-        return _buildAppointmentsList(appointments);
+        return _buildAppointmentsList(appointments, 'Today\'s Appointments');
       },
     );
   }
 
+  // Upcoming Appointments Tab
   Widget _buildUpcomingAppointments(String barberId, AppointmentsProvider provider) {
     return StreamBuilder<List<AppointmentModel>>(
       stream: _bookingRepository.getUpcomingAppointments(barberId),
@@ -266,16 +307,17 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
         if (appointments.isEmpty) {
           return _buildEmptyState(
             title: 'No Upcoming Appointments',
-            message: 'You have no upcoming appointments in the next 7 days',
+            message: 'You have no upcoming appointments',
             icon: Icons.upcoming_rounded,
           );
         }
 
-        return _buildAppointmentsList(appointments);
+        return _buildAppointmentsList(appointments, 'Upcoming Appointments');
       },
     );
   }
 
+  // Appointment Requests Tab
   Widget _buildAppointmentRequests(String barberId, AppointmentsProvider provider) {
     return StreamBuilder<List<AppointmentModel>>(
       stream: _bookingRepository.getAppointmentRequests(barberId),
@@ -293,7 +335,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
         if (requests.isEmpty) {
           return _buildEmptyState(
             title: 'No Pending Requests',
-            message: 'You have no pending appointment requests',
+            message: 'You have no pending appointment requests from clients',
             icon: Icons.pending_actions_rounded,
           );
         }
@@ -321,7 +363,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'You have ${requests.length} pending appointment request${requests.length > 1 ? 's' : ''}',
+                      'You have ${requests.length} pending appointment request${requests.length > 1 ? 's' : ''} from clients',
                       style: TextStyle(
                         color: AppColors.text,
                         fontWeight: FontWeight.w500,
@@ -332,37 +374,10 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
               ),
             ),
             Expanded(
-              child: _buildAppointmentsList(requests),
+              child: _buildAppointmentsList(requests, 'Appointment Requests'),
             ),
           ],
         );
-      },
-    );
-  }
-
-  Widget _buildAllAppointments(String barberId, AppointmentsProvider provider) {
-    return StreamBuilder<List<AppointmentModel>>(
-      stream: _bookingRepository.getBarberAppointments(barberId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _buildErrorState(snapshot.error.toString());
-        }
-
-        final appointments = snapshot.data ?? [];
-        
-        if (appointments.isEmpty) {
-          return _buildEmptyState(
-            title: 'No Appointments',
-            message: 'You don\'t have any appointments yet',
-            icon: Icons.calendar_month_rounded,
-          );
-        }
-
-        return _buildAppointmentsList(appointments);
       },
     );
   }
@@ -458,13 +473,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                final authProvider = context.read<AuthProvider>();
-                final barberId = authProvider.user?.id;
-                if (barberId != null) {
-                  context.read<AppointmentsProvider>().refreshAll(barberId);
-                }
-              },
+              onPressed: _initializeData,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
@@ -477,10 +486,10 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     );
   }
 
-  Widget _buildAppointmentsList(List<AppointmentModel> appointments) {
+  Widget _buildAppointmentsList(List<AppointmentModel> appointments, String listType) {
     return RefreshIndicator(
       onRefresh: () async {
-        setState(() {});
+        _initializeData();
       },
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
@@ -488,14 +497,15 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final appointment = appointments[index];
-          return _buildAppointmentCard(appointment);
+          return _buildAppointmentCard(appointment, listType);
         },
       ),
     );
   }
 
-  Widget _buildAppointmentCard(AppointmentModel appointment) {
+  Widget _buildAppointmentCard(AppointmentModel appointment, String listType) {
     final isToday = _isToday(appointment.date);
+    final isRequest = listType == 'Appointment Requests';
     
     return Card(
       elevation: 2,
@@ -540,7 +550,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (isToday) 
+                        if (isToday && !isRequest) 
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
@@ -549,6 +559,22 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
                             ),
                             child: Text(
                               'TODAY',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        if (isRequest)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'REQUEST',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: AppColors.accent,
@@ -646,7 +672,10 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
       MaterialPageRoute(
         builder: (context) => AppointmentDetailsScreen(appointment: appointment),
       ),
-    );
+    ).then((_) {
+      // Refresh data when returning from details screen
+      _initializeData();
+    });
   }
 
   bool _isToday(DateTime date) {

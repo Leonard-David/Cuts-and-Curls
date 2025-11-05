@@ -9,6 +9,7 @@ import 'package:sheersync/data/repositories/payment_repository.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 import '../../../data/models/appointment_model.dart';
 import '../payments/payments_screen.dart';
+import 'client_appointment_details_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -40,6 +41,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('My Bookings'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {});
+            },
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Filter Chips
@@ -51,7 +66,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               stream: _bookingRepository.getClientAppointments(clientId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return _buildLoadingState();
                 }
 
                 if (snapshot.hasError) {
@@ -72,6 +87,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               },
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading your bookings...'),
         ],
       ),
     );
@@ -112,36 +140,44 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.calendar_today, size: 64, color: AppColors.textSecondary),
-          const SizedBox(height: 16),
-          Text(
-            'No Bookings Yet',
-            style: TextStyle(
-              fontSize: 18,
-              color: AppColors.textSecondary,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today, size: 80, color: AppColors.textSecondary),
+            const SizedBox(height: 16),
+            Text(
+              'No Bookings Yet',
+              style: TextStyle(
+                fontSize: 20,
+                color: AppColors.text,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Book your first appointment with a barber',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.popUntil(context, (route) => route.isFirst);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
+            const SizedBox(height: 8),
+            Text(
+              'Book your first appointment with a professional',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+              ),
             ),
-            child: const Text('Book Now'),
-          ),
-        ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+              child: const Text('Find Professionals'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -173,126 +209,168 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
   Widget _buildErrorState(String message) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 64, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(
-            'Error loading bookings',
-            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookingsList(List<AppointmentModel> appointments) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: appointments.length,
-      itemBuilder: (context, index) {
-        final appointment = appointments[index];
-        return StreamBuilder<PaymentModel?>(
-          stream: _paymentRepository.getPaymentByAppointmentStream(appointment.id),
-          builder: (context, paymentSnapshot) {
-            return _buildBookingCard(appointment, paymentSnapshot.data);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildBookingCard(AppointmentModel appointment, PaymentModel? payment) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Header with Barber Name and Status
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  appointment.barberName ?? 'Barber',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(appointment.status).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    appointment.status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: _getStatusColor(appointment.status),
-                    ),
-                  ),
-                ),
-              ],
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Unable to Load Bookings',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
             const SizedBox(height: 8),
-            // Service and Time
-            Row(
-              children: [
-                Icon(Icons.cut, size: 16, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    appointment.serviceName ?? 'Service',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  DateFormat('MMM d, yyyy • h:mm a').format(appointment.date),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {});
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              child: const Text('Try Again'),
             ),
-            const SizedBox(height: 12),
-            // Payment Status and Actions
-            _buildBookingActions(appointment, payment),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBookingActions(AppointmentModel appointment, PaymentModel? payment) {
-    final now = DateTime.now();
-    final canCancel = appointment.status == 'pending' || 
-                     appointment.status == 'confirmed';
+  Widget _buildBookingsList(List<AppointmentModel> appointments) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {});
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: appointments.length,
+        itemBuilder: (context, index) {
+          final appointment = appointments[index];
+          return StreamBuilder<PaymentModel?>(
+            stream: _paymentRepository.getPaymentByAppointmentStream(appointment.id),
+            builder: (context, paymentSnapshot) {
+              return _buildBookingCard(appointment, paymentSnapshot.data);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBookingCard(AppointmentModel appointment, PaymentModel? payment) {
+    final isPast = appointment.date.isBefore(DateTime.now());
+    final canCancel = (appointment.status == 'pending' || appointment.status == 'confirmed') && !isPast;
+    final canEdit = appointment.status == 'pending' && !isPast;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () {
+          _viewAppointmentDetails(appointment);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with Barber Name and Status
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      appointment.barberName ?? 'Professional',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(appointment.status).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      appointment.status.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _getStatusColor(appointment.status),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Service and Time
+              Row(
+                children: [
+                  Icon(Icons.cut, size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      appointment.serviceName ?? 'Service',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('MMM d, yyyy • h:mm a').format(appointment.date),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Payment Status and Actions
+              _buildBookingActions(appointment, payment, canCancel, canEdit),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingActions(AppointmentModel appointment, PaymentModel? payment, bool canCancel, bool canEdit) {
     final canPay = appointment.status == 'confirmed' && 
                   (payment == null || payment.status == 'pending');
-    final isUpcoming = appointment.date.isAfter(now);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -352,7 +430,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         // Action Buttons
         Row(
           children: [
-            if (canCancel && isUpcoming)
+            if (canEdit)
+              OutlinedButton(
+                onPressed: () => _editBooking(appointment),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: const Text('Edit'),
+              ),
+            if (canEdit) const SizedBox(width: 8),
+            if (canCancel)
               OutlinedButton(
                 onPressed: () => _cancelBooking(appointment),
                 style: OutlinedButton.styleFrom(
@@ -362,8 +451,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 ),
                 child: const Text('Cancel'),
               ),
-            if (canPay)
-              const SizedBox(width: 8),
+            if (canPay) const SizedBox(width: 8),
             if (canPay)
               ElevatedButton(
                 onPressed: () => _makePayment(appointment, payment),
@@ -377,6 +465,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  void _viewAppointmentDetails(AppointmentModel appointment) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClientAppointmentDetailsScreen(appointment: appointment),
+      ),
+    );
+  }
+
+  void _editBooking(AppointmentModel appointment) {
+    // Navigate to edit booking screen
+    showCustomSnackBar(
+      context,
+      'Edit booking functionality coming soon',
+      type: SnackBarType.info,
     );
   }
 

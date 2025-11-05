@@ -32,6 +32,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   DateTime? _selectedTime;
   final TextEditingController _notesController = TextEditingController();
   bool _isLoading = false;
+  bool _checkingAvailability = false;
   List<DateTime> _availableSlots = [];
 
   @override
@@ -44,6 +45,10 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   Future<void> _loadAvailableSlots() async {
     if (_selectedDate == null) return;
 
+    setState(() {
+      _checkingAvailability = true;
+    });
+
     try {
       final slots = await _bookingRepository.getAvailableTimeSlots(
         widget.barber.id,
@@ -51,13 +56,19 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       );
       setState(() {
         _availableSlots = slots;
+        _checkingAvailability = false;
       });
     } catch (e) {
-      showCustomSnackBar(
-        context,
-        'Failed to load available slots',
-        type: SnackBarType.error,
-      );
+      setState(() {
+        _checkingAvailability = false;
+      });
+      if (mounted) {
+        showCustomSnackBar(
+          context,
+          'Failed to load available slots: $e',
+          type: SnackBarType.error,
+        );
+      }
     }
   }
 
@@ -71,31 +82,40 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       return;
     }
 
+    // Check if barber is still available
     setState(() {
       _isLoading = true;
     });
 
     try {
+      final isAvailable = await _bookingRepository.checkBarberAvailability(
+        widget.barber.id,
+        _selectedTime!,
+      );
+
+      if (!isAvailable) {
+        showCustomSnackBar(
+          context,
+          'Sorry, this time slot is no longer available. Please select another time.',
+          type: SnackBarType.error,
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final client = authProvider.user!;
 
-      // Combine date and time
-      final appointmentDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-
       // Create appointment
       final appointment = AppointmentModel(
-        id: 'appt_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'appt_${DateTime.now().millisecondsSinceEpoch}_${client.id}',
         barberId: widget.barber.id,
         clientId: client.id,
         clientName: client.fullName,
         barberName: widget.barber.fullName,
-        date: appointmentDateTime,
+        date: _selectedTime!,
         serviceName: widget.service.name,
         price: widget.service.price,
         status: 'pending',
@@ -112,12 +132,18 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         title: 'New Appointment Request',
         message: '${client.fullName} requested a ${widget.service.name} appointment',
         type: NotificationType.appointment,
+        data: {
+          'appointmentId': appointment.id,
+          'clientName': client.fullName,
+          'serviceName': widget.service.name,
+          'date': DateFormat('MMM d, yyyy h:mm a').format(_selectedTime!),
+        },
       );
 
       if (mounted) {
         showCustomSnackBar(
           context,
-          'Appointment booked successfully! The barber will confirm shortly.',
+          'Appointment request sent! ${widget.barber.fullName} will confirm shortly.',
           type: SnackBarType.success,
         );
         
@@ -131,9 +157,6 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
           'Failed to book appointment: $e',
           type: SnackBarType.error,
         );
-      }
-    } finally {
-      if (mounted) {
         setState(() {
           _isLoading = false;
         });
@@ -340,6 +363,29 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
               ),
             ),
           )
+        else if (_checkingAvailability)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Checking availability...',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          )
         else if (_availableSlots.isEmpty)
           Card(
             child: Padding(
@@ -350,7 +396,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'No available slots for selected date',
+                      'No available slots for selected date. Please choose another date.',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
@@ -417,7 +463,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
           controller: _notesController,
           maxLines: 3,
           decoration: InputDecoration(
-            hintText: 'Any special requests or notes for the barber...',
+            hintText: 'Any special requests or notes for the professional...',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -429,29 +475,65 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   }
 
   Widget _buildConfirmButton() {
-    return ElevatedButton(
-      onPressed: _isLoading ? null : _confirmBooking,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: _isLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation(Colors.white),
-              ),
-            )
-          : const Text(
-              'Confirm Booking',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    final isBarberAvailable = widget.barber.isOnline;
+    final canBook = _selectedDate != null && _selectedTime != null && isBarberAvailable;
+
+    return Column(
+      children: [
+        if (!isBarberAvailable)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.error),
             ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${widget.barber.fullName} is currently offline and cannot accept bookings',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: _isLoading || !canBook ? null : _confirmBooking,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: canBook ? AppColors.primary : AppColors.textSecondary,
+              foregroundColor: AppColors.onPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    ),
+                  )
+                : Text(
+                    isBarberAvailable ? 'Confirm Booking Request' : 'Professional Unavailable',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
