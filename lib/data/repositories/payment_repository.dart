@@ -45,7 +45,8 @@ class PaymentRepository {
             })
             .toList());
   }
-   Stream<PaymentModel?> getPaymentByAppointmentStream(String appointmentId) {
+
+  Stream<PaymentModel?> getPaymentByAppointmentStream(String appointmentId) {
     return _firestore
         .collection('payments')
         .where('appointmentId', isEqualTo: appointmentId)

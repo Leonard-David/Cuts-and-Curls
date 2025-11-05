@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/chat_room_model.dart';
 import 'package:sheersync/data/repositories/chat_repository.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
-import 'package:sheersync/shared/chat/chat_screen.dart';
+import 'package:sheersync/features/shared/chat/chat_screen.dart';
 
 class ClientChatListScreen extends StatefulWidget {
   const ClientChatListScreen({super.key});
@@ -22,21 +23,53 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
     final clientId = authProvider.user?.id;
 
     if (clientId == null) {
-      return const Center(child: Text('Please login again'));
+      return _buildErrorState('Please login again');
     }
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Messages'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         elevation: 1,
+        actions: [
+          StreamBuilder<int>(
+            stream: _chatRepository.getUnreadMessagesCount(clientId, 'client'),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              if (unreadCount > 0) {
+                return Container(
+                  padding: const EdgeInsets.all(8),
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    unreadCount > 9 ? '9+' : unreadCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox();
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<List<ChatRoom>>(
         stream: _chatRepository.getChatRoomsForUser(clientId, 'client'),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return _buildLoadingState();
+          }
+
+          if (snapshot.hasError) {
+            return _buildErrorState(snapshot.error.toString());
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -45,92 +78,212 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
 
           final chatRooms = snapshot.data!;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: chatRooms.length,
-            itemBuilder: (context, index) {
-              final chatRoom = chatRooms[index];
-              return _buildChatRoomItem(chatRoom);
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {});
             },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: chatRooms.length,
+              itemBuilder: (context, index) {
+                final chatRoom = chatRooms[index];
+                return _buildChatRoomItem(chatRoom);
+              },
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
+  Widget _buildLoadingState() {
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          const Text(
-            'No Messages',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your messages with barbers will appear here',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              // Navigate to barbers list to start a chat
-            },
-            child: const Text('Find a Barber'),
-          ),
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading conversations...'),
         ],
       ),
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 80, color: AppColors.textSecondary),
+            const SizedBox(height: 16),
+            Text(
+              'No Messages Yet',
+              style: TextStyle(
+                fontSize: 20,
+                color: AppColors.text,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your conversations with professionals will appear here',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+              child: const Text('Find Professionals'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Unable to Load Messages',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w500,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {});
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildChatRoomItem(ChatRoom chatRoom) {
+    final hasUnread = chatRoom.unreadCount > 0;
+    final lastMessage = chatRoom.lastMessage;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
         leading: Container(
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: Colors.orange.shade100,
+            color: AppColors.primary.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
             Icons.cut,
-            color: Colors.orange.shade600,
+            color: AppColors.primary,
+            size: 24,
           ),
         ),
-        title: Text(
-          chatRoom.barberName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                chatRoom.barberName,
+                style: TextStyle(
+                  fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
+                  color: hasUnread ? AppColors.text : AppColors.text,
+                  fontSize: 16,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (hasUnread)
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (chatRoom.lastMessage != null)
+            const SizedBox(height: 4),
+            if (lastMessage != null)
               Text(
-                chatRoom.lastMessage!.message,
+                lastMessage.message,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: hasUnread ? AppColors.text : AppColors.textSecondary,
+                  fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
                 ),
               ),
             const SizedBox(height: 4),
-            Text(
-              DateFormat('MMM d, yyyy').format(chatRoom.updatedAt),
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 12,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _formatLastMessageTime(chatRoom.updatedAt),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        trailing: chatRoom.unreadCount > 0
+        trailing: hasUnread
             ? Container(
                 padding: const EdgeInsets.all(8),
                 decoration: const BoxDecoration(
@@ -157,5 +310,20 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
         },
       ),
     );
+  }
+
+  String _formatLastMessageTime(DateTime time) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final messageDate = DateTime(time.year, time.month, time.day);
+
+    if (messageDate == today) {
+      return DateFormat('h:mm a').format(time);
+    } else if (messageDate == yesterday) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('MMM d').format(time);
+    }
   }
 }

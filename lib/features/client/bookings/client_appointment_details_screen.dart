@@ -7,7 +7,7 @@ import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/repositories/booking_repository.dart';
 import 'package:sheersync/data/repositories/chat_repository.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
-import 'package:sheersync/shared/chat/chat_screen.dart';
+import 'package:sheersync/features/shared/chat/chat_screen.dart';
 
 class ClientAppointmentDetailsScreen extends StatefulWidget {
   final AppointmentModel appointment;

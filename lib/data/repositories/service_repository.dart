@@ -3,7 +3,6 @@ import '../models/service_model.dart';
 
 class ServiceRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   // Get services for barber (for barber's view)
   Stream<List<ServiceModel>> getBarberServices(String barberId) {
     return _getServicesQuery(barberId);

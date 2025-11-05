@@ -5,7 +5,7 @@ import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import '../../../data/models/user_model.dart';
 import 'select_service_screen.dart';
-import '../../../shared/chat/chat_screen.dart';
+import '../../shared/chat/chat_screen.dart';
 import '../../../data/repositories/chat_repository.dart';
 
 class SelectBarberScreen extends StatefulWidget {

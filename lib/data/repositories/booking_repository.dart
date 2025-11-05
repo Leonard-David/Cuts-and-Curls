@@ -5,6 +5,7 @@ import '../models/appointment_model.dart';
 class BookingRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CollectionReference _appointmentsCollection = FirebaseFirestore.instance.collection('appointments');
+// Use singleton instance
 
   // Create a new appointment
   Future<void> createAppointment(AppointmentModel appointment) async {
@@ -15,6 +16,7 @@ class BookingRepository {
     }
   }
 
+  // ... rest of your existing methods remain the same ...
   // Update appointment status
   Future<void> updateAppointmentStatus(String appointmentId, String status) async {
     try {

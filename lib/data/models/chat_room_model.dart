@@ -1,4 +1,4 @@
-import 'package:sheersync/data/models/chat_message_model.dart';
+import 'chat_message_model.dart';
 
 class ChatRoom {
   final String id;
@@ -47,13 +47,17 @@ class ChatRoom {
   // Create model from Firestore data
   factory ChatRoom.fromMap(Map<String, dynamic> map) {
     return ChatRoom(
-      id: map['id'],
-      clientId: map['clientId'],
-      clientName: map['clientName'],
-      barberId: map['barberId'],
-      barberName: map['barberName'],
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt']),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt']),
+      id: map['id'] ?? '',
+      clientId: map['clientId'] ?? '',
+      clientName: map['clientName'] ?? '',
+      barberId: map['barberId'] ?? '',
+      barberName: map['barberName'] ?? '',
+      createdAt: map['createdAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'])
+          : DateTime.now(),
       lastMessage: map['lastMessage'] != null 
           ? ChatMessage.fromMap(Map<String, dynamic>.from(map['lastMessage']))
           : null,
@@ -65,6 +69,12 @@ class ChatRoom {
 
   // Create copy with method for updates
   ChatRoom copyWith({
+    String? id,
+    String? clientId,
+    String? clientName,
+    String? barberId,
+    String? barberName,
+    DateTime? createdAt,
     DateTime? updatedAt,
     ChatMessage? lastMessage,
     int? unreadCount,
@@ -72,12 +82,12 @@ class ChatRoom {
     String? lastAppointmentId,
   }) {
     return ChatRoom(
-      id: id,
-      clientId: clientId,
-      clientName: clientName,
-      barberId: barberId,
-      barberName: barberName,
-      createdAt: createdAt,
+      id: id ?? this.id,
+      clientId: clientId ?? this.clientId,
+      clientName: clientName ?? this.clientName,
+      barberId: barberId ?? this.barberId,
+      barberName: barberName ?? this.barberName,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastMessage: lastMessage ?? this.lastMessage,
       unreadCount: unreadCount ?? this.unreadCount,
