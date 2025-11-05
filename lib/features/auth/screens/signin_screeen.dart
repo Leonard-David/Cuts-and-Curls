@@ -36,14 +36,14 @@ class _SignInScreenState extends State<SignInScreen> {
 
     if (!success && mounted) {
       final errorMessage = authProvider.error ?? 'Sign in failed';
-      
+
       // Check if the error indicates user not found
-      if (errorMessage.contains('No user found') || 
+      if (errorMessage.contains('No user found') ||
           errorMessage.contains('user-not-found')) {
         _showUserNotFoundDialog();
       } else {
         showCustomSnackBar(
-          context, 
+          context,
           errorMessage,
           type: SnackBarType.error,
         );
@@ -95,56 +95,56 @@ class _SignInScreenState extends State<SignInScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 40),
-                
+
                 // App Logo
                 Image.asset(
-                  'lib/assets/images/logo/logo.png', 
+                  'lib/assets/images/logo/logo.png',
                   height: 100,
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Welcome Text
                 Text(
                   'Welcome Back',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
-                
+
                 const SizedBox(height: 4),
-                
+
                 Text(
                   'Sign in to continue',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+                        color: Colors.grey[600],
+                      ),
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Email Field
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Email Address',
+                    labelText: 'Student Email Address',
                     prefixIcon: Icon(Icons.email_outlined),
-                    hintText: 'Enter your registered email',
+                    hintText: 'e.g studentnumber@students.unam.na',
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return 'Please enter your UNAM student email';
                     }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                    if (!value.contains('@studnets.unam.na')) {
+                      return 'Please enter a valid student email.';
                     }
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
@@ -154,9 +154,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     hintText: 'Enter your password',
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword 
-                          ? Icons.visibility_off_outlined 
-                          : Icons.visibility_outlined,
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                       ),
                       onPressed: () {
                         setState(() {
@@ -171,14 +171,14 @@ class _SignInScreenState extends State<SignInScreen> {
                       return 'Please enter your password';
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return 'Password must be at least 8 characters long.';
                     }
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Forgot Password
                 Align(
                   alignment: Alignment.centerRight,
@@ -194,9 +194,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     child: const Text('Forgot Password?'),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Sign In Button
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
@@ -216,23 +216,24 @@ class _SignInScreenState extends State<SignInScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                                  valueColor:
+                                      AlwaysStoppedAnimation(Colors.white),
                                 ),
                               )
-                            : const Text('Sign In',
+                            : const Text(
+                                'Sign In',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            
                       ),
                     );
                   },
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Divider
                 Row(
                   children: [
@@ -247,9 +248,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     Expanded(child: Divider(color: Colors.grey[300])),
                   ],
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Sign Up Redirect
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
