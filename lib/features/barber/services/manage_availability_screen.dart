@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
+import 'package:sheersync/core/widgets/custom_snackbar.dart';
 
 class ManageAvailabilityScreen extends StatefulWidget {
   const ManageAvailabilityScreen({super.key});
@@ -29,45 +30,17 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Manage Availability',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
-          ),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 20,
-        actions: [
-          if (!_isLoading)
-            _buildAppBarAction(
-              icon: Icons.save_rounded,
-              tooltip: 'Save Availability',
-              onPressed: _isSaving ? null : _saveAvailability,
-            ),
-          _buildAppBarAction(
-            icon: Icons.help_outline_rounded,
-            tooltip: 'Availability Guide',
-            onPressed: _showAvailabilityGuide,
-          ),
-        ],
-      ),
-      backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Header Section
-                _buildHeaderSection(),
-                const SizedBox(height: 16),
-                // Days List
-                Expanded(
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
+            children: [
+              // Header Section
+              _buildHeaderSection(),
+              const SizedBox(height: 16),
+              // Days List
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _loadAvailability,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _days.length,
@@ -79,9 +52,11 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
                     },
                   ),
                 ),
-              ],
-            ),
-    );
+              ),
+              // Save Button
+              if (!_isLoading) _buildSaveButton(),
+            ],
+          );
   }
 
   Widget _buildHeaderSection() {
@@ -306,100 +281,56 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
     );
   }
 
-  Widget _buildAppBarAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback? onPressed,
-  }) {
+  Widget _buildSaveButton() {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: IconButton(
-        icon: _isSaving && icon == Icons.save_rounded
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
-              )
-            : Icon(icon, size: 22),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.all(8),
-        ),
-      ),
-    );
-  }
-
-  void _showAvailabilityGuide() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.tips_and_updates_rounded, color: AppColors.primary),
-            const SizedBox(width: 8),
-            const Text('Availability Guide'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildGuideItem('Toggle Days', 'Enable/disable days you work'),
-            _buildGuideItem('Multiple Slots', 'Add different time slots per day'),
-            _buildGuideItem('Realistic Hours', 'Set hours you can actually work'),
-            _buildGuideItem('Save Changes', 'Remember to save your settings'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got It'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildGuideItem(String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+      child: SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: ElevatedButton(
+          onPressed: _isSaving ? null : _saveAvailability,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.onPrimary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-        ],
+          child: _isSaving
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                )
+              : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.save_rounded, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Save Availability',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }
 
-  // Rest of the methods remain the same...
   @override
   void initState() {
     super.initState();
@@ -474,20 +405,16 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
           .doc(barberId)
           .set(availabilityData, SetOptions(merge: true));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Availability saved successfully!'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
+      showCustomSnackBar(
+        context,
+        'Availability saved successfully!',
+        type: SnackBarType.success,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save availability: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      showCustomSnackBar(
+        context,
+        'Failed to save availability: $e',
+        type: SnackBarType.error,
       );
     }
 
@@ -555,7 +482,6 @@ class _ManageAvailabilityScreenState extends State<ManageAvailabilityScreen> {
   }
 }
 
-// TimeSlot model remains the same
 class TimeSlot {
   final TimeOfDay startTime;
   final TimeOfDay endTime;

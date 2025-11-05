@@ -1,6 +1,3 @@
-// lib/features/barber/earnings/barber_earning_screen.dart
-// Updated with Stripe Connect earnings tracking
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,27 +25,19 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
       return _buildErrorState('Please login again');
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Earnings'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
-      ),
-      body: Column(
-        children: [
-          // Time Range Filter
-          _buildTimeRangeFilter(),
-          const SizedBox(height: 16),
-          // Earnings Summary
-          _buildEarningsSummary(barberId),
-          const SizedBox(height: 16),
-          // Recent Payments
-          Expanded(
-            child: _buildRecentPayments(barberId),
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        // Time Range Filter
+        _buildTimeRangeFilter(),
+        const SizedBox(height: 16),
+        // Earnings Summary
+        _buildEarningsSummary(barberId),
+        const SizedBox(height: 16),
+        // Recent Payments
+        Expanded(
+          child: _buildRecentPayments(barberId),
+        ),
+      ],
     );
   }
 
@@ -274,7 +263,6 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
     );
   }
 
-  // ... Helper methods for filtering, calculations, etc.
   List<QueryDocumentSnapshot> _filterPaymentsByTimeRange(List<QueryDocumentSnapshot> payments) {
     final now = DateTime.now();
     switch (_selectedTimeRange) {

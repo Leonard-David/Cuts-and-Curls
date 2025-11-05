@@ -4,6 +4,7 @@ import 'package:sheersync/data/models/user_model.dart';
 import 'package:sheersync/data/models/service_model.dart';
 import 'package:sheersync/data/repositories/service_repository.dart';
 import 'package:sheersync/features/client/bookings/select_service_screen.dart';
+
 class BarberProfileScreen extends StatefulWidget {
   final UserModel barber;
 
@@ -44,33 +45,25 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.barber.fullName),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Barber Header Section
+          _buildBarberHeader(),
+          const SizedBox(height: 24),
+          // About Section
+          _buildAboutSection(),
+          const SizedBox(height: 24),
+          // Services Section
+          _buildServicesSection(),
+          const SizedBox(height: 24),
+          // Reviews Section
+          _buildReviewsSection(),
+          const SizedBox(height: 24),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Barber Header Section
-            _buildBarberHeader(),
-            const SizedBox(height: 24),
-            // About Section
-            _buildAboutSection(),
-            const SizedBox(height: 24),
-            // Services Section
-            _buildServicesSection(),
-            const SizedBox(height: 24),
-            // Reviews Section (placeholder)
-            _buildReviewsSection(),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _buildBookButton(),
     );
   }
 
@@ -347,73 +340,99 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Placeholder for reviews - you can implement this later
-            Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Icon(Icons.reviews, size: 48, color: AppColors.textSecondary),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Customer Reviews',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Reviews from satisfied customers will appear here',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
+            // Reviews summary
+            _buildReviewsSummary(),
+            const SizedBox(height: 16),
+            // Placeholder for individual reviews
+            _buildReviewsPlaceholder(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBookButton() {
+  Widget _buildReviewsSummary() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // Rating Circle
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  widget.barber.rating?.toStringAsFixed(1) ?? '0.0',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Icon(Icons.star, color: Colors.white, size: 16),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${widget.barber.totalRatings ?? 0} Reviews',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Star distribution would go here
+                Text(
+                  'Based on customer feedback',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: ElevatedButton(
-        onPressed: () {
-          _bookAppointment();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
-          minimumSize: const Size(double.infinity, 50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: const Text(
-          'Book Appointment',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
       ),
     );
   }
 
-  void _bookAppointment() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SelectServiceScreen(barber: widget.barber),
+  Widget _buildReviewsPlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Icon(Icons.reviews, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 12),
+          Text(
+            'Customer Reviews',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Reviews from satisfied customers will appear here',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }

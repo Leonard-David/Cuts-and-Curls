@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sheersync/core/constants/colors.dart';
+import 'package:sheersync/data/models/appointment_model.dart';
+import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 import 'package:sheersync/features/barber/appointments/barber_appointments_screen.dart';
 import 'package:sheersync/features/barber/appointments/create_appointment_screen.dart';
 import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
 import 'package:sheersync/features/barber/services/barber_services_screen.dart';
 import 'package:sheersync/features/barber/services/manage_availability_screen.dart';
-import '../../../data/models/appointment_model.dart';
-import '../../../features/auth/controllers/auth_provider.dart';
-import 'package:sheersync/core/constants/colors.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,38 +27,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return _buildErrorState('Please log in to view your dashboard.');
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Section
-            _buildWelcomeSection(),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome Section
+          _buildWelcomeSection(authProvider),
+          const SizedBox(height: 24),
 
-            const SizedBox(height: 24),
+          // Real-time Stats Grid
+          _buildStatsGrid(barberId),
+          const SizedBox(height: 24),
 
-            // Real-time Stats Grid
-            _buildStatsGrid(barberId),
+          // Today's Appointments - Real-time
+          _buildTodaysAppointments(barberId),
+          const SizedBox(height: 24),
 
-            const SizedBox(height: 24),
-
-            // Today's Appointments - Real-time
-            _buildTodaysAppointments(barberId),
-
-            const SizedBox(height: 24),
-
-            // Quick Actions
-            _buildQuickActions(),
-          ],
-        ),
+          // Quick Actions
+          _buildQuickActions(),
+        ],
       ),
     );
   }
 
-  Widget _buildWelcomeSection() {
-    final authProvider = Provider.of<AuthProvider>(context);
+  Widget _buildWelcomeSection(AuthProvider authProvider) {
     final user = authProvider.user;
 
     return Container(
@@ -68,8 +61,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
-        ),
+          colors: [
+            AppColors.primary,
+            AppColors.primary.withOpacity(0.8),
+        ]),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -156,8 +151,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Map<String, dynamic> _calculateStats(
-      List<QueryDocumentSnapshot> appointments) {
+  Map<String, dynamic> _calculateStats(List<QueryDocumentSnapshot> appointments) {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
@@ -167,8 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double totalEarnings = 0.0;
 
     for (var doc in appointments) {
-      final appointment =
-          AppointmentModel.fromMap(doc.data() as Map<String, dynamic>);
+      final appointment = AppointmentModel.fromMap(doc.data() as Map<String, dynamic>);
 
       // Today's appointments
       if (appointment.date.isAfter(todayStart)) {
@@ -198,8 +191,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     };
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -414,7 +406,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icons.construction,
                     AppColors.primary,
                     () {
-                      // Navigate to services management
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -438,8 +429,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const BarberAppointmentsScreen(),
+                          builder: (context) => const BarberAppointmentsScreen(),
                         ),
                       );
                     },
@@ -455,8 +445,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const ManageAvailabilityScreen(),
+                          builder: (context) => const ManageAvailabilityScreen(),
                         ),
                       );
                     },
@@ -473,7 +462,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icons.analytics,
                     AppColors.accent,
                     () {
-                      // Navigate to earnings screen
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -490,12 +478,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icons.pending_actions,
                     AppColors.accent,
                     () {
-                      // Navigate to appointment requests
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const BarberAppointmentsScreen(),
+                          builder: (context) => const BarberAppointmentsScreen(),
                         ),
                       );
                     },

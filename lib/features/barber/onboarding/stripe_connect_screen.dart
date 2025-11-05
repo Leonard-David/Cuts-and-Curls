@@ -1,6 +1,3 @@
-// lib/features/barber/onboarding/stripe_connect_screen.dart
-// Stripe Connect onboarding for barbers to receive payments
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,49 +25,23 @@ class _StripeConnectScreenState extends State<StripeConnectScreen> {
     final user = authProvider.user;
 
     if (user == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Connect Payment Account'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
-        ),
-        body: const Center(
-          child: Text('Please login to set up payments'),
-        ),
-      );
+      return _buildErrorState('Please login to set up payments');
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Connect Payment Account'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
-        actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Colors.white),
-              ),
+    return Column(
+      children: [
+        // Header Information
+        _buildHeaderSection(user.fullName),
+        
+        if (_isOnboarding)
+          Expanded(
+            child: WebViewWidget(
+              controller: _webViewController,
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Header Information
-          _buildHeaderSection(user.fullName),
-          
-          if (_isOnboarding)
-            Expanded(
-              child: WebViewWidget(
-                controller: _webViewController,
-              ),
-            )
-          else
-            _buildOnboardingStartSection(user),
-        ],
-      ),
+          )
+        else
+          _buildOnboardingStartSection(user),
+      ],
     );
   }
 
@@ -283,6 +254,38 @@ class _StripeConnectScreenState extends State<StripeConnectScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Setup Error',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w500,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

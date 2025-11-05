@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sheersync/core/constants/colors.dart';
+import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
-import '../../../data/providers/settings_provider.dart';
-import '../../../core/widgets/custom_snackbar.dart';
+import 'package:sheersync/data/providers/settings_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,24 +18,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settingsProvider = Provider.of<SettingsProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
-        elevation: 1,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restore),
-            onPressed: _showResetConfirmation,
-            tooltip: 'Reset to Defaults',
-          ),
-        ],
-      ),
-      body: settingsProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
+    return settingsProvider.isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               children: [
                 // Profile Section
                 _buildProfileSection(authProvider),
@@ -65,7 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 32),
               ],
             ),
-    );
+          );
   }
 
   Widget _buildProfileSection(AuthProvider authProvider) {
@@ -89,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               leading: CircleAvatar(
                 radius: 25,
-                backgroundColor: Colors.blue.shade100,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
                 child: user?.profileImage != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(25),
@@ -100,14 +88,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       )
                     : Icon(
                         Icons.person,
-                        color: Colors.blue.shade600,
+                        color: AppColors.primary,
                       ),
               ),
               title: Text(
                 user?.fullName ?? 'User',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              subtitle: Text(user?.userType == 'barber' ? 'Barber' : 'Client'),
+              subtitle: Text(user?.userType == 'barber' ? 'Professional Barber' : 'Client'),
               trailing: IconButton(
                 icon: const Icon(Icons.edit),
                 onPressed: () {
@@ -439,7 +427,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildDangerButton(
               icon: Icons.delete,
               title: 'Delete Account',
-              color: Colors.red,
+              color: AppColors.error,
               onTap: () => _deleteAccount(),
             ),
           ],
@@ -455,10 +443,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: Colors.grey[600]),
+      leading: Icon(icon, color: AppColors.text),
       title: Text(title),
       subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      trailing: Icon(Icons.chevron_right, color: AppColors.textSecondary),
       onTap: onTap,
     );
   }
@@ -471,13 +459,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required Function(bool) onChanged,
   }) {
     return ListTile(
-      leading: Icon(icon, color: Colors.grey[600]),
+      leading: Icon(icon, color: AppColors.text),
       title: Text(title),
       subtitle: Text(subtitle),
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: Colors.blue,
+        activeColor: AppColors.primary,
       ),
     );
   }
@@ -501,7 +489,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Action Methods
   void _editProfile() {
-    // Navigate to edit profile screen
     showCustomSnackBar(context, 'Edit profile feature coming soon');
   }
 
@@ -538,7 +525,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _applyTheme(bool isDarkMode) {
-    // This would typically be handled by a theme provider
     showCustomSnackBar(
       context, 
       isDarkMode ? 'Dark mode enabled' : 'Light mode enabled',
@@ -578,7 +564,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _changePassword() {
-    // Navigate to change password screen
     showCustomSnackBar(context, 'Change password feature coming soon');
   }
 
@@ -758,35 +743,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(context);
               showCustomSnackBar(context, 'Account deletion feature coming soon');
             },
-            child: const Text(
+            child: Text(
               'Delete',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppColors.error),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showResetConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Settings'),
-        content: const Text('Reset all settings to default values?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Provider.of<SettingsProvider>(context, listen: false)
-                  .resetToDefaults();
-              showCustomSnackBar(context, 'Settings reset to defaults');
-            },
-            child: const Text('Reset'),
           ),
         ],
       ),

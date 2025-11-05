@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:sheersync/core/constants/colors.dart';
-import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
-import 'package:sheersync/features/barber/appointments/create_appointment_screen.dart';
-import '../../../data/models/appointment_model.dart';
-import '../../../data/repositories/booking_repository.dart';
-import '../../../features/auth/controllers/auth_provider.dart';
-import 'appointment_details_screen.dart';
+import 'package:sheersync/data/models/appointment_model.dart';
+import 'package:sheersync/data/repositories/booking_repository.dart';
+import 'package:sheersync/features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/features/barber/appointments/appointment_details_screen.dart';
 
 class BarberAppointmentsScreen extends StatefulWidget {
   const BarberAppointmentsScreen({super.key});
@@ -20,6 +18,7 @@ class BarberAppointmentsScreen extends StatefulWidget {
 class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> with SingleTickerProviderStateMixin {
   final BookingRepository _bookingRepository = BookingRepository();
   late TabController _tabController;
+// all, today, upcoming, requests
 
   @override
   void initState() {
@@ -45,467 +44,134 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final appointmentsProvider = Provider.of<AppointmentsProvider>(context);
+    Provider.of<AppointmentsProvider>(context);
     final barberId = authProvider.user?.id;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'Appointments Management',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
+    return Column(
+      children: [
+        // Tab Bar
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 20,
-        // Professional action buttons
-        actions: [
-          // Refresh button
-          _buildAppBarAction(
-            icon: Icons.refresh_rounded,
-            tooltip: 'Refresh appointments',
-            onPressed: () {
-              if (barberId != null) {
-                appointmentsProvider.refreshAll(barberId);
-                showCustomSnackBar(
-                  context,
-                  'Appointments refreshed',
-                  type: SnackBarType.success,
-                );
-              }
-            },
-          ),
-          // Add appointment button
-          _buildAppBarAction(
-            icon: Icons.add_circle_outline_rounded,
-            tooltip: 'Create new appointment',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateAppointmentScreen(),
-                ),
-              ).then((_) {
-                // Refresh data when returning from create screen
-                if (barberId != null) {
-                  appointmentsProvider.refreshAll(barberId);
-                }
-              });
-            },
-          ),
-          const SizedBox(width: 12),
-        ],
-        // Enhanced Tab Bar with professional styling
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 2,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Tab Bar
-                SizedBox(
-                  height: 48,
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    labelColor: AppColors.onPrimary,
-                    unselectedLabelColor: AppColors.onPrimary.withOpacity(0.7),
-                    indicatorColor: AppColors.accent,
-                    indicatorWeight: 3,
-                    indicatorPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    labelStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -0.2,
-                    ),
-                    tabs: [
-                      _buildProfessionalTab('All', Icons.calendar_month_rounded),
-                      _buildProfessionalTab('Today', Icons.today_rounded),
-                      _buildProfessionalTab('Upcoming', Icons.upcoming_rounded),
-                      _buildProfessionalTab('Requests', Icons.pending_actions_rounded),
-                    ],
+          child: Column(
+            children: [
+              // Tab Bar
+              SizedBox(
+                height: 48,
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  indicatorColor: AppColors.primary,
+                  indicatorWeight: 3,
+                  indicatorPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  labelStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                // Subtle divider
-                Container(
-                  height: 1,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        AppColors.primary.withOpacity(0.3),
-                        AppColors.accent.withOpacity(0.5),
-                        AppColors.primary.withOpacity(0.3),
-                      ],
-                    ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: barberId == null
-          ? _buildErrorState('Please login again')
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                // All Appointments Tab
-                _buildAllAppointments(barberId, appointmentsProvider),
-                // Today's Appointments Tab
-                _buildTodaysAppointments(barberId, appointmentsProvider),
-                // Upcoming Appointments Tab
-                _buildUpcomingAppointments(barberId, appointmentsProvider),
-                // Appointment Requests Tab
-                _buildAppointmentRequests(barberId, appointmentsProvider),
-              ],
-            ),
-    );
-  }
-
-  // Professional app bar action button
-  Widget _buildAppBarAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: IconButton(
-        icon: Icon(
-          icon,
-          size: 22,
-        ),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.all(8),
-        ),
-      ),
-    );
-  }
-
-  // Professional tab with icon and text
-  Widget _buildProfessionalTab(String text, IconData icon) {
-    return Tab(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 18,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // All Appointments Tab
-  Widget _buildAllAppointments(String barberId, AppointmentsProvider provider) {
-    return StreamBuilder<List<AppointmentModel>>(
-      stream: _bookingRepository.getBarberAppointments(barberId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _buildErrorState(snapshot.error.toString());
-        }
-
-        final appointments = snapshot.data ?? [];
-        
-        if (appointments.isEmpty) {
-          return _buildEmptyState(
-            title: 'No Appointments',
-            message: 'You don\'t have any appointments yet',
-            icon: Icons.calendar_month_rounded,
-          );
-        }
-
-        return _buildAppointmentsList(appointments, 'All Appointments');
-      },
-    );
-  }
-
-  // Today's Appointments Tab
-  Widget _buildTodaysAppointments(String barberId, AppointmentsProvider provider) {
-    return StreamBuilder<List<AppointmentModel>>(
-      stream: _bookingRepository.getTodaysAppointments(barberId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _buildErrorState(snapshot.error.toString());
-        }
-
-        final appointments = snapshot.data ?? [];
-        
-        if (appointments.isEmpty) {
-          return _buildEmptyState(
-            title: 'No Appointments Today',
-            message: 'You have no appointments scheduled for today',
-            icon: Icons.calendar_today_rounded,
-          );
-        }
-
-        return _buildAppointmentsList(appointments, 'Today\'s Appointments');
-      },
-    );
-  }
-
-  // Upcoming Appointments Tab
-  Widget _buildUpcomingAppointments(String barberId, AppointmentsProvider provider) {
-    return StreamBuilder<List<AppointmentModel>>(
-      stream: _bookingRepository.getUpcomingAppointments(barberId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _buildErrorState(snapshot.error.toString());
-        }
-
-        final appointments = snapshot.data ?? [];
-        
-        if (appointments.isEmpty) {
-          return _buildEmptyState(
-            title: 'No Upcoming Appointments',
-            message: 'You have no upcoming appointments',
-            icon: Icons.upcoming_rounded,
-          );
-        }
-
-        return _buildAppointmentsList(appointments, 'Upcoming Appointments');
-      },
-    );
-  }
-
-  // Appointment Requests Tab
-  Widget _buildAppointmentRequests(String barberId, AppointmentsProvider provider) {
-    return StreamBuilder<List<AppointmentModel>>(
-      stream: _bookingRepository.getAppointmentRequests(barberId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _buildErrorState(snapshot.error.toString());
-        }
-
-        final requests = snapshot.data ?? [];
-        
-        if (requests.isEmpty) {
-          return _buildEmptyState(
-            title: 'No Pending Requests',
-            message: 'You have no pending appointment requests from clients',
-            icon: Icons.pending_actions_rounded,
-          );
-        }
-
-        return Column(
-          children: [
-            // Professional info banner
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.accent.withOpacity(0.2),
+                  onTap: (index) {
+                    setState(() {
+                    });
+                  },
+                  tabs: const [
+                    Tab(text: 'All'),
+                    Tab(text: 'Today'),
+                    Tab(text: 'Upcoming'),
+                    Tab(text: 'Requests'),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    color: AppColors.accent,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'You have ${requests.length} pending appointment request${requests.length > 1 ? 's' : ''} from clients',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _buildAppointmentsList(requests, 'Appointment Requests'),
-            ),
-          ],
+            ],
+          ),
+        ),
+        // Content
+        Expanded(
+          child: barberId == null
+              ? _buildErrorState('Please login again')
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // All Appointments Tab
+                    _buildAppointmentsList(barberId, 'all'),
+                    // Today's Appointments Tab
+                    _buildAppointmentsList(barberId, 'today'),
+                    // Upcoming Appointments Tab
+                    _buildAppointmentsList(barberId, 'upcoming'),
+                    // Appointment Requests Tab
+                    _buildAppointmentsList(barberId, 'requests'),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppointmentsList(String barberId, String filterType) {
+    return StreamBuilder<List<AppointmentModel>>(
+      stream: _getAppointmentsStream(barberId, filterType),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        final appointments = snapshot.data ?? [];
+        
+        if (appointments.isEmpty) {
+          return _buildEmptyState(filterType);
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            _initializeData();
+          },
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: appointments.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final appointment = appointments[index];
+              return _buildAppointmentCard(appointment, filterType);
+            },
+          ),
         );
       },
     );
   }
 
-  Widget _buildEmptyState({
-    required String title,
-    required String message,
-    required IconData icon,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 40,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                color: AppColors.text,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Stream<List<AppointmentModel>> _getAppointmentsStream(String barberId, String filterType) {
+    switch (filterType) {
+      case 'today':
+        return _bookingRepository.getTodaysAppointments(barberId);
+      case 'upcoming':
+        return _bookingRepository.getUpcomingAppointments(barberId);
+      case 'requests':
+        return _bookingRepository.getAppointmentRequests(barberId);
+      case 'all':
+      default:
+        return _bookingRepository.getBarberAppointments(barberId);
+    }
   }
 
-  Widget _buildErrorState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.error_outline_rounded,
-                size: 40,
-                color: AppColors.error,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Unable to Load Appointments',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _initializeData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
-              ),
-              child: const Text('Try Again'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppointmentsList(List<AppointmentModel> appointments, String listType) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        _initializeData();
-      },
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: appointments.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final appointment = appointments[index];
-          return _buildAppointmentCard(appointment, listType);
-        },
-      ),
-    );
-  }
-
-  Widget _buildAppointmentCard(AppointmentModel appointment, String listType) {
+  Widget _buildAppointmentCard(AppointmentModel appointment, String filterType) {
     final isToday = _isToday(appointment.date);
-    final isRequest = listType == 'Appointment Requests';
+    final isRequest = filterType == 'requests';
     
     return Card(
       elevation: 2,
@@ -661,6 +327,131 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String filterType) {
+    final Map<String, Map<String, dynamic>> emptyStates = {
+      'all': {
+        'title': 'No Appointments',
+        'message': 'You don\'t have any appointments yet',
+        'icon': Icons.calendar_month_rounded,
+      },
+      'today': {
+        'title': 'No Appointments Today',
+        'message': 'You have no appointments scheduled for today',
+        'icon': Icons.calendar_today_rounded,
+      },
+      'upcoming': {
+        'title': 'No Upcoming Appointments',
+        'message': 'You have no upcoming appointments',
+        'icon': Icons.upcoming_rounded,
+      },
+      'requests': {
+        'title': 'No Pending Requests',
+        'message': 'You have no pending appointment requests from clients',
+        'icon': Icons.pending_actions_rounded,
+      },
+    };
+
+    final state = emptyStates[filterType] ?? emptyStates['all']!;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                state['icon'] as IconData? ?? Icons.calendar_month_rounded,
+                size: 40,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              state['title']!,
+              style: TextStyle(
+                fontSize: 18,
+                color: AppColors.text,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state['message']!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 40,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Unable to Load Appointments',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _initializeData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
         ),
       ),
     );

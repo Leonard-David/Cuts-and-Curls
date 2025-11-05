@@ -26,73 +26,37 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
       return _buildErrorState('Please login again');
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Messages'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
-        actions: [
-          StreamBuilder<int>(
-            stream: _chatRepository.getUnreadMessagesCount(barberId, 'barber'),
-            builder: (context, snapshot) {
-              final unreadCount = snapshot.data ?? 0;
-              if (unreadCount > 0) {
-                return Container(
-                  padding: const EdgeInsets.all(8),
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    unreadCount > 9 ? '9+' : unreadCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                );
-              }
-              return const SizedBox();
+    return StreamBuilder<List<ChatRoom>>(
+      stream: _chatRepository.getChatRoomsForUser(barberId, 'barber'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingState();
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        final chatRooms = snapshot.data!;
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(() {});
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: chatRooms.length,
+            itemBuilder: (context, index) {
+              final chatRoom = chatRooms[index];
+              return _buildChatRoomItem(chatRoom);
             },
           ),
-        ],
-      ),
-      body: StreamBuilder<List<ChatRoom>>(
-        stream: _chatRepository.getChatRoomsForUser(barberId, 'barber'),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildLoadingState();
-          }
-
-          if (snapshot.hasError) {
-            return _buildErrorState(snapshot.error.toString());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          final chatRooms = snapshot.data!;
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {});
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: chatRooms.length,
-              itemBuilder: (context, index) {
-                final chatRoom = chatRooms[index];
-                return _buildChatRoomItem(chatRoom);
-              },
-            ),
-          );
-        },
-      ),
+        );
+      },
     );
   }
 

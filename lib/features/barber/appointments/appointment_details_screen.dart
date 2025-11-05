@@ -16,14 +16,12 @@ class AppointmentDetailsScreen extends StatefulWidget {
   const AppointmentDetailsScreen({super.key, required this.appointment});
 
   @override
-  State<AppointmentDetailsScreen> createState() =>
-      _AppointmentDetailsScreenState();
+  State<AppointmentDetailsScreen> createState() => _AppointmentDetailsScreenState();
 }
 
 class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   final BookingRepository _bookingRepository = BookingRepository();
-  final NotificationRepository _notificationRepository =
-      NotificationRepository();
+  final NotificationRepository _notificationRepository = NotificationRepository();
   bool _isLoading = false;
 
   Future<void> _updateAppointmentStatus(String status, {String? reason}) async {
@@ -88,8 +86,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Appointment'),
-        content:
-            const Text('Are you sure you want to cancel this appointment?'),
+        content: const Text('Are you sure you want to cancel this appointment?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -124,8 +121,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Mark as Completed'),
-        content: const Text(
-            'Are you sure you want to mark this appointment as completed?'),
+        content: const Text('Are you sure you want to mark this appointment as completed?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -149,8 +145,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Appointment'),
-        content: const Text(
-            'Are you sure you want to permanently delete this appointment? This action cannot be undone.'),
+        content: const Text('Are you sure you want to permanently delete this appointment? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -220,8 +215,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       case 'confirmed':
         return 'Your appointment has been confirmed by ${widget.appointment.barberName}';
       case 'cancelled':
-        return reason ??
-            'Your appointment has been cancelled by ${widget.appointment.barberName}';
+        return reason ?? 'Your appointment has been cancelled by ${widget.appointment.barberName}';
       case 'completed':
         return 'Your appointment with ${widget.appointment.barberName} has been completed';
       default:
@@ -257,155 +251,40 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
     final isBarber = authProvider.user?.userType == 'barber' ||
         authProvider.user?.userType == 'hairstylist';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Appointment Details'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
-        actions: [
-          if (isBarber) ...[
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                _handleMenuSelection(value);
-              },
-              itemBuilder: (context) => _buildMenuItems(isBarber),
-            ),
-          ],
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Status Card
-                  _buildStatusCard(),
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status Card
+                _buildStatusCard(),
+                const SizedBox(height: 24),
+                // Client/Barber Information
+                isBarber ? _buildClientInfo() : _buildBarberInfo(),
+                const SizedBox(height: 24),
+                // Service Information
+                _buildServiceInfo(),
+                const SizedBox(height: 24),
+                // Appointment Time
+                _buildAppointmentTime(),
+                if (widget.appointment.notes != null) ...[
                   const SizedBox(height: 24),
-                  // Client/Barber Information
-                  isBarber ? _buildClientInfo() : _buildBarberInfo(),
-                  const SizedBox(height: 24),
-                  // Service Information
-                  _buildServiceInfo(),
-                  const SizedBox(height: 24),
-                  // Appointment Time
-                  _buildAppointmentTime(),
-                  if (widget.appointment.notes != null) ...[
-                    const SizedBox(height: 24),
-                    // Additional Notes
-                    _buildAdditionalNotes(),
-                  ],
-                  const SizedBox(height: 32),
-                  // Action Buttons
-                  if (isBarber && _canEditAppointment()) _buildActionButtons(),
-                  // Delete button for barber-created appointments
-                  if (isBarber && _isBarberCreatedAppointment()) ...[
-                    const SizedBox(height: 16),
-                    _buildDeleteButton(),
-                  ],
+                  // Additional Notes
+                  _buildAdditionalNotes(),
                 ],
-              ),
-            ),
-    );
-  }
-
-  List<PopupMenuEntry<String>> _buildMenuItems(bool isBarber) {
-    final items = <PopupMenuEntry<String>>[];
-
-    if (isBarber && _canEditAppointment()) {
-      if (widget.appointment.status == 'pending') {
-        items.addAll([
-          const PopupMenuItem(
-            value: 'confirm',
-            child: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green),
-                SizedBox(width: 8),
-                Text('Confirm'),
+                const SizedBox(height: 32),
+                // Action Buttons
+                if (isBarber && _canEditAppointment()) _buildActionButtons(),
+                // Delete button for barber-created appointments
+                if (isBarber && _isBarberCreatedAppointment()) ...[
+                  const SizedBox(height: 16),
+                  _buildDeleteButton(),
+                ],
               ],
             ),
-          ),
-          const PopupMenuItem(
-            value: 'decline',
-            child: Row(
-              children: [
-                Icon(Icons.cancel, color: Colors.orange),
-                SizedBox(width: 8),
-                Text('Decline with Reason'),
-              ],
-            ),
-          ),
-        ]);
-      }
-
-      if (widget.appointment.status == 'confirmed') {
-        items.addAll([
-          const PopupMenuItem(
-            value: 'complete',
-            child: Row(
-              children: [
-                Icon(Icons.done_all, color: Colors.blue),
-                SizedBox(width: 8),
-                Text('Mark as Completed'),
-              ],
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'cancel',
-            child: Row(
-              children: [
-                Icon(Icons.cancel, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Cancel Appointment'),
-              ],
-            ),
-          ),
-        ]);
-      }
-    }
-
-    // Add delete option for barber-created appointments
-    if (isBarber && _isBarberCreatedAppointment()) {
-      if (items.isNotEmpty) {
-        items.add(const PopupMenuDivider());
-      }
-      items.add(
-        const PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Delete Appointment'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return items;
-  }
-
-  void _handleMenuSelection(String value) {
-    switch (value) {
-      case 'confirm':
-        _updateAppointmentStatus('confirmed');
-        break;
-      case 'decline':
-        _showDeclineDialog();
-        break;
-      case 'complete':
-        _markAsCompleted();
-        break;
-      case 'cancel':
-        _cancelAppointment();
-        break;
-      case 'delete':
-        _deleteAppointment();
-        break;
-    }
+          );
   }
 
   Widget _buildStatusCard() {
@@ -608,8 +487,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                 ),
                 if (isPast)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.textSecondary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -631,8 +509,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                 Icon(Icons.calendar_today, color: AppColors.primary),
                 const SizedBox(width: 12),
                 Text(
-                  DateFormat('EEEE, MMMM d, yyyy')
-                      .format(widget.appointment.date),
+                  DateFormat('EEEE, MMMM d, yyyy').format(widget.appointment.date),
                   style: const TextStyle(fontSize: 16),
                 ),
               ],
@@ -648,13 +525,11 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                 ),
               ],
             ),
-            if (widget.appointment.hasReminder &&
-                widget.appointment.reminderMinutes != null) ...[
+            if (widget.appointment.hasReminder && widget.appointment.reminderMinutes != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.notifications_active_rounded,
-                      color: AppColors.accent),
+                  Icon(Icons.notifications_active_rounded, color: AppColors.accent),
                   const SizedBox(width: 12),
                   Text(
                     'Reminder: ${widget.appointment.reminderMinutes} minutes before',

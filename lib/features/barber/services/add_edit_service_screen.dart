@@ -59,262 +59,232 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.service == null ? 'Add Service' : 'Edit Service',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
-          ),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 20,
-        actions: [
-          if (widget.service != null)
-            _buildAppBarAction(
-              icon: Icons.delete_outline_rounded,
-              tooltip: 'Delete Service',
-              onPressed: _deleteService,
-            ),
-          _buildAppBarAction(
-            icon: Icons.help_outline_rounded,
-            tooltip: 'Service Guidelines',
-            onPressed: _showGuidelines,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Section
-              _buildHeaderSection(),
-              const SizedBox(height: 24),
-              
-              // Service Information Card
-              _buildSectionCard(
-                title: 'Service Information',
-                icon: Icons.work_outline_rounded,
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Service Name *',
-                      hintText: 'e.g., Classic Haircut, Hair Coloring',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.work_rounded),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter service name';
-                      }
-                      return null;
-                    },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Section
+            _buildHeaderSection(),
+            const SizedBox(height: 24),
+            
+            // Service Information Card
+            _buildSectionCard(
+              title: 'Service Information',
+              icon: Icons.work_outline_rounded,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Service Name *',
+                    hintText: 'e.g., Classic Haircut, Hair Coloring',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.work_rounded),
                   ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      hintText: 'Select service category',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.category_rounded),
-                    ),
-                    items: _categories.map((category) {
-                      return DropdownMenuItem(
-                        value: category,
-                        child: Text(category),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descriptionController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      hintText: 'Describe your service in detail...',
-                      border: OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                      prefixIcon: Icon(Icons.description_rounded),
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Pricing & Duration Card
-              _buildSectionCard(
-                title: 'Pricing & Duration',
-                icon: Icons.attach_money_rounded,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _priceController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Price (N\$) *',
-                            hintText: '0.00',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.currency_exchange_rounded),
-                            prefixText: 'N\$',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter price';
-                            }
-                            final price = double.tryParse(value);
-                            if (price == null || price <= 0) {
-                              return 'Please enter valid price';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _durationController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Duration (minutes) *',
-                            hintText: '30',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.timer_rounded),
-                            suffixText: 'min',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter duration';
-                            }
-                            final duration = int.tryParse(value);
-                            if (duration == null || duration <= 0) {
-                              return 'Please enter valid duration';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Service Status Card
-              _buildSectionCard(
-                title: 'Service Status',
-                icon: Icons.toggle_on_rounded,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
-                        color: _isActive ? AppColors.success : AppColors.error,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _isActive ? 'Active Service' : 'Service Paused',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.text,
-                              ),
-                            ),
-                            Text(
-                              _isActive 
-                                  ? 'Accepting new bookings from clients'
-                                  : 'Not accepting new bookings',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: _isActive,
-                        onChanged: (value) {
-                          setState(() {
-                            _isActive = value;
-                          });
-                        },
-                        activeColor: AppColors.success,
-                        inactiveTrackColor: AppColors.error.withOpacity(0.5),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveService,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              widget.service == null 
-                                  ? Icons.add_circle_outline_rounded 
-                                  : Icons.save_rounded,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              widget.service == null ? 'Create Service' : 'Update Service',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter service name';
+                    }
+                    return null;
+                  },
                 ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    hintText: 'Select service category',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.category_rounded),
+                  ),
+                  items: _categories.map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCategory = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Describe your service in detail...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                    prefixIcon: Icon(Icons.description_rounded),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Pricing & Duration Card
+            _buildSectionCard(
+              title: 'Pricing & Duration',
+              icon: Icons.attach_money_rounded,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _priceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Price (N\$) *',
+                          hintText: '0.00',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.currency_exchange_rounded),
+                          prefixText: 'N\$',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter price';
+                          }
+                          final price = double.tryParse(value);
+                          if (price == null || price <= 0) {
+                            return 'Please enter valid price';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _durationController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Duration (minutes) *',
+                          hintText: '30',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timer_rounded),
+                          suffixText: 'min',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter duration';
+                          }
+                          final duration = int.tryParse(value);
+                          if (duration == null || duration <= 0) {
+                            return 'Please enter valid duration';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Service Status Card
+            _buildSectionCard(
+              title: 'Service Status',
+              icon: Icons.toggle_on_rounded,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                      color: _isActive ? AppColors.success : AppColors.error,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isActive ? 'Active Service' : 'Service Paused',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          Text(
+                            _isActive 
+                                ? 'Accepting new bookings from clients'
+                                : 'Not accepting new bookings',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _isActive,
+                      onChanged: (value) {
+                        setState(() {
+                          _isActive = value;
+                        });
+                      },
+                      activeColor: AppColors.success,
+                      inactiveTrackColor: AppColors.error.withOpacity(0.5),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Save Button
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _saveService,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            widget.service == null 
+                                ? Icons.add_circle_outline_rounded 
+                                : Icons.save_rounded,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            widget.service == null ? 'Create Service' : 'Update Service',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
@@ -416,91 +386,6 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
     );
   }
 
-  Widget _buildAppBarAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: IconButton(
-        icon: Icon(icon, size: 22),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.all(8),
-        ),
-      ),
-    );
-  }
-
-  void _showGuidelines() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.tips_and_updates_rounded, color: AppColors.primary),
-            const SizedBox(width: 8),
-            const Text('Service Guidelines'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildGuidelineItem('Clear Names', 'Use descriptive service names'),
-            _buildGuidelineItem('Accurate Pricing', 'Set competitive and clear pricing'),
-            _buildGuidelineItem('Realistic Duration', 'Estimate accurate service time'),
-            _buildGuidelineItem('Detailed Description', 'Explain what clients can expect'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got It'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGuidelineItem(String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Rest of the methods remain the same...
   Future<void> _saveService() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -554,46 +439,6 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
         setState(() {
           _isLoading = false;
         });
-      }
-    }
-  }
-
-  Future<void> _deleteService() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Service'),
-        content: Text('Are you sure you want to delete "${_nameController.text}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && widget.service != null) {
-      try {
-        await _serviceRepository.deleteService(widget.service!.id);
-        showCustomSnackBar(
-          context,
-          'Service deleted successfully',
-          type: SnackBarType.success,
-        );
-        if (mounted) {
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        showCustomSnackBar(
-          context,
-          'Failed to delete service: $e',
-          type: SnackBarType.error,
-        );
       }
     }
   }

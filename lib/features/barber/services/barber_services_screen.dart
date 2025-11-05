@@ -4,7 +4,8 @@ import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/service_model.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 import 'package:sheersync/data/repositories/service_repository.dart';
-import 'add_edit_service_screen.dart';
+import 'package:sheersync/core/widgets/custom_snackbar.dart';
+import 'package:sheersync/features/barber/services/add_edit_service_screen.dart';
 
 class BarberServicesScreen extends StatefulWidget {
   const BarberServicesScreen({super.key});
@@ -28,69 +29,11 @@ class _BarberServicesScreenState extends State<BarberServicesScreen> {
   Widget build(BuildContext context) {
     Provider.of<AuthProvider>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'My Services',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
-          ),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 20,
-        actions: [
-          _buildAppBarAction(
-            icon: Icons.refresh_rounded,
-            tooltip: 'Refresh Services',
-            onPressed: _loadServices,
-          ),
-          _buildAppBarAction(
-            icon: Icons.add_circle_outline_rounded,
-            tooltip: 'Add New Service',
-            onPressed: _navigateToAddService,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _services.isEmpty
-              ? _buildEmptyState()
-              : _buildServicesList(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToAddService,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 4,
-        child: const Icon(Icons.add_rounded, size: 28),
-      ),
-    );
-  }
-
-  Widget _buildAppBarAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: IconButton(
-        icon: Icon(icon, size: 22),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.all(8),
-        ),
-      ),
-    );
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _services.isEmpty
+            ? _buildEmptyState()
+            : _buildServicesList();
   }
 
   Widget _buildEmptyState() {
@@ -172,13 +115,16 @@ class _BarberServicesScreenState extends State<BarberServicesScreen> {
         const SizedBox(height: 16),
         // Services List
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _services.length,
-            itemBuilder: (context, index) {
-              final service = _services[index];
-              return _buildServiceCard(service);
-            },
+          child: RefreshIndicator(
+            onRefresh: _loadServices,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _services.length,
+              itemBuilder: (context, index) {
+                final service = _services[index];
+                return _buildServiceCard(service);
+              },
+            ),
           ),
         ),
       ],
@@ -433,7 +379,7 @@ class _BarberServicesScreenState extends State<BarberServicesScreen> {
                         MaterialPageRoute(
                           builder: (context) => AddEditServiceScreen(service: service),
                         ),
-                      );
+                      ).then((_) => _loadServices());
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
@@ -472,8 +418,7 @@ class _BarberServicesScreenState extends State<BarberServicesScreen> {
     );
   }
 
-  // Rest of the methods remain the same...
-  void _loadServices() {
+  Future<void> _loadServices() async {
     final authProvider = context.read<AuthProvider>();
     final barberId = authProvider.user?.id;
 
@@ -505,7 +450,7 @@ class _BarberServicesScreenState extends State<BarberServicesScreen> {
       MaterialPageRoute(
         builder: (context) => const AddEditServiceScreen(),
       ),
-    );
+    ).then((_) => _loadServices());
   }
 
   Future<void> _toggleServiceStatus(ServiceModel service) async {
@@ -562,22 +507,18 @@ class _BarberServicesScreenState extends State<BarberServicesScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-      ),
+    showCustomSnackBar(
+      context,
+      message,
+      type: SnackBarType.error,
     );
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
+    showCustomSnackBar(
+      context,
+      message,
+      type: SnackBarType.success,
     );
   }
 }

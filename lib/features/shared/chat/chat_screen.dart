@@ -266,139 +266,68 @@ class _ChatScreenState extends State<ChatScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUser = authProvider.user!;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _getOtherUserName(),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 2),
-            StreamBuilder<Set<String>>(
-              stream: _chatRepository.getTypingIndicatorsStream(widget.chatRoom.id),
-              builder: (context, snapshot) {
-                final typingUsers = snapshot.data ?? {};
-                final isTyping = typingUsers.isNotEmpty;
-                
-                return Text(
-                  isTyping 
-                    ? '${_getOtherUserName()} is typing...'
-                    : _getOtherUserType() == 'barber' ? 'Professional Barber' : 'Client',
+    return Column(
+      children: [
+        // Connection Status Banner
+        if (!_isOnline)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: AppColors.accent.withOpacity(0.1),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cloud_off, size: 16, color: AppColors.accent),
+                const SizedBox(width: 8),
+                Text(
+                  'You are offline. Messages will be sent when connected.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isTyping ? AppColors.accent : AppColors.textSecondary,
+                    color: AppColors.accent,
                   ),
-                );
-              },
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
-        actions: [
-          if (!_isOnline)
-            Tooltip(
-              message: 'Offline Mode - Messages will sync when connected',
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.cloud_off, size: 16, color: AppColors.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Offline',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              _showChatInfo();
+          ),
+        // Messages List
+        Expanded(
+          child: StreamBuilder<List<ChatMessage>>(
+            stream: _chatRepository.getMessagesStream(widget.chatRoom.id),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return _buildErrorState(snapshot.error.toString());
+              }
+
+              final messages = snapshot.data ?? [];
+              _messages = messages;
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _scrollToBottom();
+              });
+
+              if (messages.isEmpty) {
+                return _buildEmptyChat();
+              }
+
+              return ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                itemCount: messages.length,
+                itemBuilder: (context, index) {
+                  final message = messages[index];
+                  return _buildMessageBubble(message, currentUser.id);
+                },
+              );
             },
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Connection Status Banner
-          if (!_isOnline)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: AppColors.accent.withOpacity(0.1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.cloud_off, size: 16, color: AppColors.accent),
-                  const SizedBox(width: 8),
-                  Text(
-                    'You are offline. Messages will be sent when connected.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.accent,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // Messages List
-          Expanded(
-            child: StreamBuilder<List<ChatMessage>>(
-              stream: _chatRepository.getMessagesStream(widget.chatRoom.id),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return _buildErrorState(snapshot.error.toString());
-                }
-
-                final messages = snapshot.data ?? [];
-                _messages = messages;
-
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToBottom();
-                });
-
-                if (messages.isEmpty) {
-                  return _buildEmptyChat();
-                }
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    return _buildMessageBubble(message, currentUser.id);
-                  },
-                );
-              },
-            ),
-          ),
-          // Message Input
-          _buildMessageInput(),
-        ],
-      ),
+        ),
+        // Message Input
+        _buildMessageInput(),
+      ],
     );
   }
 
@@ -677,97 +606,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             onPressed: _isSending ? null : _sendMessage,
             tooltip: 'Send Message',
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showChatInfo() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Chat Information',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildInfoItem('Client', widget.chatRoom.clientName),
-              _buildInfoItem('Professional', widget.chatRoom.barberName),
-              _buildInfoItem('Chat Created', 
-                  DateFormat('MMM d, yyyy • h:mm a').format(widget.chatRoom.createdAt)),
-              _buildInfoItem('Last Updated', 
-                  DateFormat('MMM d, yyyy • h:mm a').format(widget.chatRoom.updatedAt)),
-              const SizedBox(height: 24),
-              if (widget.chatRoom.lastAppointmentId != null)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // Navigate to appointment details
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary),
-                    ),
-                    child: const Text('View Related Appointment'),
-                  ),
-                ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInfoItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
           ),
         ],
       ),

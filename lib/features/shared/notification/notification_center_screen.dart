@@ -32,51 +32,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final notificationProvider = Provider.of<NotificationProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
-        actions: [
-          if (notificationProvider.hasUnread)
-            IconButton(
-              icon: const Icon(Icons.mark_email_read),
-              onPressed: () {
-                notificationProvider.markAllAsRead(authProvider.user!.id);
-              },
-              tooltip: 'Mark all as read',
-            ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'clear_all') {
-                _clearAllNotifications();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear_all',
-                child: Row(
-                  children: [
-                    Icon(Icons.clear_all, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Clear All'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      backgroundColor: AppColors.background,
-      body: notificationProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : notificationProvider.notifications.isEmpty
-              ? _buildEmptyState()
-              : _buildNotificationsList(),
-    );
+    return notificationProvider.isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : notificationProvider.notifications.isEmpty
+            ? _buildEmptyState()
+            : _buildNotificationsList();
   }
 
   Widget _buildEmptyState() {
@@ -216,7 +177,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     // Navigate based on notification type and relatedId
     switch (notification.type) {
       case NotificationType.appointment:
-        // Navigate to appointment details
         _handleAppointmentNotification(notification);
         break;
       case NotificationType.payment:
@@ -233,8 +193,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
   void _handleAppointmentNotification(AppNotification notification) {
     // Navigate to appointment details screen
-    // This would typically require fetching the appointment details
-    // and navigating to the appropriate screen
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Opening appointment: ${notification.title}'),
@@ -298,31 +256,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               );
             },
             child: Text('Delete', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _clearAllNotifications() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear All Notifications'),
-        content: const Text('Are you sure you want to clear all notifications?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              final authProvider = context.read<AuthProvider>();
-              final notificationProvider = context.read<NotificationProvider>();
-              notificationProvider.clearAllNotifications(authProvider.user!.id);
-            },
-            child: Text('Clear All', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
