@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/user_model.dart';
 import 'package:sheersync/data/models/service_model.dart';
 import 'package:sheersync/data/repositories/service_repository.dart';
+import 'package:sheersync/features/barber/marketing/marketing_screen.dart';
 import 'package:sheersync/features/client/bookings/select_service_screen.dart';
 
 class BarberProfileScreen extends StatefulWidget {
@@ -56,6 +58,9 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
           // About Section
           _buildAboutSection(),
           const SizedBox(height: 24),
+          // Offers Section - ADD THIS
+          _buildOffersSection(),
+          const SizedBox(height: 24),
           // Services Section
           _buildServicesSection(),
           const SizedBox(height: 24),
@@ -85,7 +90,8 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                       ? NetworkImage(widget.barber.profileImage!)
                       : null,
                   child: widget.barber.profileImage == null
-                      ? Icon(Icons.person, size: 40, color: AppColors.textSecondary)
+                      ? Icon(Icons.person,
+                          size: 40, color: AppColors.textSecondary)
                       : null,
                 ),
                 // Online Status
@@ -93,7 +99,9 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                   width: 16,
                   height: 16,
                   decoration: BoxDecoration(
-                    color: widget.barber.isOnline ? AppColors.success : AppColors.textSecondary,
+                    color: widget.barber.isOnline
+                        ? AppColors.success
+                        : AppColors.textSecondary,
                     shape: BoxShape.circle,
                     border: Border.all(color: AppColors.background, width: 2),
                   ),
@@ -115,7 +123,8 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: widget.barber.userType == 'barber'
                           ? AppColors.primary.withOpacity(0.1)
@@ -123,10 +132,14 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      widget.barber.userType == 'barber' ? 'Professional Barber' : 'Hairstylist',
+                      widget.barber.userType == 'barber'
+                          ? 'Professional Barber'
+                          : 'Hairstylist',
                       style: TextStyle(
                         fontSize: 12,
-                        color: widget.barber.userType == 'barber' ? AppColors.primary : AppColors.accent,
+                        color: widget.barber.userType == 'barber'
+                            ? AppColors.primary
+                            : AppColors.accent,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -162,15 +175,21 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: widget.barber.isOnline ? AppColors.success : AppColors.textSecondary,
+                          color: widget.barber.isOnline
+                              ? AppColors.success
+                              : AppColors.textSecondary,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        widget.barber.isOnline ? 'Available Now' : 'Currently Offline',
+                        widget.barber.isOnline
+                            ? 'Available Now'
+                            : 'Currently Offline',
                         style: TextStyle(
-                          color: widget.barber.isOnline ? AppColors.success : AppColors.textSecondary,
+                          color: widget.barber.isOnline
+                              ? AppColors.success
+                              : AppColors.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -433,6 +452,149 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
             style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
+      ),
+    );
+  }
+
+  // Add this method to the barber_profile_screen.dart
+  Widget _buildOffersSection() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Special Offers',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MarketingScreen(
+                          isClientView: true,
+                          barberId: widget.barber.id,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('View All'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('marketing_offers')
+                  .where('barberId', isEqualTo: widget.barber.id)
+                  .where('isActive', isEqualTo: true)
+                  .orderBy('createdAt', descending: true)
+                  .limit(2) // Show only 2 offers on profile
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final offers = snapshot.data!.docs;
+
+                if (offers.isEmpty) {
+                  return _buildNoOffers();
+                }
+
+                return Column(
+                  children: offers.map((doc) {
+                    final offer = doc.data() as Map<String, dynamic>;
+                    return _buildOfferPreview(offer);
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoOffers() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Icon(Icons.local_offer_outlined,
+              size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 12),
+          Text(
+            'No Current Offers',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later for special promotions',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfferPreview(Map<String, dynamic> offer) {
+    final isExpired =
+        DateTime.now().millisecondsSinceEpoch > offer['expiresAt'];
+
+    if (isExpired) {
+      return Container(); // Don't show expired offers
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: AppColors.primary.withOpacity(0.05),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.local_offer, color: AppColors.primary),
+        ),
+        title: Text(
+          offer['title'],
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          '${offer['discount']}% off • Use code: ${offer['discountCode']}',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.success.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            '${offer['discount']}% OFF',
+            style: TextStyle(
+              color: AppColors.success,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ),
     );
   }

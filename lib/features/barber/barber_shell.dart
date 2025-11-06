@@ -9,6 +9,7 @@ import 'package:sheersync/features/barber/appointments/create_appointment_screen
 import 'package:sheersync/features/barber/chat/barber_chat_list_screen.dart';
 import 'package:sheersync/features/barber/dashboard/dashboard_screen.dart';
 import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
+import 'package:sheersync/features/barber/marketing/marketing_screen.dart';
 import 'package:sheersync/features/barber/onboarding/stripe_connect_screen.dart';
 import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
 import 'package:sheersync/features/barber/services/barber_services_screen.dart';
@@ -40,7 +41,12 @@ class _BarberShellState extends State<BarberShell> {
 
   // Current screen titles based on navigation state
   String _currentTitle = 'Dashboard';
-  final List<String> _baseTitles = ['Dashboard', 'Messages', 'Appointments', 'Earnings'];
+  final List<String> _baseTitles = [
+    'Dashboard',
+    'Messages',
+    'Appointments',
+    'Earnings'
+  ];
 
   // Track if we're showing a detail screen (to show back button)
   bool _showBackButton = false;
@@ -93,6 +99,11 @@ class _BarberShellState extends State<BarberShell> {
       centerTitle: false,
       titleSpacing: 16,
       actions: _buildAppBarActions(),
+      leading: IconButton(
+        icon: const Icon(Icons.menu),
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        tooltip: 'Menu',
+      ),
     );
   }
 
@@ -102,12 +113,10 @@ class _BarberShellState extends State<BarberShell> {
       case 0: // Dashboard
         return [
           _buildNotificationAction(),
-          _buildProfileMenu(),
         ];
       case 1: // Messages
         return [
           _buildNotificationAction(),
-          _buildProfileMenu(),
         ];
       case 2: // Appointments
         return [
@@ -117,17 +126,14 @@ class _BarberShellState extends State<BarberShell> {
             onPressed: _refreshAppointments,
           ),
           _buildNotificationAction(),
-          _buildProfileMenu(),
         ];
       case 3: // Earnings
         return [
           _buildNotificationAction(),
-          _buildProfileMenu(),
         ];
       default:
         return [
           _buildNotificationAction(),
-          _buildProfileMenu(),
         ];
     }
   }
@@ -141,81 +147,6 @@ class _BarberShellState extends State<BarberShell> {
           tooltip: 'Notifications',
         ),
         // Unread notification indicator would go here
-      ],
-    );
-  }
-
-  Widget _buildProfileMenu() {
-    final authProvider = Provider.of<AuthProvider>(context);
-    
-    return PopupMenuButton<String>(
-      icon: CircleAvatar(
-        backgroundColor: AppColors.onPrimary.withOpacity(0.2),
-        child: Icon(Icons.person, color: AppColors.onPrimary, size: 20),
-      ),
-      onSelected: (value) => _handleMenuSelection(value, authProvider),
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'profile',
-          child: Row(
-            children: [
-              Icon(Icons.person_outline, color: AppColors.text),
-              const SizedBox(width: 8),
-              Text('My Profile', style: TextStyle(color: AppColors.text)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'services',
-          child: Row(
-            children: [
-              Icon(Icons.construction, color: AppColors.text),
-              const SizedBox(width: 8),
-              Text('My Services', style: TextStyle(color: AppColors.text)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'availability',
-          child: Row(
-            children: [
-              Icon(Icons.access_time, color: AppColors.text),
-              const SizedBox(width: 8),
-              Text('Availability', style: TextStyle(color: AppColors.text)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'payments',
-          child: Row(
-            children: [
-              Icon(Icons.payment, color: AppColors.text),
-              const SizedBox(width: 8),
-              Text('Payment Setup', style: TextStyle(color: AppColors.text)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'settings',
-          child: Row(
-            children: [
-              Icon(Icons.settings_outlined, color: AppColors.text),
-              const SizedBox(width: 8),
-              Text('Settings', style: TextStyle(color: AppColors.text)),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'logout',
-          child: Row(
-            children: [
-              Icon(Icons.logout_outlined, color: AppColors.error),
-              const SizedBox(width: 8),
-              Text('Logout', style: TextStyle(color: AppColors.error)),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -258,7 +189,7 @@ class _BarberShellState extends State<BarberShell> {
           key: _navigatorKeys[1],
           onGenerateRoute: (settings) {
             Widget screen;
-            
+
             switch (settings.name) {
               case '/chat':
                 final chatRoom = settings.arguments as ChatRoom;
@@ -267,7 +198,7 @@ class _BarberShellState extends State<BarberShell> {
               default:
                 screen = const BarberChatListScreen();
             }
-            
+
             return MaterialPageRoute(
               builder: (context) => screen,
               settings: settings,
@@ -286,7 +217,7 @@ class _BarberShellState extends State<BarberShell> {
           key: _navigatorKeys[2],
           onGenerateRoute: (settings) {
             Widget screen;
-            
+
             switch (settings.name) {
               case '/appointment/create':
                 screen = const CreateAppointmentScreen();
@@ -298,7 +229,7 @@ class _BarberShellState extends State<BarberShell> {
               default:
                 screen = const BarberAppointmentsScreen();
             }
-            
+
             return MaterialPageRoute(
               builder: (context) => screen,
               settings: settings,
@@ -341,7 +272,8 @@ class _BarberShellState extends State<BarberShell> {
       backgroundColor: AppColors.background,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.textSecondary,
-      selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      selectedLabelStyle:
+          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       unselectedLabelStyle: const TextStyle(fontSize: 12),
       items: const [
         BottomNavigationBarItem(
@@ -414,7 +346,9 @@ class _BarberShellState extends State<BarberShell> {
                   ),
                 ),
                 Text(
-                  authProvider.user?.userType == 'barber' ? 'Professional Barber' : 'Hairstylist',
+                  authProvider.user?.userType == 'barber'
+                      ? 'Professional Barber'
+                      : 'Hairstylist',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 14,
@@ -428,66 +362,83 @@ class _BarberShellState extends State<BarberShell> {
             icon: Icons.dashboard,
             title: 'Dashboard',
             onTap: () {
-              _setCurrentIndex(0);
-              _scaffoldKey.currentState?.closeDrawer();
+              _closeDrawerAndNavigate(() {
+                _setCurrentIndex(0);
+              });
             },
+          ),
+          _buildDrawerItem(
+            icon: Icons.person,
+            title: 'My Profile',
+            onTap: () =>
+                _closeDrawerAndNavigate(() => _navigateToProfile(authProvider)),
           ),
           _buildDrawerItem(
             icon: Icons.calendar_today,
             title: 'Appointments',
             onTap: () {
-              _setCurrentIndex(2);
-              _scaffoldKey.currentState?.closeDrawer();
+              _closeDrawerAndNavigate(() {
+                _setCurrentIndex(2);
+              });
             },
           ),
           _buildDrawerItem(
             icon: Icons.construction,
             title: 'My Services',
-            onTap: _navigateToServices,
+            onTap: () => _closeDrawerAndNavigate(_navigateToServices),
           ),
           _buildDrawerItem(
             icon: Icons.access_time,
             title: 'Availability',
-            onTap: _navigateToAvailability,
+            onTap: () => _closeDrawerAndNavigate(_navigateToAvailability),
           ),
           _buildDrawerItem(
             icon: Icons.attach_money,
             title: 'Earnings',
             onTap: () {
-              _setCurrentIndex(3);
-              _scaffoldKey.currentState?.closeDrawer();
+              _closeDrawerAndNavigate(() {
+                _setCurrentIndex(3);
+              });
             },
           ),
           _buildDrawerItem(
             icon: Icons.chat,
             title: 'Messages',
             onTap: () {
-              _setCurrentIndex(1);
-              _scaffoldKey.currentState?.closeDrawer();
+              _closeDrawerAndNavigate(() {
+                _setCurrentIndex(1);
+              });
             },
+          ),
+          // ADD MARKETING ITEM TO DRAWER
+          _buildDrawerItem(
+            icon: Icons.campaign,
+            title: 'Marketing Tools',
+            onTap: () => _closeDrawerAndNavigate(_navigateToMarketing),
           ),
           const Divider(),
           _buildDrawerItem(
             icon: Icons.payment,
             title: 'Payment Setup',
-            onTap: _navigateToPaymentSetup,
+            onTap: () => _closeDrawerAndNavigate(_navigateToPaymentSetup),
           ),
           _buildDrawerItem(
             icon: Icons.settings,
             title: 'Settings',
-            onTap: _navigateToSettings,
+            onTap: () => _closeDrawerAndNavigate(_navigateToSettings),
           ),
           _buildDrawerItem(
             icon: Icons.help_outline,
             title: 'Help & Support',
-            onTap: _showHelpSupport,
+            onTap: () => _closeDrawerAndNavigate(_showHelpSupport),
           ),
           const Divider(),
           _buildDrawerItem(
             icon: Icons.logout,
             title: 'Logout',
             color: AppColors.error,
-            onTap: () => _showLogoutConfirmation(authProvider),
+            onTap: () => _closeDrawerAndNavigate(
+                () => _showLogoutConfirmation(authProvider)),
           ),
         ],
       ),
@@ -507,6 +458,16 @@ class _BarberShellState extends State<BarberShell> {
     );
   }
 
+  // Helper method to close drawer and then execute navigation
+  void _closeDrawerAndNavigate(VoidCallback navigationCallback) {
+    // Close the drawer first
+    Navigator.of(context).pop();
+
+    // Then execute the navigation callback after a small delay
+    // to ensure the drawer is fully closed
+    Future.delayed(const Duration(milliseconds: 100), navigationCallback);
+  }
+
   // Navigation Methods
   void _onTabTapped(int index) {
     if (index == _currentIndex) {
@@ -524,16 +485,20 @@ class _BarberShellState extends State<BarberShell> {
     });
   }
 
+  void _navigateToMarketing() {
+    _pushScreen(const MarketingScreen(), 'Marketing Tools');
+  }
+
   Future<bool> _onWillPop() async {
     final currentNavigator = _navigatorKeys[_currentIndex];
-    
+
     // Check if we can pop the current navigator
     if (currentNavigator.currentState?.canPop() == true) {
       currentNavigator.currentState?.pop();
       _updateTitleAfterPop();
       return false;
     }
-    
+
     // If we're on the first route of the current tab, allow back to exit app
     return true;
   }
@@ -561,29 +526,6 @@ class _BarberShellState extends State<BarberShell> {
         });
       }
     });
-  }
-
-  void _handleMenuSelection(String value, AuthProvider authProvider) {
-    switch (value) {
-      case 'profile':
-        _navigateToProfile(authProvider);
-        break;
-      case 'services':
-        _navigateToServices();
-        break;
-      case 'availability':
-        _navigateToAvailability();
-        break;
-      case 'payments':
-        _navigateToPaymentSetup();
-        break;
-      case 'settings':
-        _navigateToSettings();
-        break;
-      case 'logout':
-        _showLogoutConfirmation(authProvider);
-        break;
-    }
   }
 
   // Navigation methods
@@ -618,7 +560,7 @@ class _BarberShellState extends State<BarberShell> {
 
   void _pushScreen(Widget screen, String title) {
     final currentNavigator = _navigatorKeys[_currentIndex];
-    
+
     setState(() {
       _currentTitle = title;
       _showBackButton = true;
@@ -672,7 +614,8 @@ class _BarberShellState extends State<BarberShell> {
                 subtitle: 'Schedule a new appointment',
                 onTap: () {
                   Navigator.pop(context);
-                  _pushScreen(const CreateAppointmentScreen(), 'Create Appointment');
+                  _pushScreen(
+                      const CreateAppointmentScreen(), 'Create Appointment');
                 },
               ),
               _buildActionOption(
@@ -745,7 +688,8 @@ class _BarberShellState extends State<BarberShell> {
           subtitle,
           style: TextStyle(color: AppColors.textSecondary),
         ),
-        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textSecondary),
+        trailing: Icon(Icons.arrow_forward_ios_rounded,
+            size: 16, color: AppColors.textSecondary),
         onTap: onTap,
       ),
     );
@@ -765,7 +709,8 @@ class _BarberShellState extends State<BarberShell> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Help & Support'),
-        content: const Text('Help and support resources will be available here.'),
+        content:
+            const Text('Help and support resources will be available here.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

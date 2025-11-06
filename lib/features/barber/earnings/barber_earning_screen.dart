@@ -13,8 +13,18 @@ class BarberEarningScreen extends StatefulWidget {
   State<BarberEarningScreen> createState() => _BarberEarningScreenState();
 }
 
-class _BarberEarningScreenState extends State<BarberEarningScreen> {
-  String _selectedTimeRange = 'today'; // today, week, month, all
+class _BarberEarningScreenState extends State<BarberEarningScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,59 +37,68 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
 
     return Column(
       children: [
-        // Time Range Filter
-        _buildTimeRangeFilter(),
+        // --- Tab Bar (Now matches BarberAppointmentsScreen) ---
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            height: 48,
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.primary,
+              indicatorWeight: 3,
+              indicatorPadding: const EdgeInsets.symmetric(horizontal: 8),
+              labelStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              tabs: const [
+                Tab(text: 'All Time'),
+                Tab(text: 'Today'),
+                Tab(text: 'This Week'),
+                Tab(text: 'This Month'),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 16),
-        // Earnings Summary
+
+        // --- Earnings Summary ---
         _buildEarningsSummary(barberId),
         const SizedBox(height: 16),
-        // Recent Payments
+
+        // --- Recent Payments List ---
         Expanded(
-          child: _buildRecentPayments(barberId),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildRecentPayments(barberId, 'today'),
+              _buildRecentPayments(barberId, 'week'),
+              _buildRecentPayments(barberId, 'month'),
+              _buildRecentPayments(barberId, 'all'),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildTimeRangeFilter() {
-    const timeRanges = {
-      'today': 'Today',
-      'week': 'This Week',
-      'month': 'This Month',
-      'all': 'All Time',
-    };
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: timeRanges.entries.map((entry) {
-            final isSelected = _selectedTimeRange == entry.key;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                selected: isSelected,
-                label: Text(entry.value),
-                onSelected: (selected) {
-                  setState(() {
-                    _selectedTimeRange = entry.key;
-                  });
-                },
-                backgroundColor: Colors.grey[200],
-                selectedColor: AppColors.primary.withOpacity(0.2),
-                checkmarkColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  color: isSelected ? AppColors.primary : Colors.black,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
+  // -------------------- SUMMARY CARD --------------------
 
   Widget _buildEarningsSummary(String barberId) {
     return StreamBuilder<QuerySnapshot>(
@@ -94,7 +113,10 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
         }
 
         final payments = snapshot.data!.docs;
-        final filteredPayments = _filterPaymentsByTimeRange(payments);
+        final filteredPayments = _filterPaymentsByTimeRange(
+          payments,
+          _getCurrentTimeRange(),
+        );
         final stats = _calculateEarningsStats(filteredPayments);
 
         return Container(
@@ -107,13 +129,13 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
               colors: [
                 AppColors.primary.withOpacity(0.1),
                 AppColors.accent.withOpacity(0.05),
-            ]),
+              ],
+            ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.primary.withOpacity(0.2)),
           ),
           child: Column(
             children: [
-              // Total Earnings
               Text(
                 'N\$${stats['totalEarnings'].toStringAsFixed(2)}',
                 style: const TextStyle(
@@ -131,7 +153,6 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              // Stats Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -162,14 +183,15 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
     );
   }
 
-  Widget _buildRecentPayments(String barberId) {
+  // -------------------- PAYMENT LIST --------------------
+
+  Widget _buildRecentPayments(String barberId, String timeRange) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('payments')
           .where('barberId', isEqualTo: barberId)
           .where('status', isEqualTo: 'completed')
           .orderBy('completedAt', descending: true)
-          .limit(20)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -177,28 +199,110 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
         }
 
         final payments = snapshot.data!.docs;
-        
-        if (payments.isEmpty) {
+        final filteredPayments = _filterPaymentsByTimeRange(payments, timeRange);
+
+        if (filteredPayments.isEmpty) {
           return _buildEmptyPaymentsState();
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: payments.length,
-          itemBuilder: (context, index) {
-            final payment = PaymentModel.fromMap(
-                payments[index].data() as Map<String, dynamic>);
-            return _buildPaymentItem(payment);
-          },
+        return RefreshIndicator(
+          onRefresh: () async {},
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: filteredPayments.length,
+            itemBuilder: (context, index) {
+              final payment = PaymentModel.fromMap(
+                filteredPayments[index].data() as Map<String, dynamic>,
+              );
+              return _buildPaymentItem(payment);
+            },
+          ),
         );
       },
     );
+  }
+
+  // -------------------- HELPERS --------------------
+
+  String _getCurrentTimeRange() {
+    switch (_tabController.index) {
+      case 0:
+        return 'today';
+      case 1:
+        return 'week';
+      case 2:
+        return 'month';
+      case 3:
+      default:
+        return 'all';
+    }
+  }
+
+  List<QueryDocumentSnapshot> _filterPaymentsByTimeRange(
+      List<QueryDocumentSnapshot> payments, String timeRange) {
+    final now = DateTime.now();
+
+    switch (timeRange) {
+      case 'today':
+        final today = DateTime(now.year, now.month, now.day);
+        return payments.where((doc) {
+          final payment =
+              PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+          return payment.completedAt != null &&
+              payment.completedAt!.isAfter(today);
+        }).toList();
+
+      case 'week':
+        final weekAgo = now.subtract(const Duration(days: 7));
+        return payments.where((doc) {
+          final payment =
+              PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+          return payment.completedAt != null &&
+              payment.completedAt!.isAfter(weekAgo);
+        }).toList();
+
+      case 'month':
+        final monthAgo = now.subtract(const Duration(days: 30)); // safer version
+        return payments.where((doc) {
+          final payment =
+              PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+          return payment.completedAt != null &&
+              payment.completedAt!.isAfter(monthAgo);
+        }).toList();
+
+      case 'all':
+      default:
+        return payments;
+    }
+  }
+
+  Map<String, dynamic> _calculateEarningsStats(
+      List<QueryDocumentSnapshot> payments) {
+    double totalEarnings = 0.0;
+    int completedPayments = payments.length;
+    int totalServices = payments.length;
+
+    for (final doc in payments) {
+      final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
+      totalEarnings += payment.amount;
+    }
+
+    final averageEarning =
+        completedPayments > 0 ? totalEarnings / completedPayments : 0.0;
+
+    return {
+      'totalEarnings': totalEarnings,
+      'completedPayments': completedPayments,
+      'averageEarning': averageEarning,
+      'totalServices': totalServices,
+    };
   }
 
   Widget _buildPaymentItem(PaymentModel payment) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: Container(
           width: 40,
@@ -207,10 +311,7 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
             color: AppColors.success.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            Icons.payment_rounded,
-            color: AppColors.success,
-          ),
+          child: Icon(Icons.payment_rounded, color: AppColors.success),
         ),
         title: Text(
           'Payment #${payment.id.substring(0, 8)}',
@@ -224,10 +325,11 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
             const SizedBox(height: 2),
-            Text(
-              DateFormat('MMM d, yyyy • h:mm a').format(payment.completedAt!),
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+            if (payment.completedAt != null)
+              Text(
+                DateFormat('MMM d, yyyy • h:mm a').format(payment.completedAt!),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
           ],
         ),
         trailing: Column(
@@ -243,7 +345,8 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
             ),
             const SizedBox(height: 2),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: AppColors.success.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -263,59 +366,16 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
     );
   }
 
-  List<QueryDocumentSnapshot> _filterPaymentsByTimeRange(List<QueryDocumentSnapshot> payments) {
-    final now = DateTime.now();
-    switch (_selectedTimeRange) {
-      case 'today':
-        final today = DateTime(now.year, now.month, now.day);
-        return payments.where((doc) {
-          final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
-          return payment.completedAt!.isAfter(today);
-        }).toList();
-      case 'week':
-        final weekAgo = now.subtract(const Duration(days: 7));
-        return payments.where((doc) {
-          final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
-          return payment.completedAt!.isAfter(weekAgo);
-        }).toList();
-      case 'month':
-        final monthAgo = DateTime(now.year, now.month - 1, now.day);
-        return payments.where((doc) {
-          final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
-          return payment.completedAt!.isAfter(monthAgo);
-        }).toList();
-      case 'all':
-      default:
-        return payments;
-    }
-  }
-
-  Map<String, dynamic> _calculateEarningsStats(List<QueryDocumentSnapshot> payments) {
-    double totalEarnings = 0.0;
-    int completedPayments = payments.length;
-    int totalServices = payments.length;
-
-    for (final doc in payments) {
-      final payment = PaymentModel.fromMap(doc.data() as Map<String, dynamic>);
-      totalEarnings += payment.amount;
-    }
-
-    final averageEarning = completedPayments > 0 ? totalEarnings / completedPayments : 0.0;
-
-    return {
-      'totalEarnings': totalEarnings,
-      'completedPayments': completedPayments,
-      'averageEarning': averageEarning,
-      'totalServices': totalServices,
-    };
-  }
-
   String _formatPaymentMethod(String method) {
     switch (method) {
-      case 'card': return 'Credit Card';
-      case 'mobile_money': return 'Mobile Money';
-      case 'cash': return 'Cash';
-      default: return method;
+      case 'card':
+        return 'Credit Card';
+      case 'mobile_money':
+        return 'Mobile Money';
+      case 'cash':
+        return 'Cash';
+      default:
+        return method;
     }
   }
 
@@ -333,10 +393,7 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         Text(
           label,
@@ -364,25 +421,25 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
 
   Widget _buildEmptyPaymentsState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.payment, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          const Text(
-            'No Payments Yet',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.payment, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'No Payments Yet',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your completed payment records will appear here',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
+            const SizedBox(height: 8),
+            const Text(
+              'Your completed payment records will appear here',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -420,5 +477,11 @@ class _BarberEarningScreenState extends State<BarberEarningScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 }

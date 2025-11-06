@@ -7,6 +7,7 @@ import 'package:sheersync/features/auth/controllers/auth_provider.dart';
 import 'package:sheersync/features/barber/appointments/barber_appointments_screen.dart';
 import 'package:sheersync/features/barber/appointments/create_appointment_screen.dart';
 import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
+import 'package:sheersync/features/barber/marketing/marketing_screen.dart';
 import 'package:sheersync/features/barber/services/barber_services_screen.dart';
 import 'package:sheersync/features/barber/services/manage_availability_screen.dart';
 
@@ -271,39 +272,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       stream: FirebaseFirestore.instance
           .collection('appointments')
           .where('barberId', isEqualTo: barberId)
-          .where('date', isGreaterThanOrEqualTo: todayStart)
-          .where('date', isLessThanOrEqualTo: todayEnd)
+          .where('date', isGreaterThanOrEqualTo: todayStart.millisecondsSinceEpoch)
+          .where('date', isLessThanOrEqualTo: todayEnd.millisecondsSinceEpoch)
+          .where('status', whereIn: ['pending', 'confirmed'])
           .orderBy('date')
-          .snapshots(),
+          .snapshots(), // REAL-TIME STREAM
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildLoadingAppointments();
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorAppointments(snapshot.error.toString());
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Today's Appointments",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No appointments scheduled for today.',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return _buildEmptyAppointments();
         }
 
         final appointments = snapshot.data!.docs;
@@ -314,13 +298,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Today's Appointments",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Today's Appointments",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${appointments.length}',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 ...appointments.map((doc) {
@@ -382,6 +386,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            
+            // First Row
             Row(
               children: [
                 Expanded(
@@ -418,6 +424,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            
+            // Second Row
             Row(
               children: [
                 Expanded(
@@ -453,9 +461,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            
+            // Third Row - MARKETING ACTIONS
             Row(
               children: [
+                Expanded(
+                  child: _buildQuickActionButton(
+                    'Marketing Tools',
+                    Icons.campaign,
+                    AppColors.accent,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MarketingScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _buildQuickActionButton(
                     'View Earnings',
@@ -471,20 +497,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingAppointments() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Today's Appointments",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Center(child: CircularProgressIndicator()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorAppointments(String error) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Today's Appointments",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: _buildQuickActionButton(
-                    'View Requests',
-                    Icons.pending_actions,
-                    AppColors.accent,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BarberAppointmentsScreen(),
-                        ),
-                      );
-                    },
+                  child: Text(
+                    'Error loading appointments',
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyAppointments() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Today's Appointments",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, color: AppColors.textSecondary, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No appointments scheduled for today.',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
               ],

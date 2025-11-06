@@ -7,7 +7,7 @@ import 'package:sheersync/data/models/chat_room_model.dart';
 
 class ChatRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final OfflineService _offlineService = OfflineService.instance; // Use singleton instance
+  final OfflineService _offlineService = OfflineService(); // Use singleton instance
   final Map<String, StreamController<Set<String>>> _typingControllers = {};
 
   // Create or get chat room

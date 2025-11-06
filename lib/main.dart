@@ -62,7 +62,7 @@ void main() async {
       // Continue without Stripe for now
     }
 
-    print('🎉 All services initialized successfully');
+    print('All services initialized successfully');
     
     runApp(const MyApp());
   } catch (e, stackTrace) {

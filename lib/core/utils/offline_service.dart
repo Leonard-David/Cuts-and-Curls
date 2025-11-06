@@ -13,11 +13,16 @@ import 'package:sheersync/data/repositories/service_repository.dart';
 import 'package:sheersync/data/repositories/chat_repository.dart';
 
 class OfflineService {
+  // FIXED: Use proper singleton pattern without recursion
   static final OfflineService _instance = OfflineService._internal();
+  
+  // FIXED: Factory constructor should return _instance directly
   factory OfflineService() => _instance;
-  OfflineService._internal();
+  
+  OfflineService._internal(); // Private constructor
 
-  static OfflineService get instance => _instance;
+  // FIXED: Remove the problematic static getter that was causing recursion
+  // If you need instance access, use OfflineService() directly
 
   static const String _appointmentsBox = 'appointments';
   static const String _paymentsBox = 'payments';
