@@ -7,6 +7,7 @@ import 'package:sheersync/core/utils/offline_service.dart';
 import 'package:sheersync/core/utils/stripe_helper.dart';
 import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
+import 'package:sheersync/data/providers/chat_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/data/providers/settings_provider.dart';
 import 'package:sheersync/features/auth/controllers/auth_provider.dart';
@@ -16,9 +17,9 @@ import 'core/notifications/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   print('Starting app initialization...');
-  
+
   try {
     // Initialize Hive and register adapters
     await Hive.initFlutter();
@@ -42,7 +43,7 @@ void main() async {
     // Initialize offline service with error handling
     try {
       await OfflineService().initialize();
-      OfflineService().startSyncTimer();
+      OfflineService();
       print('Offline service initialized successfully');
     } catch (e) {
       print('Offline service initialization warning: $e');
@@ -63,12 +64,12 @@ void main() async {
     }
 
     print('All services initialized successfully');
-    
+
     runApp(const MyApp());
   } catch (e, stackTrace) {
     print('CRITICAL: App initialization failed: $e');
     print('Stack trace: $stackTrace');
-    
+
     // Fallback app without dependencies
     runApp(const FallbackApp());
   }
@@ -85,6 +86,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, child) {

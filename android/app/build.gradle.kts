@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.sheersync"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk =    flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -42,5 +42,10 @@ flutter {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0") // Use explicit version
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-firestore")
+    // ... other dependencies
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

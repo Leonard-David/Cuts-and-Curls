@@ -1,3 +1,6 @@
+// lib/features/barber/chat/barber_chat_list_screen.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -16,47 +19,80 @@ class BarberChatListScreen extends StatefulWidget {
 
 class _BarberChatListScreenState extends State<BarberChatListScreen> {
   final ChatRepository _chatRepository = ChatRepository();
+  StreamSubscription<List<ChatRoom>>? _chatRoomsSubscription;
+  List<ChatRoom> _chatRooms = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+  void initState() {
+    super.initState();
+    _loadChatRooms();
+  }
+
+  void _loadChatRooms() {
+    final authProvider = context.read<AuthProvider>();
     final barberId = authProvider.user?.id;
 
     if (barberId == null) {
-      return _buildErrorState('Please login again');
+      setState(() {
+        _isLoading = false;
+        _error = 'Please login again';
+      });
+      return;
     }
 
-    return StreamBuilder<List<ChatRoom>>(
-      stream: _chatRepository.getChatRoomsForUser(barberId, 'barber'),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildLoadingState();
+    _chatRoomsSubscription =
+        _chatRepository.getChatRoomsForUser(barberId, 'barber').listen(
+      (chatRooms) {
+        if (mounted) {
+          setState(() {
+            _chatRooms = chatRooms;
+            _isLoading = false;
+            _error = null;
+          });
         }
-
-        if (snapshot.hasError) {
-          return _buildErrorState(snapshot.error.toString());
-        }
-
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        final chatRooms = snapshot.data!;
-
-        return RefreshIndicator(
-          onRefresh: () async {
-            setState(() {});
-          },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: chatRooms.length,
-            itemBuilder: (context, index) {
-              final chatRoom = chatRooms[index];
-              return _buildChatRoomItem(chatRoom);
-            },
-          ),
-        );
       },
+      onError: (error) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _error = 'Failed to load conversations: ${error.toString()}';
+          });
+        }
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    if (_error != null) {
+      return _buildErrorState(_error!);
+    }
+
+    if (_chatRooms.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {
+          _isLoading = true;
+        });
+        _loadChatRooms();
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _chatRooms.length,
+        itemBuilder: (context, index) {
+          final chatRoom = _chatRooms[index];
+          return _buildChatRoomItem(chatRoom);
+        },
+      ),
     );
   }
 
@@ -80,7 +116,8 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 80, color: AppColors.textSecondary),
+            Icon(Icons.chat_bubble_outline,
+                size: 80, color: AppColors.textSecondary),
             const SizedBox(height: 16),
             Text(
               'No Messages Yet',
@@ -136,9 +173,7 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                setState(() {});
-              },
+              onPressed: _loadChatRooms,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
@@ -243,7 +278,9 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Text(
-                  chatRoom.unreadCount > 9 ? '9+' : chatRoom.unreadCount.toString(),
+                  chatRoom.unreadCount > 9
+                      ? '9+'
+                      : chatRoom.unreadCount.toString(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -277,5 +314,12 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
     } else {
       return DateFormat('MMM d').format(time);
     }
+  }
+
+  @override
+  void dispose() {
+    _chatRoomsSubscription?.cancel();
+    _chatRepository.dispose();
+    super.dispose();
   }
 }

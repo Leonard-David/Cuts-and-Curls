@@ -8,12 +8,11 @@ class ChatRoom {
   final String barberName;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final ChatMessage? lastMessage;
   final int unreadCount;
   final bool isActive;
-  final String? lastAppointmentId;
+  final ChatMessage? lastMessage;
 
-  ChatRoom({
+  const ChatRoom({
     required this.id,
     required this.clientId,
     required this.clientName,
@@ -21,13 +20,17 @@ class ChatRoom {
     required this.barberName,
     required this.createdAt,
     required this.updatedAt,
+    required this.unreadCount,
+    required this.isActive,
     this.lastMessage,
-    this.unreadCount = 0,
-    this.isActive = true,
-    this.lastAppointmentId,
   });
 
-  // Convert model to map for Firestore
+  // Generate consistent chat ID
+  static String generateChatId(String clientId, String barberId) {
+    final ids = [clientId, barberId]..sort();
+    return 'chat_${ids.join('_')}';
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -37,14 +40,12 @@ class ChatRoom {
       'barberName': barberName,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
-      'lastMessage': lastMessage?.toMap(),
       'unreadCount': unreadCount,
       'isActive': isActive,
-      'lastAppointmentId': lastAppointmentId,
+      'lastMessage': lastMessage?.toMap(),
     };
   }
 
-  // Create model from Firestore data
   factory ChatRoom.fromMap(Map<String, dynamic> map) {
     return ChatRoom(
       id: map['id'] ?? '',
@@ -52,22 +53,16 @@ class ChatRoom {
       clientName: map['clientName'] ?? '',
       barberId: map['barberId'] ?? '',
       barberName: map['barberName'] ?? '',
-      createdAt: map['createdAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'])
-          : DateTime.now(),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0),
+      unreadCount: map['unreadCount'] ?? 0,
+      isActive: map['isActive'] ?? true,
       lastMessage: map['lastMessage'] != null 
           ? ChatMessage.fromMap(Map<String, dynamic>.from(map['lastMessage']))
           : null,
-      unreadCount: map['unreadCount'] ?? 0,
-      isActive: map['isActive'] ?? true,
-      lastAppointmentId: map['lastAppointmentId'],
     );
   }
 
-  // Create copy with method for updates
   ChatRoom copyWith({
     String? id,
     String? clientId,
@@ -76,10 +71,9 @@ class ChatRoom {
     String? barberName,
     DateTime? createdAt,
     DateTime? updatedAt,
-    ChatMessage? lastMessage,
     int? unreadCount,
     bool? isActive,
-    String? lastAppointmentId,
+    ChatMessage? lastMessage,
   }) {
     return ChatRoom(
       id: id ?? this.id,
@@ -89,16 +83,14 @@ class ChatRoom {
       barberName: barberName ?? this.barberName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      lastMessage: lastMessage ?? this.lastMessage,
       unreadCount: unreadCount ?? this.unreadCount,
       isActive: isActive ?? this.isActive,
-      lastAppointmentId: lastAppointmentId ?? this.lastAppointmentId,
+      lastMessage: lastMessage ?? this.lastMessage,
     );
   }
 
-  // Generate chat ID from client and barber IDs
-  static String generateChatId(String clientId, String barberId) {
-    final ids = [clientId, barberId]..sort();
-    return 'chat_${ids.join('_')}';
+  @override
+  String toString() {
+    return 'ChatRoom(id: $id, clientName: $clientName, barberName: $barberName, unreadCount: $unreadCount)';
   }
 }
