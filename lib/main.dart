@@ -55,13 +55,13 @@ void main() async {
     print('FCM initialized');
 
     // Initialize Stripe with error handling
-    try {
-      await StripeHelper.initialize();
-      print('Stripe initialized');
-    } catch (e) {
-      print('Stripe initialization failed: $e');
+    //try {
+     // await StripeHelper.initialize();
+    //  print('Stripe initialized');
+    //} catch (e) {
+      //print('Stripe initialization failed: $e');
       // Continue without Stripe for now
-    }
+    //}
 
     print('All services initialized successfully');
 
