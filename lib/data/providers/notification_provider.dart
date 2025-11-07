@@ -21,21 +21,28 @@ class NotificationProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    _notificationRepository.getUserNotifications(userId).listen(
-      (notifications) {
-        _notifications = notifications;
-        _hasUnread = _notifications.any((notification) => !notification.isRead);
-        _isLoading = false;
-        _error = null;
-        notifyListeners();
-      },
-      onError: (error) {
-        _isLoading = false;
-        _error = 'Failed to load notifications: $error';
-        notifyListeners();
-        print('Error loading notifications: $error');
-      },
-    );
+    try {
+      _notificationRepository.getUserNotifications(userId).listen(
+        (notifications) {
+          _notifications = notifications;
+          _hasUnread = _notifications.any((notification) => !notification.isRead);
+          _isLoading = false;
+          _error = null;
+          notifyListeners();
+        },
+        onError: (error) {
+          _isLoading = false;
+          _error = 'Failed to load notifications: $error';
+          notifyListeners();
+          print('❌ Error loading notifications: $error');
+        },
+      );
+    } catch (e) {
+      _isLoading = false;
+      _error = 'Failed to load notifications: $e';
+      notifyListeners();
+      print('❌ Error loading notifications: $e');
+    }
   }
 
   // Mark notification as read
@@ -56,7 +63,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to mark notification as read: $e';
       notifyListeners();
-      print('Error marking notification as read: $e');
+      print('❌ Error marking notification as read: $e');
     }
   }
 
@@ -80,7 +87,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to mark all notifications as read: $e';
       notifyListeners();
-      print('Error marking all notifications as read: $e');
+      print('❌ Error marking all notifications as read: $e');
     }
   }
 
@@ -100,7 +107,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to clear notifications: $e';
       notifyListeners();
-      print('Error clearing notifications: $e');
+      print('❌ Error clearing notifications: $e');
     }
   }
 
@@ -117,7 +124,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to delete notification: $e';
       notifyListeners();
-      print('Error deleting notification: $e');
+      print('❌ Error deleting notification: $e');
     }
   }
 
@@ -128,6 +135,8 @@ class NotificationProvider with ChangeNotifier {
     required String title,
     required String message,
     required NotificationType type,
+    Map<String, dynamic>? data,
+    bool sendPush = true,
   }) async {
     try {
       await _notificationRepository.sendAppointmentNotification(
@@ -136,11 +145,13 @@ class NotificationProvider with ChangeNotifier {
         title: title,
         message: message,
         type: type,
+        data: data,
+        sendPush: sendPush,
       );
     } catch (e) {
       _error = 'Failed to send notification: $e';
       notifyListeners();
-      print('Error sending appointment notification: $e');
+      print('❌ Error sending appointment notification: $e');
     }
   }
 
@@ -151,6 +162,9 @@ class NotificationProvider with ChangeNotifier {
     required String title,
     required String message,
     required String status,
+    required double amount,
+    required String paymentMethod,
+    bool sendPush = true,
   }) async {
     try {
       await _notificationRepository.sendPaymentNotification(
@@ -159,11 +173,39 @@ class NotificationProvider with ChangeNotifier {
         title: title,
         message: message,
         status: status,
+        amount: amount,
+        paymentMethod: paymentMethod,
+        sendPush: sendPush,
       );
     } catch (e) {
       _error = 'Failed to send payment notification: $e';
       notifyListeners();
-      print('Error sending payment notification: $e');
+      print('❌ Error sending payment notification: $e');
+    }
+  }
+
+  // Send chat notification
+  Future<void> sendChatNotification({
+    required String userId,
+    required String chatId,
+    required String senderName,
+    required String message,
+    required String chatType,
+    bool sendPush = true,
+  }) async {
+    try {
+      await _notificationRepository.sendChatNotification(
+        userId: userId,
+        chatId: chatId,
+        senderName: senderName,
+        message: message,
+        chatType: chatType,
+        sendPush: sendPush,
+      );
+    } catch (e) {
+      _error = 'Failed to send chat notification: $e';
+      notifyListeners();
+      print('❌ Error sending chat notification: $e');
     }
   }
 
@@ -172,21 +214,83 @@ class NotificationProvider with ChangeNotifier {
     required String userId,
     required String appointmentId,
     required String clientName,
+    required String barberName,
     required DateTime appointmentTime,
     required String serviceName,
+    required String userType,
+    bool sendPush = true,
   }) async {
     try {
       await _notificationRepository.sendAppointmentReminder(
         userId: userId,
         appointmentId: appointmentId,
         clientName: clientName,
+        barberName: barberName,
         appointmentTime: appointmentTime,
         serviceName: serviceName,
+        userType: userType,
+        sendPush: sendPush,
       );
     } catch (e) {
       _error = 'Failed to send reminder: $e';
       notifyListeners();
-      print('Error sending appointment reminder: $e');
+      print('❌ Error sending appointment reminder: $e');
+    }
+  }
+
+  // Send appointment request
+  Future<void> sendAppointmentRequest({
+    required String barberId,
+    required String appointmentId,
+    required String clientName,
+    required String serviceName,
+    required DateTime appointmentTime,
+    bool sendPush = true,
+  }) async {
+    try {
+      await _notificationRepository.sendAppointmentRequest(
+        barberId: barberId,
+        appointmentId: appointmentId,
+        clientName: clientName,
+        serviceName: serviceName,
+        appointmentTime: appointmentTime,
+        sendPush: sendPush,
+      );
+    } catch (e) {
+      _error = 'Failed to send appointment request: $e';
+      notifyListeners();
+      print('❌ Error sending appointment request: $e');
+    }
+  }
+
+  // Send appointment status update
+  Future<void> sendAppointmentStatusUpdate({
+    required String userId,
+    required String appointmentId,
+    required String status,
+    required String barberName,
+    required String serviceName,
+    required DateTime appointmentTime,
+    required String userType,
+    String? reason,
+    bool sendPush = true,
+  }) async {
+    try {
+      await _notificationRepository.sendAppointmentStatusUpdate(
+        userId: userId,
+        appointmentId: appointmentId,
+        status: status,
+        barberName: barberName,
+        serviceName: serviceName,
+        appointmentTime: appointmentTime,
+        userType: userType,
+        reason: reason,
+        sendPush: sendPush,
+      );
+    } catch (e) {
+      _error = 'Failed to send status update: $e';
+      notifyListeners();
+      print('❌ Error sending appointment status update: $e');
     }
   }
 
@@ -209,10 +313,13 @@ class NotificationProvider with ChangeNotifier {
 
   // Get notification by ID
   AppNotification? getNotificationById(String notificationId) {
-    return _notifications.firstWhere(
-      (notification) => notification.id == notificationId,
-      orElse: () => throw StateError('Notification not found'),
-    );
+    try {
+      return _notifications.firstWhere(
+        (notification) => notification.id == notificationId,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
   // Check if notification exists
@@ -238,5 +345,15 @@ class NotificationProvider with ChangeNotifier {
   // Get latest notifications (last 10)
   List<AppNotification> get latestNotifications {
     return _notifications.take(10).toList();
+  }
+
+  // Get today's notifications
+  List<AppNotification> get todaysNotifications {
+    final today = DateTime.now();
+    return _notifications.where((notification) {
+      return notification.createdAt.year == today.year &&
+             notification.createdAt.month == today.month &&
+             notification.createdAt.day == today.day;
+    }).toList();
   }
 }
