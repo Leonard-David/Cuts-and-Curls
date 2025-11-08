@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/service_model.dart';
-import 'package:sheersync/features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/data/repositories/service_repository.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/features/barber/services/add_edit_service_screen.dart';

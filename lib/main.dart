@@ -4,14 +4,15 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/theme/app_theme.dart';
 import 'package:sheersync/core/utils/offline_service.dart';
+// ignore: unused_import
 import 'package:sheersync/core/utils/stripe_helper.dart';
 import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/chat_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/data/providers/settings_provider.dart';
-import 'package:sheersync/features/auth/controllers/auth_provider.dart';
-import 'package:sheersync/features/auth/screens/auth_wrapper.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
+import 'package:sheersync/features/auth/auth_wrapper.dart';
 import 'package:sheersync/firebase_options.dart';
 import 'core/notifications/fcm_service.dart';
 

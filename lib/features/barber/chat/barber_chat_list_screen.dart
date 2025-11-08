@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/chat_room_model.dart';
 import 'package:sheersync/data/repositories/chat_repository.dart';
-import 'package:sheersync/features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/features/shared/chat/chat_screen.dart';
 
 class BarberChatListScreen extends StatefulWidget {

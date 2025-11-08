@@ -8,7 +8,7 @@ import 'package:sheersync/data/models/notification_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/repositories/booking_repository.dart';
 import 'package:sheersync/data/repositories/notification_repository.dart';
-import 'package:sheersync/features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
 
 class AppointmentDetailsScreen extends StatefulWidget {
   final AppointmentModel appointment;

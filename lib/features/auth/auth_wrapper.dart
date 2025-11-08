@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sheersync/features/auth/screens/signin_screeen.dart';
+import 'package:sheersync/features/auth/signin_screeen.dart';
 import 'package:sheersync/features/barber/barber_shell.dart';
 import 'package:sheersync/features/client/client_shell.dart';
-import '../controllers/auth_provider.dart';
+import '../../data/providers/auth_provider.dart';
 import 'loader_screen.dart';
 import 'verify_email_screen.dart';
 

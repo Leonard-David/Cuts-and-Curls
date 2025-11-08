@@ -1,389 +1,112 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/models/appointment_model.dart';
-import 'package:sheersync/data/repositories/booking_repository.dart';
-import 'package:sheersync/data/repositories/chat_repository.dart';
-import 'package:sheersync/features/auth/controllers/auth_provider.dart';
-import 'package:sheersync/features/shared/chat/chat_screen.dart';
+import 'package:sheersync/data/providers/appointments_provider.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
+import 'package:sheersync/features/client/reviews/review_screen.dart';
 
-class ClientAppointmentDetailsScreen extends StatefulWidget {
+class ClientAppointmentDetailsScreen extends StatelessWidget {
   final AppointmentModel appointment;
 
   const ClientAppointmentDetailsScreen({super.key, required this.appointment});
 
   @override
-  State<ClientAppointmentDetailsScreen> createState() => _ClientAppointmentDetailsScreenState();
-}
-
-class _ClientAppointmentDetailsScreenState extends State<ClientAppointmentDetailsScreen> {
-  final BookingRepository _bookingRepository = BookingRepository();
-  final ChatRepository _chatRepository = ChatRepository();
-  bool _isLoading = false;
-
-  Future<void> _cancelAppointment() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Appointment'),
-        content: const Text('Are you sure you want to cancel this appointment?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes, Cancel'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        await _bookingRepository.cancelAppointment(widget.appointment.id);
-        
-        if (mounted) {
-          showCustomSnackBar(
-            context,
-            'Appointment cancelled successfully',
-            type: SnackBarType.success,
-          );
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        if (mounted) {
-          showCustomSnackBar(
-            context,
-            'Failed to cancel appointment: $e',
-            type: SnackBarType.error,
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
-    }
-  }
-
-  Future<void> _contactBarber() async {
-    final authProvider = context.read<AuthProvider>();
-    final client = authProvider.user!;
-
-    try {
-      final chatRoom = await _chatRepository.getOrCreateChatRoom(
-        clientId: client.id,
-        clientName: client.fullName,
-        barberId: widget.appointment.barberId,
-        barberName: widget.appointment.barberName ?? 'Barber',
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ChatScreen(chatRoom: chatRoom),
-        ),
-      );
-    } catch (e) {
-      showCustomSnackBar(
-        context,
-        'Failed to start chat: $e',
-        type: SnackBarType.error,
-      );
-    }
-  }
-
-  bool _canCancelAppointment() {
-    final now = DateTime.now();
-    final isUpcoming = widget.appointment.date.isAfter(now);
-    return (widget.appointment.status == 'pending' || widget.appointment.status == 'confirmed') && isUpcoming;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isPast = widget.appointment.date.isBefore(DateTime.now());
+    final appointmentsProvider = Provider.of<AppointmentsProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Appointment Details'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 1,
         actions: [
-          if (_canCancelAppointment())
-            IconButton(
-              icon: const Icon(Icons.cancel),
-              onPressed: _cancelAppointment,
-              tooltip: 'Cancel Appointment',
+          if (appointment.status == 'pending' || appointment.status == 'confirmed')
+            PopupMenuButton<String>(
+              onSelected: (value) => _handleMenuAction(value, context, appointmentsProvider),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'reschedule',
+                  child: Row(
+                    children: [
+                      Icon(Icons.schedule),
+                      SizedBox(width: 8),
+                      Text('Reschedule'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'cancel',
+                  child: Row(
+                    children: [
+                      Icon(Icons.cancel),
+                      SizedBox(width: 8),
+                      Text('Cancel Appointment'),
+                    ],
+                  ),
+                ),
+              ],
             ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Status Card
-                  _buildStatusCard(),
-                  const SizedBox(height: 24),
-                  // Barber Information
-                  _buildBarberInfo(),
-                  const SizedBox(height: 24),
-                  // Service Information
-                  _buildServiceInfo(),
-                  const SizedBox(height: 24),
-                  // Appointment Time
-                  _buildAppointmentTime(),
-                  if (widget.appointment.notes != null) ...[
-                    const SizedBox(height: 24),
-                    // Additional Notes
-                    _buildAdditionalNotes(),
-                  ],
-                  const SizedBox(height: 32),
-                  // Action Buttons
-                  _buildActionButtons(isPast),
-                ],
-              ),
-            ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Status Card
+            _buildStatusCard(),
+            const SizedBox(height: 16),
+            // Appointment Details Card
+            _buildDetailsCard(),
+            const SizedBox(height: 16),
+            // Professional Info Card
+            _buildProfessionalCard(),
+            const SizedBox(height: 16),
+            // Service Details Card
+            _buildServiceCard(),
+            const SizedBox(height: 16),
+            // Actions Card
+            _buildActionsCard(context, appointmentsProvider, authProvider),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildStatusCard() {
     return Card(
-      color: _getStatusColor(widget.appointment.status).withOpacity(0.1),
+      elevation: 3,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.all(20),
+        child: Column(
           children: [
-            Icon(
-              _getStatusIcon(widget.appointment.status),
-              color: _getStatusColor(widget.appointment.status),
-              size: 32,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _getStatusText(widget.appointment.status).toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _getStatusColor(widget.appointment.status),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getStatusDescription(widget.appointment.status),
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _getStatusColor(appointment.status).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getStatusIcon(appointment.status),
+                size: 32,
+                color: _getStatusColor(appointment.status),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBarberInfo() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Professional Information',
+            const SizedBox(height: 12),
+            Text(
+              appointment.status.toUpperCase(),
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.primary.withOpacity(0.1),
-                child: Icon(Icons.person, color: AppColors.primary),
-              ),
-              title: Text(
-                widget.appointment.barberName ?? 'Professional',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: const Text('Your service provider'),
-              trailing: IconButton(
-                icon: Icon(Icons.chat, color: AppColors.primary),
-                onPressed: _contactBarber,
-                tooltip: 'Contact Professional',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildServiceInfo() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Service Information',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.appointment.serviceName ?? 'Service',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (widget.appointment.serviceName != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Service booked',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Text(
-                  'N\$${widget.appointment.price?.toStringAsFixed(2) ?? '0.00'}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppointmentTime() {
-    final isPast = widget.appointment.date.isBefore(DateTime.now());
-    
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Appointment Time',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (isPast) 
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.textSecondary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Past',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Text(
-                  DateFormat('EEEE, MMMM d, yyyy').format(widget.appointment.date),
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.access_time, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Text(
-                  DateFormat('h:mm a').format(widget.appointment.date),
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdditionalNotes() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Additional Notes',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+                color: _getStatusColor(appointment.status),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              widget.appointment.notes!,
+              _getStatusDescription(appointment.status),
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -393,36 +116,438 @@ class _ClientAppointmentDetailsScreenState extends State<ClientAppointmentDetail
     );
   }
 
-  Widget _buildActionButtons(bool isPast) {
-    return Column(
-      children: [
-        if (_canCancelAppointment())
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _cancelAppointment,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+  Widget _buildDetailsCard() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Appointment Details',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              child: const Text('Cancel Appointment'),
             ),
-          ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: _contactBarber,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: BorderSide(color: AppColors.primary),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child: const Text('Contact Professional'),
-          ),
+            const SizedBox(height: 16),
+            _buildDetailRow('Date', DateFormat('EEEE, MMMM d, yyyy').format(appointment.date)),
+            _buildDetailRow('Time', DateFormat('h:mm a').format(appointment.date)),
+            _buildDetailRow('Duration', '${appointment.reminderMinutes ?? 30} minutes'),
+            _buildDetailRow('Created', DateFormat('MMM d, yyyy • h:mm a').format(appointment.createdAt)),
+            if (appointment.updatedAt != null)
+              _buildDetailRow('Last Updated', DateFormat('MMM d, yyyy • h:mm a').format(appointment.updatedAt!)),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildProfessionalCard() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Professional',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.grey[200],
+                  child: Icon(
+                    Icons.person,
+                    size: 30,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        appointment.barberName ?? 'Professional',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Barber',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.star, size: 16, color: AppColors.accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            '4.8', // This would come from barber data
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '(124 reviews)',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _viewProfessionalProfile(),
+                    child: const Text('View Profile'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _messageProfessional(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                    ),
+                    child: const Text('Message'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceCard() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Service Details',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildDetailRow('Service', appointment.serviceName ?? 'Haircut'),
+            if (appointment.price != null)
+              _buildDetailRow('Price', 'N\$${appointment.price!.toStringAsFixed(2)}'),
+            if (appointment.notes != null && appointment.notes!.isNotEmpty)
+              _buildDetailRow('Notes', appointment.notes!),
+            if (appointment.hasReminder && appointment.reminderMinutes != null)
+              _buildDetailRow('Reminder', '${appointment.reminderMinutes} minutes before'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionsCard(BuildContext context, AppointmentsProvider appointmentsProvider, AuthProvider authProvider) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Actions',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (appointment.status == 'pending') ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _rescheduleAppointment(context),
+                  child: const Text('Reschedule Appointment'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => _cancelAppointment(context, appointmentsProvider),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: BorderSide(color: AppColors.error),
+                  ),
+                  child: const Text('Cancel Appointment'),
+                ),
+              ),
+            ],
+            if (appointment.status == 'confirmed') ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _addToCalendar(),
+                  child: const Text('Add to Calendar'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => _cancelAppointment(context, appointmentsProvider),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: BorderSide(color: AppColors.error),
+                  ),
+                  child: const Text('Cancel Appointment'),
+                ),
+              ),
+            ],
+            if (appointment.status == 'completed') ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _leaveReview(context, authProvider),
+                  child: const Text('Leave Review'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => _bookAgain(),
+                  child: const Text('Book Again'),
+                ),
+              ),
+            ],
+            if (appointment.status == 'cancelled') ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _bookAgain(),
+                  child: const Text('Book New Appointment'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => _contactSupport(),
+                child: const Text('Contact Support'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleMenuAction(String value, BuildContext context, AppointmentsProvider appointmentsProvider) {
+    switch (value) {
+      case 'reschedule':
+        _rescheduleAppointment(context);
+        break;
+      case 'cancel':
+        _cancelAppointment(context, appointmentsProvider);
+        break;
+    }
+  }
+
+  void _rescheduleAppointment(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reschedule Appointment'),
+        content: const Text('This feature will allow you to choose a new date and time for your appointment.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              showCustomSnackBar(
+                context,
+                'Reschedule functionality will be implemented',
+                type: SnackBarType.info,
+              );
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _cancelAppointment(BuildContext context, AppointmentsProvider appointmentsProvider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Appointment'),
+        content: const Text('Are you sure you want to cancel this appointment? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _confirmCancelAppointment(context, appointmentsProvider);
+            },
+            child: const Text(
+              'Yes, Cancel',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmCancelAppointment(BuildContext context, AppointmentsProvider appointmentsProvider) {
+    // Show loading
+    showCustomSnackBar(context, 'Cancelling appointment...', type: SnackBarType.info);
+    
+    // Cancel the appointment
+    appointmentsProvider.cancelAppointment(appointment.id).then((_) {
+      showCustomSnackBar(
+        context,
+        'Appointment cancelled successfully',
+        type: SnackBarType.success,
+      );
+    }).catchError((error) {
+      showCustomSnackBar(
+        context,
+        'Failed to cancel appointment: $error',
+        type: SnackBarType.error,
+      );
+    });
+  }
+
+  void _viewProfessionalProfile() {
+    showCustomSnackBar(
+      navigatorKey.currentContext!,
+      'Professional profile view will be implemented',
+      type: SnackBarType.info,
+    );
+  }
+
+  void _messageProfessional() {
+    showCustomSnackBar(
+      navigatorKey.currentContext!,
+      'Messaging functionality will be implemented',
+      type: SnackBarType.info,
+    );
+  }
+
+  void _addToCalendar() {
+    showCustomSnackBar(
+      navigatorKey.currentContext!,
+      'Calendar integration will be implemented',
+      type: SnackBarType.info,
+    );
+  }
+
+  void _leaveReview(BuildContext context, AuthProvider authProvider) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReviewScreen(
+          barberId: appointment.barberId,
+          appointmentId: appointment.id,
+          barberName: appointment.barberName ?? 'Professional',
+        ),
+      ),
+    );
+  }
+
+  void _bookAgain() {
+    showCustomSnackBar(
+      navigatorKey.currentContext!,
+      'Book again functionality will be implemented',
+      type: SnackBarType.info,
+    );
+  }
+
+  void _contactSupport() {
+    showDialog(
+      context: navigatorKey.currentContext!,
+      builder: (context) => AlertDialog(
+        title: const Text('Contact Support'),
+        content: const Text(
+          'For assistance with this appointment, please contact our support team:\n\n'
+          'Email: support@sheersync.com\n'
+          'Phone: +1-555-HELP\n\n'
+          'Please have your appointment ID ready.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -456,33 +581,21 @@ class _ClientAppointmentDetailsScreenState extends State<ClientAppointmentDetail
     }
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'confirmed':
-        return 'Confirmed';
-      case 'pending':
-        return 'Pending';
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
-      default:
-        return 'Unknown';
-    }
-  }
-
   String _getStatusDescription(String status) {
     switch (status) {
       case 'confirmed':
         return 'Your appointment has been confirmed by the professional';
       case 'pending':
-        return 'Waiting for professional confirmation';
+        return 'Waiting for professional to confirm your appointment';
       case 'completed':
-        return 'Service has been completed';
+        return 'This appointment has been completed';
       case 'cancelled':
-        return 'Appointment has been cancelled';
+        return 'This appointment has been cancelled';
       default:
-        return 'Unknown status';
+        return 'Unknown appointment status';
     }
   }
 }
+
+// Global key for navigation context
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();

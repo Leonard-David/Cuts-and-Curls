@@ -7,7 +7,7 @@ import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/models/notification_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
-import 'package:sheersync/features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -40,7 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _notificationProvider = context.read<NotificationProvider>();
 
         // Load appointments and notifications
-        _appointmentsProvider.refreshAll(authProvider.user!.id);
+        _appointmentsProvider.refreshBarberData(authProvider.user!.id);
         _notificationProvider.loadNotifications(authProvider.user!.id);
 
         // Start real-time earnings tracking
@@ -149,7 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         if (authProvider.user != null) {
-          appointmentsProvider.refreshAll(authProvider.user!.id);
+          appointmentsProvider.refreshBarberData(authProvider.user!.id);
           notificationProvider.loadNotifications(authProvider.user!.id);
         }
       },

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/theme/app_theme.dart';
-import 'features/auth/screens/auth_wrapper.dart';
-import 'features/auth/controllers/auth_provider.dart';
+import 'features/auth/auth_wrapper.dart';
+import 'data/providers/auth_provider.dart';
 import 'data/providers/notification_provider.dart';
 import 'data/providers/settings_provider.dart';
 

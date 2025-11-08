@@ -5,7 +5,7 @@ import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/repositories/booking_repository.dart';
-import 'package:sheersync/features/auth/controllers/auth_provider.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/features/barber/appointments/appointment_details_screen.dart';
 
 class BarberAppointmentsScreen extends StatefulWidget {
@@ -37,7 +37,7 @@ class _BarberAppointmentsScreenState extends State<BarberAppointmentsScreen> wit
     final barberId = authProvider.user?.id;
     
     if (barberId != null) {
-      appointmentsProvider.refreshAll(barberId);
+      appointmentsProvider.refreshBarberData(barberId);
     }
   }
 

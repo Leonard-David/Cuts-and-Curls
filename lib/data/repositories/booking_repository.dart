@@ -5,7 +5,6 @@ import '../models/appointment_model.dart';
 class BookingRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CollectionReference _appointmentsCollection = FirebaseFirestore.instance.collection('appointments');
-// Use singleton instance
 
   // Create a new appointment
   Future<void> createAppointment(AppointmentModel appointment) async {
@@ -16,7 +15,6 @@ class BookingRepository {
     }
   }
 
-  // ... rest of your existing methods remain the same ...
   // Update appointment status
   Future<void> updateAppointmentStatus(String appointmentId, String status) async {
     try {
@@ -188,6 +186,60 @@ class BookingRepository {
     }
   }
 
+  // Get appointments by status for barber
+  Stream<List<AppointmentModel>> getBarberAppointmentsByStatus(String barberId, String status) {
+    return _appointmentsCollection
+        .where('barberId', isEqualTo: barberId)
+        .where('status', isEqualTo: status)
+        .orderBy('date', descending: false)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = FirestoreHelper.safeExtractQueryData(doc);
+        return AppointmentModel.fromMap(data);
+      }).toList();
+    });
+  }
+
+  // Get appointments by status for client
+  Stream<List<AppointmentModel>> getClientAppointmentsByStatus(String clientId, String status) {
+    return _appointmentsCollection
+        .where('clientId', isEqualTo: clientId)
+        .where('status', isEqualTo: status)
+        .orderBy('date', descending: false)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = FirestoreHelper.safeExtractQueryData(doc);
+        return AppointmentModel.fromMap(data);
+      }).toList();
+    });
+  }
+
+  // Get completed appointments for barber (for earnings)
+  Stream<List<AppointmentModel>> getCompletedAppointments(String barberId, {DateTime? startDate, DateTime? endDate}) {
+    var query = _appointmentsCollection
+        .where('barberId', isEqualTo: barberId)
+        .where('status', isEqualTo: 'completed');
+
+    if (startDate != null) {
+      query = query.where('date', isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch);
+    }
+    if (endDate != null) {
+      query = query.where('date', isLessThanOrEqualTo: endDate.millisecondsSinceEpoch);
+    }
+
+    return query
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = FirestoreHelper.safeExtractQueryData(doc);
+        return AppointmentModel.fromMap(data);
+      }).toList();
+    });
+  }
+
   // Check barber availability for a specific time
   Future<bool> checkBarberAvailability(String barberId, DateTime dateTime) async {
     try {
@@ -261,59 +313,5 @@ class BookingRepository {
     } catch (e) {
       throw Exception('Failed to get available slots: $e');
     }
-  }
-
-  // Get appointments by status for barber
-  Stream<List<AppointmentModel>> getBarberAppointmentsByStatus(String barberId, String status) {
-    return _appointmentsCollection
-        .where('barberId', isEqualTo: barberId)
-        .where('status', isEqualTo: status)
-        .orderBy('date', descending: false)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
-  }
-
-  // Get appointments by status for client
-  Stream<List<AppointmentModel>> getClientAppointmentsByStatus(String clientId, String status) {
-    return _appointmentsCollection
-        .where('clientId', isEqualTo: clientId)
-        .where('status', isEqualTo: status)
-        .orderBy('date', descending: false)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
-  }
-
-  // Get completed appointments for barber (for earnings)
-  Stream<List<AppointmentModel>> getCompletedAppointments(String barberId, {DateTime? startDate, DateTime? endDate}) {
-    var query = _appointmentsCollection
-        .where('barberId', isEqualTo: barberId)
-        .where('status', isEqualTo: 'completed');
-
-    if (startDate != null) {
-      query = query.where('date', isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch);
-    }
-    if (endDate != null) {
-      query = query.where('date', isLessThanOrEqualTo: endDate.millisecondsSinceEpoch);
-    }
-
-    return query
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
   }
 }

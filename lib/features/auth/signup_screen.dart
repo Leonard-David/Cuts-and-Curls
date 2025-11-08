@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sheersync/features/auth/screens/signin_screeen.dart';
-import '../controllers/auth_provider.dart';
-import '../../../core/widgets/custom_snackbar.dart';
+import 'package:sheersync/features/auth/signin_screeen.dart';
+import '../../data/providers/auth_provider.dart';
+import '../../core/widgets/custom_snackbar.dart';
 import 'verify_email_screen.dart';
 
 class SignUpScreen extends StatefulWidget {

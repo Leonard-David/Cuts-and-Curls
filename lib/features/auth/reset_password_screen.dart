@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../controllers/auth_provider.dart';
-import '../../../core/widgets/custom_snackbar.dart';
+import '../../data/providers/auth_provider.dart';
+import '../../core/widgets/custom_snackbar.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
