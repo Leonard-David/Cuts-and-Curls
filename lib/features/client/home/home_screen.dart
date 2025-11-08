@@ -174,10 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
             // Special Offers
             _buildSpecialOffersSection(),
             const SizedBox(height: 24),
-
-            // Recent Activity (Optional)
-            _buildRecentActivitySection(),
-            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -812,98 +808,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentActivitySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Recent Activity',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              _buildActivityItem(
-                icon: Icons.calendar_today,
-                title: 'Appointment Booked',
-                subtitle: 'Haircut with John Doe',
-                time: '2 hours ago',
-                color: AppColors.success,
-              ),
-              const Divider(),
-              _buildActivityItem(
-                icon: Icons.chat,
-                title: 'New Message',
-                subtitle: 'From Jane Smith',
-                time: '5 hours ago',
-                color: AppColors.primary,
-              ),
-              const Divider(),
-              _buildActivityItem(
-                icon: Icons.payment,
-                title: 'Payment Processed',
-                subtitle: 'N\$45.00 - Hair Styling',
-                time: '1 day ago',
-                color: Colors.green,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActivityItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String time,
-    required Color color,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, size: 20, color: color),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          fontSize: 12,
-          color: AppColors.textSecondary,
-        ),
-      ),
-      trailing: Text(
-        time,
-        style: TextStyle(
-          fontSize: 10,
-          color: AppColors.textSecondary,
         ),
       ),
     );
