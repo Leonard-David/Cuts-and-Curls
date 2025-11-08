@@ -7,7 +7,6 @@ import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/models/user_model.dart';
 import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
-import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
 import 'package:sheersync/features/client/bookings/client_appointment_details_screen.dart';
@@ -25,38 +24,20 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<UserModel> _availableBarbers = [];
   List<AppointmentModel> _upcomingAppointments = [];
+  List<Map<String, dynamic>> _recentActivities = [];
   List<MarketingOffer> _activeOffers = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _initializeData();
+    _initializeRealTimeData();
   }
 
-  void _initializeData() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = context.read<AuthProvider>();
-      final appointmentsProvider = context.read<AppointmentsProvider>();
-      final notificationProvider = context.read<NotificationProvider>();
-
-      if (authProvider.user != null) {
-        // Load client appointments
-        appointmentsProvider.loadClientAppointments(authProvider.user!.id);
-        
-        // Load notifications
-        notificationProvider.loadNotifications(authProvider.user!.id);
-        
-        // Load available barbers with real-time updates
-        _loadAvailableBarbers();
-        
-        // Load upcoming appointments
-        _loadUpcomingAppointments(authProvider.user!.id);
-        
-        // Load active offers
-        _loadActiveOffers();
-      }
-    });
+  void _initializeRealTimeData() {
+    _loadAvailableBarbers();
+    _loadUpcomingAppointments();
+    _loadRecentActivities();
   }
 
   Stream<List<UserModel>> _getAvailableBarbersStream() {
@@ -66,9 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
         .where('isOnline', isEqualTo: true)
         .where('isActive', isEqualTo: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => UserModel.fromMap(doc.data()))
-            .toList());
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => UserModel.fromMap(doc.data())).toList());
   }
 
   void _loadAvailableBarbers() {
@@ -76,69 +56,63 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _availableBarbers = barbers;
-          _isLoading = false;
+          _isLoading =
+              _upcomingAppointments.isEmpty && _recentActivities.isEmpty;
         });
       }
     }, onError: (error) {
       print('Error loading barbers: $error');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     });
   }
 
-  Stream<List<AppointmentModel>> _getUpcomingAppointmentsStream(String clientId) {
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
-    
-    return _firestore
+  void _loadUpcomingAppointments() {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.user == null) return;
+
+    _firestore
         .collection('appointments')
-        .where('clientId', isEqualTo: clientId)
-        .where('date', isGreaterThanOrEqualTo: startOfToday.millisecondsSinceEpoch)
+        .where('clientId', isEqualTo: authProvider.user!.id)
         .where('status', whereIn: ['pending', 'confirmed'])
+        .where('date',
+            isGreaterThanOrEqualTo: DateTime.now().millisecondsSinceEpoch)
         .orderBy('date', descending: false)
         .limit(3)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AppointmentModel.fromMap(doc.data()))
-            .toList());
-  }
-
-  void _loadUpcomingAppointments(String clientId) {
-    _getUpcomingAppointmentsStream(clientId).listen((appointments) {
-      if (mounted) {
-        setState(() {
-          _upcomingAppointments = appointments;
+        .listen((snapshot) {
+          if (mounted) {
+            setState(() {
+              _upcomingAppointments = snapshot.docs
+                  .map((doc) => AppointmentModel.fromMap(doc.data()))
+                  .toList();
+              _isLoading =
+                  _availableBarbers.isEmpty && _recentActivities.isEmpty;
+            });
+          }
+        }, onError: (error) {
+          print('Error loading appointments: $error');
         });
-      }
-    }, onError: (error) {
-      print('Error loading appointments: $error');
-    });
   }
 
-  Stream<List<MarketingOffer>> _getActiveOffersStream() {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    return _firestore
-        .collection('marketing_offers')
-        .where('isActive', isEqualTo: true)
-        .where('expiresAt', isGreaterThan: now)
-        .orderBy('expiresAt', descending: false)
+  void _loadRecentActivities() {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.user == null) return;
+
+    _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: authProvider.user!.id)
+        .orderBy('createdAt', descending: true)
         .limit(5)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => MarketingOffer.fromMap(doc.data()))
-            .toList());
-  }
-
-  void _loadActiveOffers() {
-    _getActiveOffersStream().listen((offers) {
+        .listen((snapshot) {
       if (mounted) {
         setState(() {
-          _activeOffers = offers;
+          _recentActivities = snapshot.docs.map((doc) => doc.data()).toList();
+          _isLoading =
+              _availableBarbers.isEmpty && _upcomingAppointments.isEmpty;
         });
       }
     }, onError: (error) {
-      print('Error loading offers: $error');
+      print('Error loading activities: $error');
     });
   }
 
@@ -181,25 +155,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshData() async {
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.user != null) {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      // Reload all data
-      _loadAvailableBarbers();
-      _loadUpcomingAppointments(authProvider.user!.id);
-      _loadActiveOffers();
-      
-      // Refresh provider data
-      final appointmentsProvider = context.read<AppointmentsProvider>();
-      final notificationProvider = context.read<NotificationProvider>();
-      
-      appointmentsProvider.loadClientAppointments(authProvider.user!.id);
-      notificationProvider.loadNotifications(authProvider.user!.id);
-    }
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(seconds: 1));
+    _initializeRealTimeData();
   }
+
 
   Widget _buildWelcomeSection(AuthProvider authProvider) {
     return Container(
@@ -227,7 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: authProvider.user?.profileImage != null
                 ? CircleAvatar(
                     radius: 20,
-                    backgroundImage: NetworkImage(authProvider.user!.profileImage!),
+                    backgroundImage:
+                        NetworkImage(authProvider.user!.profileImage!),
                   )
                 : Icon(
                     Icons.person,
@@ -477,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildProfessionalCard(UserModel barber) {
     final hasDiscount = _checkBarberHasDiscount(barber.id);
-    
+
     return Container(
       width: 160,
       margin: const EdgeInsets.only(right: 12),
@@ -518,7 +479,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: 14,
                             height: 14,
                             decoration: BoxDecoration(
-                              color: barber.isOnline ? AppColors.success : Colors.grey,
+                              color: barber.isOnline
+                                  ? AppColors.success
+                                  : Colors.grey,
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
                             ),
@@ -540,7 +503,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     // Professional Type
                     Text(
-                      barber.userType == 'barber' ? 'Professional Barber' : 'Hairstylist',
+                      barber.userType == 'barber'
+                          ? 'Professional Barber'
+                          : 'Hairstylist',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -581,7 +546,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   top: 8,
                   right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppColors.accent,
                       borderRadius: BorderRadius.circular(8),
@@ -751,7 +717,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppColors.primary.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.local_offer, color: AppColors.primary, size: 24),
+                  child: Icon(Icons.local_offer,
+                      color: AppColors.primary, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -791,7 +758,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.success.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -812,6 +780,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+
 
   // Loading and Empty States
   Widget _buildLoadingProfessionals() {
@@ -853,7 +823,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.person_off_rounded, size: 48, color: AppColors.textSecondary),
+          Icon(Icons.person_off_rounded,
+              size: 48, color: AppColors.textSecondary),
           const SizedBox(height: 12),
           Text(
             'No Professionals Available',
@@ -887,7 +858,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.calendar_today_rounded, size: 48, color: AppColors.textSecondary),
+          Icon(Icons.calendar_today_rounded,
+              size: 48, color: AppColors.textSecondary),
           const SizedBox(height: 12),
           Text(
             'No Upcoming Appointments',
@@ -921,7 +893,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.local_offer_outlined, size: 48, color: AppColors.textSecondary),
+          Icon(Icons.local_offer_outlined,
+              size: 48, color: AppColors.textSecondary),
           const SizedBox(height: 12),
           Text(
             'No Current Offers',
@@ -958,12 +931,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _navigateToOffers() {
     // Navigate to offers screen
-    showCustomSnackBar(context, 'Offers screen will be implemented', type: SnackBarType.info);
+    showCustomSnackBar(context, 'Offers screen will be implemented',
+        type: SnackBarType.info);
   }
 
   void _navigateToReviews() {
     // Navigate to reviews screen
-    showCustomSnackBar(context, 'Reviews screen will be implemented', type: SnackBarType.info);
+    showCustomSnackBar(context, 'Reviews screen will be implemented',
+        type: SnackBarType.info);
   }
 
   void _navigateToAllProfessionals() {
@@ -975,7 +950,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _navigateToAllAppointments() {
     // Navigate to all appointments screen
-    showCustomSnackBar(context, 'All appointments screen will be implemented', type: SnackBarType.info);
+    showCustomSnackBar(context, 'All appointments screen will be implemented',
+        type: SnackBarType.info);
   }
 
   void _viewBarberProfile(UserModel barber) {
@@ -991,7 +967,8 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ClientAppointmentDetailsScreen(appointment: appointment),
+        builder: (context) =>
+            ClientAppointmentDetailsScreen(appointment: appointment),
       ),
     );
   }
@@ -1097,7 +1074,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _startChatWithBarber(UserModel barber) {
     // Navigate to chat with barber
-    showCustomSnackBar(context, 'Chat functionality will be implemented', type: SnackBarType.info);
+    showCustomSnackBar(context, 'Chat functionality will be implemented',
+        type: SnackBarType.info);
   }
 
   void _bookWithBarber(UserModel barber) {
@@ -1110,7 +1088,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _shareBarberProfile(UserModel barber) {
-    showCustomSnackBar(context, 'Share functionality will be implemented', type: SnackBarType.info);
+    showCustomSnackBar(context, 'Share functionality will be implemented',
+        type: SnackBarType.info);
   }
 
   // Helper methods for status display

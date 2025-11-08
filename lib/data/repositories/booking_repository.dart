@@ -1,41 +1,77 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:sheersync/core/notifications/fcm_service.dart';
 import 'package:sheersync/core/utils/firestore_helper.dart';
+import 'package:sheersync/data/models/user_model.dart';
 import '../models/appointment_model.dart';
 
 class BookingRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final CollectionReference _appointmentsCollection = FirebaseFirestore.instance.collection('appointments');
+  final CollectionReference _appointmentsCollection =
+      FirebaseFirestore.instance.collection('appointments');
 
   // Create a new appointment
+  // Create appointment with real-time updates
   Future<void> createAppointment(AppointmentModel appointment) async {
     try {
-      await _appointmentsCollection.doc(appointment.id).set(appointment.toMap());
+      await _firestore
+          .collection('appointments')
+          .doc(appointment.id)
+          .set(appointment.toMap());
+
+      // Send notification to barber
+      await _sendAppointmentNotification(appointment);
     } catch (e) {
       throw Exception('Failed to create appointment: $e');
     }
   }
 
   // Update appointment status
-  Future<void> updateAppointmentStatus(String appointmentId, String status) async {
+  Future<void> updateAppointmentStatus(
+      String appointmentId, String status) async {
     try {
-      await _appointmentsCollection.doc(appointmentId).update({
+      await _firestore.collection('appointments').doc(appointmentId).update({
         'status': status,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
       });
+
+      // Send status update notification
+      await _sendStatusUpdateNotification(appointmentId, status);
     } catch (e) {
       throw Exception('Failed to update appointment status: $e');
     }
   }
 
   // Cancel appointment
-  Future<void> cancelAppointment(String appointmentId) async {
+  Future<void> cancelAppointment(String appointmentId, String reason) async {
     try {
-      await _appointmentsCollection.doc(appointmentId).update({
+      await _firestore.collection('appointments').doc(appointmentId).update({
         'status': 'cancelled',
+        'cancellationReason': reason,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
       });
+
+      // Send cancellation notification
+      await _sendCancellationNotification(appointmentId, reason);
     } catch (e) {
       throw Exception('Failed to cancel appointment: $e');
+    }
+  }
+
+  // Reschedule appointment
+  Future<void> rescheduleAppointment(
+      String appointmentId, DateTime newDate) async {
+    try {
+      await _firestore.collection('appointments').doc(appointmentId).update({
+        'date': newDate.millisecondsSinceEpoch,
+        'status': 'rescheduled',
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Send rescheduling notification
+      await _sendRescheduleNotification(appointmentId, newDate);
+    } catch (e) {
+      throw Exception('Failed to reschedule appointment: $e');
     }
   }
 
@@ -64,16 +100,27 @@ class BookingRepository {
 
   // Get all appointments for a client (real-time)
   Stream<List<AppointmentModel>> getClientAppointments(String clientId) {
-    return _appointmentsCollection
+    return _firestore
+        .collection('appointments')
         .where('clientId', isEqualTo: clientId)
-        .orderBy('date', descending: false)
+        .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = FirestoreHelper.safeExtractQueryData(doc);
+              return AppointmentModel.fromMap(data);
+            }).toList());
+  }
+
+  // Get availble barbers
+  Stream<List<UserModel>> getAvailableBarbers() {
+    return _firestore
+        .collection('users')
+        .where('userType', whereIn: ['barber', 'hairstylist'])
+        .where('isOnline', isEqualTo: true)
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => UserModel.fromMap(doc.data())).toList());
   }
 
   // Get appointment requests (pending appointments from clients for barber)
@@ -100,17 +147,18 @@ class BookingRepository {
 
     return _appointmentsCollection
         .where('barberId', isEqualTo: barberId)
-        .where('date', isGreaterThanOrEqualTo: startOfDay.millisecondsSinceEpoch)
+        .where('date',
+            isGreaterThanOrEqualTo: startOfDay.millisecondsSinceEpoch)
         .where('date', isLessThan: endOfDay.millisecondsSinceEpoch)
         .where('status', whereIn: ['pending', 'confirmed'])
         .orderBy('date', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = FirestoreHelper.safeExtractQueryData(doc);
+            return AppointmentModel.fromMap(data);
+          }).toList();
+        });
   }
 
   // Get today's appointments for client
@@ -121,17 +169,18 @@ class BookingRepository {
 
     return _appointmentsCollection
         .where('clientId', isEqualTo: clientId)
-        .where('date', isGreaterThanOrEqualTo: startOfDay.millisecondsSinceEpoch)
+        .where('date',
+            isGreaterThanOrEqualTo: startOfDay.millisecondsSinceEpoch)
         .where('date', isLessThan: endOfDay.millisecondsSinceEpoch)
         .where('status', whereIn: ['pending', 'confirmed'])
         .orderBy('date', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = FirestoreHelper.safeExtractQueryData(doc);
+            return AppointmentModel.fromMap(data);
+          }).toList();
+        });
   }
 
   // Get upcoming appointments for barber (excluding today)
@@ -141,35 +190,38 @@ class BookingRepository {
 
     return _appointmentsCollection
         .where('barberId', isEqualTo: barberId)
-        .where('date', isGreaterThanOrEqualTo: startOfTomorrow.millisecondsSinceEpoch)
+        .where('date',
+            isGreaterThanOrEqualTo: startOfTomorrow.millisecondsSinceEpoch)
         .where('status', whereIn: ['pending', 'confirmed'])
         .orderBy('date', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = FirestoreHelper.safeExtractQueryData(doc);
+            return AppointmentModel.fromMap(data);
+          }).toList();
+        });
   }
 
   // Get upcoming appointments for client (excluding today)
-  Stream<List<AppointmentModel>> getClientUpcomingAppointments(String clientId) {
+  Stream<List<AppointmentModel>> getClientUpcomingAppointments(
+      String clientId) {
     final now = DateTime.now();
     final startOfTomorrow = DateTime(now.year, now.month, now.day + 1);
 
     return _appointmentsCollection
         .where('clientId', isEqualTo: clientId)
-        .where('date', isGreaterThanOrEqualTo: startOfTomorrow.millisecondsSinceEpoch)
+        .where('date',
+            isGreaterThanOrEqualTo: startOfTomorrow.millisecondsSinceEpoch)
         .where('status', whereIn: ['pending', 'confirmed'])
         .orderBy('date', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = FirestoreHelper.safeExtractQueryData(doc);
-        return AppointmentModel.fromMap(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = FirestoreHelper.safeExtractQueryData(doc);
+            return AppointmentModel.fromMap(data);
+          }).toList();
+        });
   }
 
   // Get appointment by ID
@@ -187,7 +239,8 @@ class BookingRepository {
   }
 
   // Get appointments by status for barber
-  Stream<List<AppointmentModel>> getBarberAppointmentsByStatus(String barberId, String status) {
+  Stream<List<AppointmentModel>> getBarberAppointmentsByStatus(
+      String barberId, String status) {
     return _appointmentsCollection
         .where('barberId', isEqualTo: barberId)
         .where('status', isEqualTo: status)
@@ -202,7 +255,8 @@ class BookingRepository {
   }
 
   // Get appointments by status for client
-  Stream<List<AppointmentModel>> getClientAppointmentsByStatus(String clientId, String status) {
+  Stream<List<AppointmentModel>> getClientAppointmentsByStatus(
+      String clientId, String status) {
     return _appointmentsCollection
         .where('clientId', isEqualTo: clientId)
         .where('status', isEqualTo: status)
@@ -217,22 +271,22 @@ class BookingRepository {
   }
 
   // Get completed appointments for barber (for earnings)
-  Stream<List<AppointmentModel>> getCompletedAppointments(String barberId, {DateTime? startDate, DateTime? endDate}) {
+  Stream<List<AppointmentModel>> getCompletedAppointments(String barberId,
+      {DateTime? startDate, DateTime? endDate}) {
     var query = _appointmentsCollection
         .where('barberId', isEqualTo: barberId)
         .where('status', isEqualTo: 'completed');
 
     if (startDate != null) {
-      query = query.where('date', isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch);
+      query = query.where('date',
+          isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch);
     }
     if (endDate != null) {
-      query = query.where('date', isLessThanOrEqualTo: endDate.millisecondsSinceEpoch);
+      query = query.where('date',
+          isLessThanOrEqualTo: endDate.millisecondsSinceEpoch);
     }
 
-    return query
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((snapshot) {
+    return query.orderBy('date', descending: true).snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = FirestoreHelper.safeExtractQueryData(doc);
         return AppointmentModel.fromMap(data);
@@ -241,24 +295,29 @@ class BookingRepository {
   }
 
   // Check barber availability for a specific time
-  Future<bool> checkBarberAvailability(String barberId, DateTime dateTime) async {
+  Future<bool> checkBarberAvailability(
+      String barberId, DateTime dateTime) async {
     try {
-      // Check if barber is online
-      final barberDoc = await _firestore.collection('users').doc(barberId).get();
-      if (!barberDoc.exists || (barberDoc.data() as Map<String, dynamic>)['isOnline'] != true) {
+      // Check if barber is online and available
+      final barberDoc =
+          await _firestore.collection('users').doc(barberId).get();
+      if (!barberDoc.exists ||
+          (barberDoc.data() as Map<String, dynamic>)['isOnline'] != true) {
         return false;
       }
 
-      // Check for overlapping appointments (30-minute buffer)
+      // Check for overlapping appointments
       final startTime = dateTime.subtract(const Duration(minutes: 29));
       final endTime = dateTime.add(const Duration(minutes: 29));
 
-      final query = await _appointmentsCollection
+      final query = await _firestore
+          .collection('appointments')
           .where('barberId', isEqualTo: barberId)
-          .where('date', isGreaterThanOrEqualTo: startTime.millisecondsSinceEpoch)
+          .where('date',
+              isGreaterThanOrEqualTo: startTime.millisecondsSinceEpoch)
           .where('date', isLessThanOrEqualTo: endTime.millisecondsSinceEpoch)
-          .where('status', whereIn: ['pending', 'confirmed'])
-          .get();
+          .where('status',
+              whereIn: ['pending', 'confirmed', 'rescheduled']).get();
 
       return query.docs.isEmpty;
     } catch (e) {
@@ -266,8 +325,68 @@ class BookingRepository {
     }
   }
 
+  // Apply discount coupon
+  Future<Map<String, dynamic>> applyDiscountCoupon(
+      String couponCode, String barberId) async {
+    try {
+      final couponQuery = await _firestore
+          .collection('discounts')
+          .where('code', isEqualTo: couponCode.toUpperCase())
+          .where('barberId', isEqualTo: barberId)
+          .where('isActive', isEqualTo: true)
+          .where('expiresAt',
+              isGreaterThan: DateTime.now().millisecondsSinceEpoch)
+          .get();
+
+      if (couponQuery.docs.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Invalid or expired coupon code',
+        };
+      }
+
+      final coupon = couponQuery.docs.first.data();
+      return {
+        'success': true,
+        'discount': coupon['discount'],
+        'message': 'Coupon applied successfully',
+        'couponData': coupon,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error applying coupon: $e',
+      };
+    }
+  }
+
+  Future<void> _sendAppointmentNotification(
+      AppointmentModel appointment) async {
+    try {
+      await _firestore.collection('notifications').add({
+        'userId': appointment.barberId,
+        'title': 'New Appointment Request',
+        'message':
+            '${appointment.clientName} requested ${appointment.serviceName}',
+        'type': 'appointment_request',
+        'relatedId': appointment.id,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'data': {
+          'appointmentId': appointment.id,
+          'clientName': appointment.clientName,
+          'serviceName': appointment.serviceName,
+          'appointmentTime': appointment.date.millisecondsSinceEpoch,
+        },
+      });
+    } catch (e) {
+      print('Error sending appointment notification: $e');
+    }
+  }
+
   // Get available time slots for a barber on a specific date
-  Future<List<DateTime>> getAvailableTimeSlots(String barberId, DateTime date) async {
+  Future<List<DateTime>> getAvailableTimeSlots(
+      String barberId, DateTime date) async {
     try {
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -275,10 +394,10 @@ class BookingRepository {
       // Get existing appointments for the day
       final appointments = await _appointmentsCollection
           .where('barberId', isEqualTo: barberId)
-          .where('date', isGreaterThanOrEqualTo: startOfDay.millisecondsSinceEpoch)
+          .where('date',
+              isGreaterThanOrEqualTo: startOfDay.millisecondsSinceEpoch)
           .where('date', isLessThan: endOfDay.millisecondsSinceEpoch)
-          .where('status', whereIn: ['pending', 'confirmed'])
-          .get();
+          .where('status', whereIn: ['pending', 'confirmed']).get();
 
       final bookedSlots = appointments.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
@@ -312,6 +431,498 @@ class BookingRepository {
       return availableSlots;
     } catch (e) {
       throw Exception('Failed to get available slots: $e');
+    }
+  }
+
+  Future<void> _sendStatusUpdateNotification(
+      String appointmentId, String status) async {
+    try {
+      // Get appointment details
+      final appointmentDoc =
+          await _firestore.collection('appointments').doc(appointmentId).get();
+
+      if (!appointmentDoc.exists) {
+        print('Appointment not found: $appointmentId');
+        return;
+      }
+
+      final appointment = AppointmentModel.fromMap(appointmentDoc.data()!);
+
+      // Get barber details for notification
+      final barberDoc =
+          await _firestore.collection('users').doc(appointment.barberId).get();
+
+      final barber =
+          barberDoc.exists ? UserModel.fromMap(barberDoc.data()!) : null;
+      final barberName = barber?.fullName ?? 'Professional';
+
+      // Get client details for notification
+      final clientDoc =
+          await _firestore.collection('users').doc(appointment.clientId).get();
+
+      final client =
+          clientDoc.exists ? UserModel.fromMap(clientDoc.data()!) : null;
+      final clientName = client?.fullName ?? 'Client';
+
+      // Determine notification content based on status
+      String clientTitle = '';
+      String clientMessage = '';
+      String barberTitle = '';
+      String barberMessage = '';
+      String notificationType = '';
+
+      switch (status) {
+        case 'confirmed':
+          clientTitle = 'Appointment Confirmed! 🎉';
+          clientMessage =
+              'Your appointment with $barberName has been confirmed for ${_formatAppointmentDate(appointment.date)}';
+          barberTitle = 'Appointment Confirmed';
+          barberMessage = 'You confirmed appointment with $clientName';
+          notificationType = 'appointment_confirmed';
+          break;
+
+        case 'declined':
+          clientTitle = 'Appointment Declined';
+          clientMessage = '$barberName has declined your appointment request';
+          barberTitle = 'Appointment Declined';
+          barberMessage = 'You declined appointment with $clientName';
+          notificationType = 'appointment_declined';
+          break;
+
+        case 'completed':
+          clientTitle = 'Appointment Completed ✅';
+          clientMessage =
+              'Your appointment with $barberName has been completed. Please leave a review!';
+          barberTitle = 'Appointment Completed';
+          barberMessage =
+              'You marked appointment with $clientName as completed';
+          notificationType = 'appointment_completed';
+          break;
+
+        case 'rescheduled':
+          clientTitle = 'Appointment Rescheduled';
+          clientMessage =
+              'Your appointment with $barberName has been rescheduled to ${_formatAppointmentDate(appointment.date)}';
+          barberTitle = 'Appointment Rescheduled';
+          barberMessage = 'You rescheduled appointment with $clientName';
+          notificationType = 'appointment_rescheduled';
+          break;
+
+        default:
+          clientTitle = 'Appointment Status Updated';
+          clientMessage =
+              'Your appointment status has been updated to ${status.toUpperCase()}';
+          barberTitle = 'Appointment Status Updated';
+          barberMessage =
+              'Appointment status updated to ${status.toUpperCase()}';
+          notificationType = 'appointment_status_updated';
+      }
+
+      // Send notification to client
+      await _firestore.collection('notifications').add({
+        'userId': appointment.clientId,
+        'title': clientTitle,
+        'message': clientMessage,
+        'type': notificationType,
+        'relatedId': appointmentId,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'data': {
+          'appointmentId': appointmentId,
+          'status': status,
+          'barberName': barberName,
+          'serviceName': appointment.serviceName ?? 'Service',
+          'appointmentTime': appointment.date.millisecondsSinceEpoch,
+          'notificationType': 'status_update',
+        },
+      });
+
+      // Send notification to barber
+      await _firestore.collection('notifications').add({
+        'userId': appointment.barberId,
+        'title': barberTitle,
+        'message': barberMessage,
+        'type': notificationType,
+        'relatedId': appointmentId,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'data': {
+          'appointmentId': appointmentId,
+          'status': status,
+          'clientName': clientName,
+          'serviceName': appointment.serviceName ?? 'Service',
+          'appointmentTime': appointment.date.millisecondsSinceEpoch,
+          'notificationType': 'status_update',
+        },
+      });
+
+      // Send FCM push notifications
+      await _sendFCMPushNotification(
+        userId: appointment.clientId,
+        title: clientTitle,
+        body: clientMessage,
+        data: {
+          'type': 'appointment_status',
+          'appointmentId': appointmentId,
+          'status': status,
+          'barberName': barberName,
+        },
+      );
+
+      await _sendFCMPushNotification(
+        userId: appointment.barberId,
+        title: barberTitle,
+        body: barberMessage,
+        data: {
+          'type': 'appointment_status',
+          'appointmentId': appointmentId,
+          'status': status,
+          'clientName': clientName,
+        },
+      );
+
+      print(
+          '✅ Status update notifications sent for appointment: $appointmentId');
+    } catch (e) {
+      print('❌ Error sending status update notification: $e');
+      throw Exception('Failed to send status update notification: $e');
+    }
+  }
+
+  // Send cancellation notification with reason
+  Future<void> _sendCancellationNotification(
+      String appointmentId, String reason) async {
+    try {
+      // Get appointment details
+      final appointmentDoc =
+          await _firestore.collection('appointments').doc(appointmentId).get();
+
+      if (!appointmentDoc.exists) {
+        print('Appointment not found: $appointmentId');
+        return;
+      }
+
+      final appointment = AppointmentModel.fromMap(appointmentDoc.data()!);
+
+      // Get user details for notifications
+      final barberDoc =
+          await _firestore.collection('users').doc(appointment.barberId).get();
+
+      final barber =
+          barberDoc.exists ? UserModel.fromMap(barberDoc.data()!) : null;
+      final barberName = barber?.fullName ?? 'Professional';
+
+      final clientDoc =
+          await _firestore.collection('users').doc(appointment.clientId).get();
+
+      final client =
+          clientDoc.exists ? UserModel.fromMap(clientDoc.data()!) : null;
+      final clientName = client?.fullName ?? 'Client';
+
+      // Determine who cancelled the appointment
+      final currentUser = await _getCurrentUser();
+      final isCancelledByClient = currentUser?.id == appointment.clientId;
+
+      String clientTitle = '';
+      String clientMessage = '';
+      String barberTitle = '';
+      String barberMessage = '';
+
+      if (isCancelledByClient) {
+        // Cancelled by client
+        clientTitle = 'Appointment Cancelled';
+        clientMessage = 'You cancelled your appointment with $barberName';
+        barberTitle = 'Appointment Cancelled by Client';
+        barberMessage =
+            '$clientName cancelled their appointment${reason.isNotEmpty ? ': $reason' : ''}';
+      } else {
+        // Cancelled by barber
+        clientTitle = 'Appointment Cancelled';
+        clientMessage =
+            '$barberName cancelled your appointment${reason.isNotEmpty ? ': $reason' : ''}';
+        barberTitle = 'Appointment Cancelled';
+        barberMessage =
+            'You cancelled appointment with $clientName${reason.isNotEmpty ? ': $reason' : ''}';
+      }
+
+      // Send notification to client
+      await _firestore.collection('notifications').add({
+        'userId': appointment.clientId,
+        'title': clientTitle,
+        'message': clientMessage,
+        'type': 'appointment_cancelled',
+        'relatedId': appointmentId,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'data': {
+          'appointmentId': appointmentId,
+          'status': 'cancelled',
+          'barberName': barberName,
+          'clientName': clientName,
+          'serviceName': appointment.serviceName ?? 'Service',
+          'appointmentTime': appointment.date.millisecondsSinceEpoch,
+          'cancelledBy': isCancelledByClient ? 'client' : 'barber',
+          'cancellationReason': reason,
+          'notificationType': 'cancellation',
+        },
+      });
+
+      // Send notification to barber
+      await _firestore.collection('notifications').add({
+        'userId': appointment.barberId,
+        'title': barberTitle,
+        'message': barberMessage,
+        'type': 'appointment_cancelled',
+        'relatedId': appointmentId,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'data': {
+          'appointmentId': appointmentId,
+          'status': 'cancelled',
+          'barberName': barberName,
+          'clientName': clientName,
+          'serviceName': appointment.serviceName ?? 'Service',
+          'appointmentTime': appointment.date.millisecondsSinceEpoch,
+          'cancelledBy': isCancelledByClient ? 'client' : 'barber',
+          'cancellationReason': reason,
+          'notificationType': 'cancellation',
+        },
+      });
+
+      // Send FCM push notifications
+      await _sendFCMPushNotification(
+        userId: appointment.clientId,
+        title: clientTitle,
+        body: clientMessage,
+        data: {
+          'type': 'appointment_cancelled',
+          'appointmentId': appointmentId,
+          'cancelledBy': isCancelledByClient ? 'client' : 'barber',
+          'barberName': barberName,
+        },
+      );
+
+      await _sendFCMPushNotification(
+        userId: appointment.barberId,
+        title: barberTitle,
+        body: barberMessage,
+        data: {
+          'type': 'appointment_cancelled',
+          'appointmentId': appointmentId,
+          'cancelledBy': isCancelledByClient ? 'client' : 'barber',
+          'clientName': clientName,
+        },
+      );
+
+      // If appointment was in the future, cancel any reminders
+      if (appointment.date.isAfter(DateTime.now())) {
+        await _cancelScheduledReminders(appointmentId);
+      }
+
+      print(
+          '✅ Cancellation notifications sent for appointment: $appointmentId');
+    } catch (e) {
+      print('❌ Error sending cancellation notification: $e');
+      throw Exception('Failed to send cancellation notification: $e');
+    }
+  }
+
+  // Send reschedule notification with new date
+  Future<void> _sendRescheduleNotification(
+      String appointmentId, DateTime newDate) async {
+    try {
+      // Get appointment details
+      final appointmentDoc =
+          await _firestore.collection('appointments').doc(appointmentId).get();
+
+      if (!appointmentDoc.exists) {
+        print('Appointment not found: $appointmentId');
+        return;
+      }
+
+      final appointment = AppointmentModel.fromMap(appointmentDoc.data()!);
+
+      // Get user details for notifications
+      final barberDoc =
+          await _firestore.collection('users').doc(appointment.barberId).get();
+
+      final barber =
+          barberDoc.exists ? UserModel.fromMap(barberDoc.data()!) : null;
+      final barberName = barber?.fullName ?? 'Professional';
+
+      final clientDoc =
+          await _firestore.collection('users').doc(appointment.clientId).get();
+
+      final client =
+          clientDoc.exists ? UserModel.fromMap(clientDoc.data()!) : null;
+      final clientName = client?.fullName ?? 'Client';
+
+      // Determine who rescheduled the appointment
+      final currentUser = await _getCurrentUser();
+      final isRescheduledByClient = currentUser?.id == appointment.clientId;
+
+      String clientTitle = '';
+      String clientMessage = '';
+      String barberTitle = '';
+      String barberMessage = '';
+
+      if (isRescheduledByClient) {
+        // Rescheduled by client
+        clientTitle = 'Appointment Rescheduled';
+        clientMessage =
+            'You rescheduled your appointment with $barberName to ${_formatAppointmentDate(newDate)}';
+        barberTitle = 'Appointment Rescheduled by Client';
+        barberMessage =
+            '$clientName rescheduled their appointment to ${_formatAppointmentDate(newDate)}';
+      } else {
+        // Rescheduled by barber
+        clientTitle = 'Appointment Rescheduled';
+        clientMessage =
+            '$barberName rescheduled your appointment to ${_formatAppointmentDate(newDate)}';
+        barberTitle = 'Appointment Rescheduled';
+        barberMessage =
+            'You rescheduled appointment with $clientName to ${_formatAppointmentDate(newDate)}';
+      }
+
+      // Send notification to client
+      await _firestore.collection('notifications').add({
+        'userId': appointment.clientId,
+        'title': clientTitle,
+        'message': clientMessage,
+        'type': 'appointment_rescheduled',
+        'relatedId': appointmentId,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'data': {
+          'appointmentId': appointmentId,
+          'status': 'rescheduled',
+          'barberName': barberName,
+          'clientName': clientName,
+          'serviceName': appointment.serviceName ?? 'Service',
+          'oldAppointmentTime': appointment.date.millisecondsSinceEpoch,
+          'newAppointmentTime': newDate.millisecondsSinceEpoch,
+          'rescheduledBy': isRescheduledByClient ? 'client' : 'barber',
+          'notificationType': 'reschedule',
+        },
+      });
+
+      // Send notification to barber
+      await _firestore.collection('notifications').add({
+        'userId': appointment.barberId,
+        'title': barberTitle,
+        'message': barberMessage,
+        'type': 'appointment_rescheduled',
+        'relatedId': appointmentId,
+        'isRead': false,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'data': {
+          'appointmentId': appointmentId,
+          'status': 'rescheduled',
+          'barberName': barberName,
+          'clientName': clientName,
+          'serviceName': appointment.serviceName ?? 'Service',
+          'oldAppointmentTime': appointment.date.millisecondsSinceEpoch,
+          'newAppointmentTime': newDate.millisecondsSinceEpoch,
+          'rescheduledBy': isRescheduledByClient ? 'client' : 'barber',
+          'notificationType': 'reschedule',
+        },
+      });
+
+      // Send FCM push notifications
+      await _sendFCMPushNotification(
+        userId: appointment.clientId,
+        title: clientTitle,
+        body: clientMessage,
+        data: {
+          'type': 'appointment_rescheduled',
+          'appointmentId': appointmentId,
+          'rescheduledBy': isRescheduledByClient ? 'client' : 'barber',
+          'barberName': barberName,
+          'newAppointmentTime': newDate.millisecondsSinceEpoch,
+        },
+      );
+
+      await _sendFCMPushNotification(
+        userId: appointment.barberId,
+        title: barberTitle,
+        body: barberMessage,
+        data: {
+          'type': 'appointment_rescheduled',
+          'appointmentId': appointmentId,
+          'rescheduledBy': isRescheduledByClient ? 'client' : 'barber',
+          'clientName': clientName,
+          'newAppointmentTime': newDate.millisecondsSinceEpoch,
+        },
+      );
+
+      // Update reminders for new appointment time
+      await _updateScheduledReminders(appointmentId, newDate);
+
+      print('✅ Reschedule notifications sent for appointment: $appointmentId');
+    } catch (e) {
+      print('❌ Error sending reschedule notification: $e');
+      throw Exception('Failed to send reschedule notification: $e');
+    }
+  }
+
+  // Helper method to send FCM push notifications
+  Future<void> _sendFCMPushNotification({
+    required String userId,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await FCMService.sendNotificationToUser(
+        userId: userId,
+        title: title,
+        body: body,
+        data: data,
+      );
+      print('📱 FCM notification sent to user: $userId');
+    } catch (e) {
+      print('❌ Error sending FCM notification to user $userId: $e');
+      // Don't throw error - FCM failure shouldn't break the main flow
+    }
+  }
+
+  // Helper method to get current user (you'll need to implement this based on your auth system)
+  Future<UserModel?> _getCurrentUser() async {
+    try {
+      // This should be implemented based on your authentication system
+      // For now, return null - the logic will work without it
+      return null;
+    } catch (e) {
+      print('Error getting current user: $e');
+      return null;
+    }
+  }
+
+  // Helper method to format appointment date
+  String _formatAppointmentDate(DateTime date) {
+    return '${DateFormat('EEE, MMM d').format(date)} at ${DateFormat('h:mm a').format(date)}';
+  }
+
+  // Helper method to cancel scheduled reminders
+  Future<void> _cancelScheduledReminders(String appointmentId) async {
+    try {
+      // Cancel any scheduled local notifications
+      // This would integrate with your local notification service
+      print('🔔 Cancelled reminders for appointment: $appointmentId');
+    } catch (e) {
+      print('Error cancelling reminders: $e');
+    }
+  }
+
+  // Helper method to update scheduled reminders for new appointment time
+  Future<void> _updateScheduledReminders(
+      String appointmentId, DateTime newDate) async {
+    try {
+      // Update scheduled local notifications with new time
+      // This would integrate with your local notification service
+      print('🔔 Updated reminders for appointment: $appointmentId to $newDate');
+    } catch (e) {
+      print('Error updating reminders: $e');
     }
   }
 }

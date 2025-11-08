@@ -243,7 +243,7 @@ class AppointmentsProvider with ChangeNotifier {
   // Cancel appointment
   Future<void> cancelAppointment(String appointmentId) async {
     try {
-      await _bookingRepository.cancelAppointment(appointmentId);
+      await _bookingRepository.cancelAppointment(appointmentId, 'cancelled');
       
       // Update local state
       _updateAppointmentInLists(appointmentId, (appointment) => appointment.copyWith(status: 'cancelled'));

@@ -44,9 +44,9 @@ class NotificationRepository {
         );
       }
 
-      print('📱 Notification sent to user $userId: $title');
+      print('Notification sent to user $userId: $title');
     } catch (e) {
-      print('❌ Error sending notification: $e');
+      print('Error sending notification: $e');
       throw Exception('Failed to send notification: $e');
     }
   }
@@ -100,9 +100,9 @@ class NotificationRepository {
         );
       }
 
-      print('💰 Payment notification sent to user $userId: $title');
+      print('Payment notification sent to user $userId: $title');
     } catch (e) {
-      print('❌ Error sending payment notification: $e');
+      print('Error sending payment notification: $e');
       throw Exception('Failed to send payment notification: $e');
     }
   }
@@ -121,7 +121,8 @@ class NotificationRepository {
         id: 'chat_${DateTime.now().millisecondsSinceEpoch}_$userId',
         userId: userId,
         title: 'New message from $senderName',
-        message: message.length > 100 ? '${message.substring(0, 100)}...' : message,
+        message:
+            message.length > 100 ? '${message.substring(0, 100)}...' : message,
         type: NotificationType.system,
         relatedId: chatId,
         isRead: false,
@@ -143,7 +144,9 @@ class NotificationRepository {
         await FCMService.sendNotificationToUser(
           userId: userId,
           title: 'New message from $senderName',
-          body: message.length > 100 ? '${message.substring(0, 100)}...' : message,
+          body: message.length > 100
+              ? '${message.substring(0, 100)}...'
+              : message,
           data: {
             'type': 'chat',
             'chatId': chatId,
@@ -152,9 +155,9 @@ class NotificationRepository {
         );
       }
 
-      print('💬 Chat notification sent to user $userId');
+      print('Chat notification sent to user $userId');
     } catch (e) {
-      print('❌ Error sending chat notification: $e');
+      print('Error sending chat notification: $e');
       throw Exception('Failed to send chat notification: $e');
     }
   }
@@ -175,7 +178,7 @@ class NotificationRepository {
       final hoursUntil = timeUntilAppointment.inHours;
 
       String title, message;
-      
+
       if (userType == 'client') {
         title = 'Appointment Reminder';
         message = 'Your appointment with $barberName for $serviceName is ';
@@ -228,9 +231,9 @@ class NotificationRepository {
         );
       }
 
-      print('⏰ Reminder notification sent to $userType $userId');
+      print('Reminder notification sent to $userType $userId');
     } catch (e) {
-      print('❌ Error sending reminder notification: $e');
+      print('Error sending reminder notification: $e');
       throw Exception('Failed to send reminder notification: $e');
     }
   }
@@ -249,7 +252,8 @@ class NotificationRepository {
         id: 'request_${DateTime.now().millisecondsSinceEpoch}_$barberId',
         userId: barberId,
         title: 'New Appointment Request',
-        message: '$clientName requested $serviceName on ${_formatDate(appointmentTime)}',
+        message:
+            '$clientName requested $serviceName on ${_formatDate(appointmentTime)}',
         type: NotificationType.appointment,
         relatedId: appointmentId,
         isRead: false,
@@ -281,9 +285,9 @@ class NotificationRepository {
         );
       }
 
-      print('📅 Appointment request sent to barber $barberId');
+      print('Appointment request sent to barber $barberId');
     } catch (e) {
-      print('❌ Error sending appointment request: $e');
+      print('Error sending appointment request: $e');
       throw Exception('Failed to send appointment request: $e');
     }
   }
@@ -327,6 +331,7 @@ class NotificationRepository {
           message = 'Your appointment status has been updated to $status';
       }
 
+      // Create notification
       final notification = AppNotification(
         id: 'status_${DateTime.now().millisecondsSinceEpoch}_$userId',
         userId: userId,
@@ -365,9 +370,9 @@ class NotificationRepository {
         );
       }
 
-      print('📊 Appointment status update sent to $userType $userId');
+      print('Appointment status update sent to $userType $userId');
     } catch (e) {
-      print('❌ Error sending appointment status update: $e');
+      print('Error sending appointment status update: $e');
       throw Exception('Failed to send appointment status update: $e');
     }
   }
@@ -379,13 +384,12 @@ class NotificationRepository {
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
+        .map((snapshot) => snapshot.docs.map((doc) {
               try {
                 final data = doc.data() as Map<String, dynamic>? ?? {};
                 return AppNotification.fromMap(data);
               } catch (e) {
-                print('❌ Error parsing notification: $e');
+                print('Error parsing notification: $e');
                 // Return a default notification in case of error
                 return AppNotification(
                   id: doc.id,
@@ -397,22 +401,18 @@ class NotificationRepository {
                   createdAt: DateTime.now(),
                 );
               }
-            })
-            .toList());
+            }).toList());
   }
 
   // Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .update({
-            'isRead': true,
-            'readAt': DateTime.now().millisecondsSinceEpoch,
-          });
+      await _firestore.collection('notifications').doc(notificationId).update({
+        'isRead': true,
+        'readAt': DateTime.now().millisecondsSinceEpoch,
+      });
     } catch (e) {
-      print('❌ Error marking notification as read: $e');
+      print('Error marking notification as read: $e');
       throw Exception('Failed to mark notification as read: $e');
     }
   }
@@ -437,9 +437,9 @@ class NotificationRepository {
       }
 
       await batch.commit();
-      print('✅ Marked all notifications as read for user $userId');
+      print('Marked all notifications as read for user $userId');
     } catch (e) {
-      print('❌ Error marking all notifications as read: $e');
+      print('Error marking all notifications as read: $e');
       throw Exception('Failed to mark all notifications as read: $e');
     }
   }
@@ -457,12 +457,9 @@ class NotificationRepository {
   // Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .delete();
+      await _firestore.collection('notifications').doc(notificationId).delete();
     } catch (e) {
-      print('❌ Error deleting notification: $e');
+      print('Error deleting notification: $e');
       throw Exception('Failed to delete notification: $e');
     }
   }
@@ -482,9 +479,9 @@ class NotificationRepository {
       }
 
       await batch.commit();
-      print('✅ Cleared all notifications for user $userId');
+      print('Cleared all notifications for user $userId');
     } catch (e) {
-      print('❌ Error clearing all notifications: $e');
+      print('Error clearing all notifications: $e');
       throw Exception('Failed to clear all notifications: $e');
     }
   }

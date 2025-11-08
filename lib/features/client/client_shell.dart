@@ -3,25 +3,17 @@ import 'package:provider/provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
-import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
-import 'package:sheersync/features/client/bookings/client_appointment_details_screen.dart';
-import 'package:sheersync/features/client/bookings/confirm_booking_screen.dart';
-import 'package:sheersync/features/client/bookings/my_bookings_screen.dart';
-import 'package:sheersync/features/client/bookings/select_barber_screen.dart';
-import 'package:sheersync/features/client/bookings/select_service_screen.dart';
-import 'package:sheersync/features/client/chat/client_chat_list_screen.dart';
+import 'package:sheersync/data/providers/appointments_provider.dart';
+import 'package:sheersync/data/providers/notification_provider.dart';
+import 'package:sheersync/data/providers/chat_provider.dart';
+import 'package:sheersync/data/providers/payment_provider.dart';
 import 'package:sheersync/features/client/home/home_screen.dart';
-import 'package:sheersync/features/client/payments/payment_history_screen.dart';
+import 'package:sheersync/features/client/bookings/my_bookings_screen.dart';
+import 'package:sheersync/features/client/chat/client_chat_list_screen.dart';
 import 'package:sheersync/features/client/payments/payments_screen.dart';
 import 'package:sheersync/features/client/profile/client_profile_screen.dart';
-import 'package:sheersync/features/client/reviews/review_screen.dart';
-import 'package:sheersync/features/shared/chat/chat_screen.dart';
 import 'package:sheersync/features/shared/notification/notification_center_screen.dart';
 import 'package:sheersync/features/shared/settings/settings_screen.dart';
-import 'package:sheersync/data/models/appointment_model.dart';
-import 'package:sheersync/data/models/chat_room_model.dart';
-import 'package:sheersync/data/models/user_model.dart';
-import 'package:sheersync/data/providers/notification_provider.dart';
 
 class ClientShell extends StatefulWidget {
   const ClientShell({super.key});
@@ -34,7 +26,7 @@ class _ClientShellState extends State<ClientShell> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Navigation stack for each tab to handle nested navigation
+  // Navigation stack for each tab
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(), // Home
     GlobalKey<NavigatorState>(), // Bookings
@@ -42,51 +34,58 @@ class _ClientShellState extends State<ClientShell> {
     GlobalKey<NavigatorState>(), // Payments
   ];
 
-  // Current screen titles based on navigation state
+  // Current screen title
   String _currentTitle = 'Home';
-  final List<String> _baseTitles = [
-    'Home',
-    'My Bookings',
-    'Messages',
-    'Payments'
-  ];
-
-  // Track navigation history for back button
-  final Map<int, List<String>> _navigationHistory = {
-    0: ['/'],
-    1: ['/'],
-    2: ['/'],
-    3: ['/'],
-  };
 
   @override
   void initState() {
     super.initState();
-    // Initialize notification provider
+    _initializeProviders();
+  }
+
+  void _initializeProviders() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
-      final notificationProvider = context.read<NotificationProvider>();
       if (authProvider.user != null) {
-        notificationProvider.loadNotifications(authProvider.user!.id);
+        // Initialize all providers with real-time data
+        context
+            .read<AppointmentsProvider>()
+            .loadClientAppointments(authProvider.user!.id);
+        context
+            .read<NotificationProvider>()
+            .loadNotifications(authProvider.user!.id);
+        context.read<ChatProvider>(); // Initialize chat provider
+        context
+            .read<PaymentProvider>()
+            .loadClientPayments(authProvider.user!.id);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
     final notificationProvider = Provider.of<NotificationProvider>(context);
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: AppColors.background,
-        appBar: _buildAppBar(notificationProvider),
-        body: _buildBody(),
-        bottomNavigationBar: _buildBottomNavigationBar(),
-        floatingActionButton: _buildFloatingActionButton(),
-        drawer: _buildDrawer(authProvider),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => AppointmentsProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => PaymentProvider()),
+      ],
+      child: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          return Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: AppColors.background,
+            appBar: _buildAppBar(notificationProvider),
+            body: _buildBody(),
+            bottomNavigationBar: _buildBottomNavigationBar(),
+            floatingActionButton: _buildFloatingActionButton(authProvider),
+            drawer: _buildDrawer(authProvider, notificationProvider),
+          );
+        },
       ),
     );
   }
@@ -96,16 +95,14 @@ class _ClientShellState extends State<ClientShell> {
       title: Text(
         _currentTitle,
         style: const TextStyle(
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
-          letterSpacing: -0.5,
         ),
       ),
       backgroundColor: AppColors.primary,
-      foregroundColor: AppColors.onPrimary,
-      elevation: 1,
-      centerTitle: false,
-      titleSpacing: 16,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
       leading: IconButton(
         icon: const Icon(Icons.menu),
         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -135,7 +132,10 @@ class _ClientShellState extends State<ClientShell> {
                     minHeight: 16,
                   ),
                   child: Text(
-                    notificationProvider.unreadNotifications.length.toString(),
+                    notificationProvider.unreadNotifications.length > 99
+                        ? '99+'
+                        : notificationProvider.unreadNotifications.length
+                            .toString(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -147,6 +147,7 @@ class _ClientShellState extends State<ClientShell> {
               ),
           ],
         ),
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -155,115 +156,36 @@ class _ClientShellState extends State<ClientShell> {
     return IndexedStack(
       index: _currentIndex,
       children: [
-        // Home Tab - Enhanced with real-time data
+        // Home Tab
         Navigator(
           key: _navigatorKeys[0],
-          onGenerateRoute: (settings) {
-            return MaterialPageRoute(
-              builder: (context) => _buildHomeScreenContent(settings),
-              settings: settings,
-            );
-          },
-          reportsRouteUpdateToEngine: true,
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (context) => const HomeScreen(),
+          ),
         ),
-        // Bookings Tab - Enhanced with real-time updates
+        // Bookings Tab
         Navigator(
           key: _navigatorKeys[1],
-          onGenerateRoute: (settings) {
-            return MaterialPageRoute(
-              builder: (context) => _buildBookingsScreenContent(settings),
-              settings: settings,
-            );
-          },
-          reportsRouteUpdateToEngine: true,
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (context) => const MyBookingsScreen(),
+          ),
         ),
-        // Messages Tab - Enhanced with offline support
+        // Messages Tab
         Navigator(
           key: _navigatorKeys[2],
-          onGenerateRoute: (settings) {
-            return MaterialPageRoute(
-              builder: (context) => _buildMessagesScreenContent(settings),
-              settings: settings,
-            );
-          },
-          reportsRouteUpdateToEngine: true,
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (context) => const ClientChatListScreen(),
+          ),
         ),
-        // Payments Tab - Enhanced with Stripe integration
+        // Payments Tab
         Navigator(
           key: _navigatorKeys[3],
-          onGenerateRoute: (settings) {
-            return MaterialPageRoute(
-              builder: (context) => _buildPaymentsScreenContent(settings),
-              settings: settings,
-            );
-          },
-          reportsRouteUpdateToEngine: true,
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (context) => const PaymentsScreen(),
+          ),
         ),
       ],
     );
-  }
-
-  Widget _buildHomeScreenContent(RouteSettings settings) {
-    switch (settings.name) {
-      case '/barber/profile':
-        final barber = settings.arguments as UserModel;
-        return BarberProfileScreen(barber: barber);
-      case '/barber/services':
-        final barber = settings.arguments as UserModel;
-        return SelectServiceScreen(barber: barber);
-      case '/booking/select-barber':
-        return const SelectBarberScreen();
-      default:
-        return const HomeScreen();
-    }
-  }
-
-  Widget _buildBookingsScreenContent(RouteSettings settings) {
-    switch (settings.name) {
-      case '/booking/select-barber':
-        return const SelectBarberScreen();
-      case '/booking/select-service':
-        final barber = settings.arguments as UserModel;
-        return SelectServiceScreen(barber: barber);
-      case '/booking/confirm':
-        final arguments = settings.arguments as Map<String, dynamic>;
-        return ConfirmBookingScreen(
-          barber: arguments['barber'],
-          service: arguments['service'],
-          selectedDateTime: arguments['selectedDateTime'],
-        );
-      case '/booking/details':
-        final appointment = settings.arguments as AppointmentModel;
-        return ClientAppointmentDetailsScreen(appointment: appointment);
-      case '/booking/review':
-        final arguments = settings.arguments as Map<String, dynamic>;
-        return ReviewScreen(
-          barberId: arguments['barberId'],
-          appointmentId: arguments['appointmentId'],
-          barberName: arguments['barberName'],
-        );
-      default:
-        return const MyBookingsScreen();
-    }
-  }
-
-  Widget _buildMessagesScreenContent(RouteSettings settings) {
-    switch (settings.name) {
-      case '/chat':
-        final chatRoom = settings.arguments as ChatRoom;
-        return ChatScreen(chatRoom: chatRoom);
-      default:
-        return const ClientChatListScreen();
-    }
-  }
-
-  Widget _buildPaymentsScreenContent(RouteSettings settings) {
-    switch (settings.name) {
-      case '/payment/history':
-        return const PaymentHistoryScreen();
-      default:
-        return const PaymentsScreen();
-    }
   }
 
   Widget _buildBottomNavigationBar() {
@@ -274,7 +196,8 @@ class _ClientShellState extends State<ClientShell> {
       backgroundColor: AppColors.background,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.textSecondary,
-      selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      selectedLabelStyle:
+          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       unselectedLabelStyle: const TextStyle(fontSize: 12),
       items: const [
         BottomNavigationBarItem(
@@ -301,22 +224,24 @@ class _ClientShellState extends State<ClientShell> {
     );
   }
 
-  Widget? _buildFloatingActionButton() {
+  Widget? _buildFloatingActionButton(AuthProvider authProvider) {
+    if (authProvider.user == null) return null;
+
     switch (_currentIndex) {
       case 0: // Home - Quick booking
         return FloatingActionButton(
-          onPressed: _navigateToSelectBarber,
+          onPressed: _navigateToBookingFlow,
           backgroundColor: AppColors.accent,
           foregroundColor: Colors.black,
           elevation: 4,
           tooltip: 'Quick Booking',
-          child: const Icon(Icons.cut_rounded, size: 28),
+          child: const Icon(Icons.add_rounded, size: 28),
         );
       case 1: // Bookings - Create new booking
         return FloatingActionButton(
-          onPressed: _navigateToSelectBarber,
+          onPressed: _navigateToBookingFlow,
           backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
+          foregroundColor: Colors.white,
           elevation: 4,
           tooltip: 'New Booking',
           child: const Icon(Icons.add_rounded, size: 28),
@@ -326,154 +251,134 @@ class _ClientShellState extends State<ClientShell> {
     }
   }
 
-  Widget _buildDrawer(AuthProvider authProvider) {
+  Widget _buildDrawer(
+      AuthProvider authProvider, NotificationProvider notificationProvider) {
     return Drawer(
       backgroundColor: AppColors.background,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Drawer Header with User Info
+          // User Header
           _buildDrawerHeader(authProvider),
-          // Quick Actions Section
-          _buildQuickActionsSection(),
-          const Divider(),
-          // Settings Section
-          _buildSettingsSection(),
-          const Divider(),
+
+          // Main Navigation Section
+          _buildDrawerSection('Navigation', [
+            _buildDrawerItem(
+              icon: Icons.home,
+              title: 'Home',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(0)),
+            ),
+            _buildDrawerItem(
+              icon: Icons.person,
+              title: 'My Profile',
+              onTap: () => _closeDrawerAndNavigate(_navigateToProfile),
+            ),
+            _buildDrawerItem(
+              icon: Icons.calendar_today,
+              title: 'My Bookings',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(1)),
+            ),
+            _buildDrawerItem(
+              icon: Icons.chat,
+              title: 'Messages',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(2)),
+            ),
+            _buildDrawerItem(
+              icon: Icons.payment,
+              title: 'Payments',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(3)),
+            ),
+          ]),
+
+          // Account Section
+          _buildDrawerSection('Account', [
+            _buildDrawerItem(
+              icon: Icons.settings,
+              title: 'Settings',
+              onTap: () => _closeDrawerAndNavigate(_navigateToSettings),
+            ),
+            _buildDrawerItem(
+              icon: Icons.notifications,
+              title: 'Notifications',
+              badge: notificationProvider.hasUnread,
+              onTap: () => _closeDrawerAndNavigate(_navigateToNotifications),
+            ),
+          ]),
+
           // Support Section
-          _buildSupportSection(),
-          const Divider(),
+          _buildDrawerSection('Support', [
+            _buildDrawerItem(
+              icon: Icons.help_outline,
+              title: 'Help & Support',
+              onTap: () => _closeDrawerAndNavigate(_showHelpSupport),
+            ),
+            _buildDrawerItem(
+              icon: Icons.info_outline,
+              title: 'About',
+              onTap: () => _closeDrawerAndNavigate(_showAbout),
+            ),
+          ]),
+
           // Logout Section
-          _buildLogoutSection(authProvider),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _buildDrawerItem(
+              icon: Icons.logout,
+              title: 'Logout',
+              color: AppColors.error,
+              onTap: () => _closeDrawerAndNavigate(
+                  () => _showLogoutConfirmation(authProvider)),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildDrawerHeader(AuthProvider authProvider) {
-    return DrawerHeader(
+    return UserAccountsDrawerHeader(
+      accountName: Text(
+        authProvider.user?.fullName ?? 'Client',
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      accountEmail: Text(
+        authProvider.user?.email ?? 'client@example.com',
+        style: TextStyle(color: Colors.white.withOpacity(0.8)),
+      ),
+      currentAccountPicture: CircleAvatar(
+        backgroundColor: Colors.white,
+        backgroundImage: authProvider.user?.profileImage != null
+            ? NetworkImage(authProvider.user!.profileImage!)
+            : null,
+        child: authProvider.user?.profileImage == null
+            ? const Icon(Icons.person, color: AppColors.primary)
+            : null,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
+        color: AppColors.primary,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppColors.primary.withOpacity(0.2),
-            backgroundImage: authProvider.user?.profileImage != null
-                ? NetworkImage(authProvider.user!.profileImage!)
-                : null,
-            child: authProvider.user?.profileImage == null
-                ? Icon(Icons.person, size: 30, color: AppColors.primary)
-                : null,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            authProvider.user?.fullName ?? 'Client',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            'Client Account',
+    );
+  }
+
+  Widget _buildDrawerSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+          child: Text(
+            title,
             style: TextStyle(
-              color: AppColors.textSecondary,
               fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            authProvider.user?.email ?? '',
-            style: TextStyle(
+              fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
-              fontSize: 12,
+              letterSpacing: 0.5,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionsSection() {
-    return Column(
-      children: [
-        _buildDrawerItem(
-          icon: Icons.home,
-          title: 'Home',
-          onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(0)),
         ),
-        _buildDrawerItem(
-          icon: Icons.person,
-          title: 'My Profile',
-          onTap: () => _closeDrawerAndNavigate(() => _navigateToProfile()),
-        ),
-        _buildDrawerItem(
-          icon: Icons.calendar_today,
-          title: 'My Bookings',
-          onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(1)),
-        ),
-        _buildDrawerItem(
-          icon: Icons.chat,
-          title: 'Messages',
-          onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(2)),
-        ),
-        _buildDrawerItem(
-          icon: Icons.payment,
-          title: 'Payments',
-          onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(3)),
-        ),
+        ...children,
+        const Divider(height: 1),
       ],
-    );
-  }
-
-  Widget _buildSettingsSection() {
-    return Column(
-      children: [
-        _buildDrawerItem(
-          icon: Icons.settings,
-          title: 'Settings',
-          onTap: () => _closeDrawerAndNavigate(_navigateToSettings),
-        ),
-        _buildDrawerItem(
-          icon: Icons.notifications,
-          title: 'Notification Settings',
-          onTap: () => _closeDrawerAndNavigate(_navigateToNotificationSettings),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSupportSection() {
-    return Column(
-      children: [
-        _buildDrawerItem(
-          icon: Icons.help_outline,
-          title: 'Help & Support',
-          onTap: () => _closeDrawerAndNavigate(_showHelpSupport),
-        ),
-        _buildDrawerItem(
-          icon: Icons.share,
-          title: 'Share App',
-          onTap: () => _closeDrawerAndNavigate(_shareApp),
-        ),
-        _buildDrawerItem(
-          icon: Icons.info_outline,
-          title: 'About',
-          onTap: () => _closeDrawerAndNavigate(_showAbout),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLogoutSection(AuthProvider authProvider) {
-    return _buildDrawerItem(
-      icon: Icons.logout,
-      title: 'Logout',
-      color: AppColors.error,
-      onTap: () => _closeDrawerAndNavigate(
-          () => _showLogoutConfirmation(authProvider)),
     );
   }
 
@@ -482,132 +387,107 @@ class _ClientShellState extends State<ClientShell> {
     required String title,
     required VoidCallback onTap,
     Color? color,
+    bool badge = false,
   }) {
     return ListTile(
-      leading: Icon(icon, color: color ?? AppColors.text),
-      title: Text(title, style: TextStyle(color: color ?? AppColors.text)),
+      leading: Stack(
+        children: [
+          Icon(icon, color: color ?? AppColors.text),
+          if (badge)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: color ?? AppColors.text,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       onTap: onTap,
     );
   }
 
   // Navigation Methods
   void _onTabTapped(int index) {
-    if (index == _currentIndex) {
-      // Pop to first route if same tab is tapped
-      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
-      _updateNavigationHistory(index, '/');
-    } else {
-      _setCurrentIndex(index);
-    }
+    setState(() {
+      _currentIndex = index;
+      _updateTitle(index);
+    });
   }
 
   void _setCurrentIndex(int index) {
     setState(() {
       _currentIndex = index;
-      _currentTitle = _baseTitles[index];
+      _updateTitle(index);
     });
   }
 
-  void _updateNavigationHistory(int tabIndex, String route) {
-    if (!_navigationHistory[tabIndex]!.contains(route)) {
-      _navigationHistory[tabIndex]!.add(route);
+  void _updateTitle(int index) {
+    switch (index) {
+      case 0:
+        _currentTitle = 'Home';
+        break;
+      case 1:
+        _currentTitle = 'My Bookings';
+        break;
+      case 2:
+        _currentTitle = 'Messages';
+        break;
+      case 3:
+        _currentTitle = 'Payments';
+        break;
     }
   }
 
-  Future<bool> _onWillPop() async {
-    final currentNavigator = _navigatorKeys[_currentIndex];
-    final currentHistory = _navigationHistory[_currentIndex]!;
-
-    // Check if we can pop the current navigator
-    if (currentNavigator.currentState?.canPop() == true) {
-      currentNavigator.currentState?.pop();
-      
-      // Update history
-      if (currentHistory.length > 1) {
-        currentHistory.removeLast();
-        _updateTitleFromHistory();
-      }
-      return false;
-    }
-
-    // If we're on the first route of the current tab, allow back to exit app
-    return true;
-  }
-
-  void _updateTitleFromHistory() {
-    final currentHistory = _navigationHistory[_currentIndex]!;
-    final currentRoute = currentHistory.last;
-    
-    setState(() {
-      switch (currentRoute) {
-        case '/barber/profile':
-          _currentTitle = 'Professional Profile';
-          break;
-        case '/booking/select-barber':
-          _currentTitle = 'Choose Professional';
-          break;
-        case '/booking/select-service':
-          _currentTitle = 'Select Service';
-          break;
-        case '/booking/confirm':
-          _currentTitle = 'Confirm Booking';
-          break;
-        case '/booking/details':
-          _currentTitle = 'Appointment Details';
-          break;
-        case '/chat':
-          _currentTitle = 'Chat';
-          break;
-        case '/payment/history':
-          _currentTitle = 'Payment History';
-          break;
-        default:
-          _currentTitle = _baseTitles[_currentIndex];
-      }
-    });
-  }
-
-  // Helper method to close drawer and then execute navigation
   void _closeDrawerAndNavigate(VoidCallback navigationCallback) {
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(); // Close drawer
     Future.delayed(const Duration(milliseconds: 100), navigationCallback);
   }
 
-  // Navigation methods
+  void _navigateToBookingFlow() {
+    // This will be handled by the individual screens
+    showCustomSnackBar(
+      context,
+      'Navigate to booking flow',
+      type: SnackBarType.info,
+    );
+  }
+
   void _navigateToProfile() {
     final authProvider = context.read<AuthProvider>();
     if (authProvider.user != null) {
-      _pushScreen(0, ClientProfileScreen(user: authProvider.user!), 'My Profile');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ClientProfileScreen(user: authProvider.user!),
+        ),
+      );
     }
   }
 
-  void _navigateToSelectBarber() {
-    _pushScreen(_currentIndex, const SelectBarberScreen(), 'Choose Professional');
-  }
-
   void _navigateToSettings() {
-    _pushScreen(_currentIndex, const SettingsScreen(), 'Settings');
-  }
-
-  void _navigateToNotificationSettings() {
-    _pushScreen(_currentIndex, const NotificationCenterScreen(), 'Notifications');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+    );
   }
 
   void _navigateToNotifications() {
-    _pushScreen(_currentIndex, const NotificationCenterScreen(), 'Notifications');
-  }
-
-  void _pushScreen(int tabIndex, Widget screen, String title) {
-    final navigator = _navigatorKeys[tabIndex];
-    
-    setState(() {
-      _currentTitle = title;
-    });
-
-    _updateNavigationHistory(tabIndex, '/${screen.runtimeType}');
-    
-    navigator.currentState?.push(
-      MaterialPageRoute(builder: (context) => screen),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NotificationCenterScreen()),
     );
   }
 
@@ -616,7 +496,12 @@ class _ClientShellState extends State<ClientShell> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Help & Support'),
-        content: const Text('Contact our support team at support@sheersync.com or call +1-555-HELP for assistance.'),
+        content: const Text(
+          'For assistance, contact our support team:\n\n'
+          'Email: support@sheersync.com\n'
+          'Phone: +1-555-HELP\n\n'
+          'We\'re here to help you 24/7.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -627,15 +512,6 @@ class _ClientShellState extends State<ClientShell> {
     );
   }
 
-  void _shareApp() {
-    // Implement share functionality
-    showCustomSnackBar(
-      context,
-      'Share functionality will be implemented here',
-      type: SnackBarType.info,
-    );
-  }
-
   void _showAbout() {
     showDialog(
       context: context,
@@ -643,8 +519,8 @@ class _ClientShellState extends State<ClientShell> {
         title: const Text('About SheerSync'),
         content: const Text(
           'SheerSync v1.0.0\n\n'
-          'Connect with professional barbers and hairstylists for your grooming needs. '
-          'Book appointments, chat with professionals, and make secure payments all in one app.',
+          'Your all-in-one platform for connecting with professional barbers and hairstylists. '
+          'Book appointments, communicate seamlessly, and manage payments with ease.',
         ),
         actions: [
           TextButton(
@@ -682,11 +558,5 @@ class _ClientShellState extends State<ClientShell> {
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    // Clean up any resources
-    super.dispose();
   }
 }
