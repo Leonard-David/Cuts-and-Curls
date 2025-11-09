@@ -690,7 +690,7 @@ class _MarketingScreenState extends State<MarketingScreen> {
         servicesText += '• ${data['name']} - N\$${data['price']}\n';
       }
       
-      servicesText += '\n📱 Book now on SheerSync! #BarberServices';
+      servicesText += '\n📱 Book now on VerveBook! #${barber.role}Services';
 
       await Share.share(servicesText);
       await _trackMarketingEvent(barber.id, 'services_share');
