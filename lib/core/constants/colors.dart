@@ -36,4 +36,8 @@ class AppColors {
   static const Color onBackground = Color(0xFF000000);
   static const Color onSurface = Color(0xFF000000);
   static const Color onError = Colors.white;
+  // Notification colors
+  static const Color notificationRead = Color(0xFFF7FAFC); // Very light blue-gray
+  static const Color notificationUnread = Color(0xFFEBF8FF); // Light blue
+  static const Color notificationUrgent = Color(0xFFFFF5F5); // Light red
 }

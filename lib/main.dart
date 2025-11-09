@@ -4,9 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/theme/app_theme.dart';
 import 'package:sheersync/core/utils/offline_service.dart';
-// ignore: unused_import
-import 'package:sheersync/core/utils/stripe_helper.dart';
-import 'package:sheersync/data/adapters/hive_adapters.dart';
+import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/chat_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
@@ -56,13 +54,16 @@ void main() async {
     await FCMService.initialize();
     print('FCM initialized');
 
+    // Initialize offline service
+    await OfflineService().initialize();
+
     // Initialize Stripe with error handling
     //try {
-     // await StripeHelper.initialize();
+    // await StripeHelper.initialize();
     //  print('Stripe initialized');
     //} catch (e) {
-      //print('Stripe initialization failed: $e');
-      // Continue without Stripe for now
+    //print('Stripe initialization failed: $e');
+    // Continue without Stripe for now
     //}
 
     print('All services initialized successfully');

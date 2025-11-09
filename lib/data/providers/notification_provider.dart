@@ -1,10 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:sheersync/core/utils/offline_service.dart';
 import '../models/notification_model.dart';
 import '../repositories/notification_repository.dart';
 
 class NotificationProvider with ChangeNotifier {
-  final NotificationRepository _notificationRepository = NotificationRepository();
-  
+  final NotificationRepository _notificationRepository =
+      NotificationRepository();
+  final OfflineService _offlineService = OfflineService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   List<AppNotification> _notifications = [];
   bool _hasUnread = false;
   bool _isLoading = false;
@@ -14,80 +19,208 @@ class NotificationProvider with ChangeNotifier {
   bool get hasUnread => _hasUnread;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  int get totalCount => _notifications.length;
+  int get unreadCount => _notifications.where((n) => !n.isRead).length;
+  int get todaysCount => _notifications
+      .where((n) => n.category == NotificationCategory.today)
+      .length;
 
   // Load notifications for user with real-time updates
-  void loadNotifications(String userId) {
+  // Load notifications with offline support
+  Future<void> loadNotifications(String userId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _notificationRepository.getUserNotifications(userId).listen(
-        (notifications) {
-          _notifications = notifications;
-          _hasUnread = _notifications.any((notification) => !notification.isRead);
-          _isLoading = false;
-          _error = null;
-          notifyListeners();
-        },
-        onError: (error) {
-          _isLoading = false;
-          _error = 'Failed to load notifications: $error';
-          notifyListeners();
-          print('❌ Error loading notifications: $error');
-        },
-      );
+      if (await _offlineService.isConnected()) {
+        // Load from Firestore
+        final snapshot = await _firestore
+            .collection('notifications')
+            .where('userId', isEqualTo: userId)
+            .orderBy('createdAt', descending: true)
+            .limit(100)
+            .get();
+
+        _notifications = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return AppNotification.fromMap(data);
+        }).toList();
+
+        // Sync any offline notifications
+        await _syncOfflineNotifications(userId);
+      } else {
+        // Load from offline storage
+        _notifications = await _offlineService.getOfflineNotifications(userId);
+      }
     } catch (e) {
-      _isLoading = false;
       _error = 'Failed to load notifications: $e';
+      // Fallback to offline data
+      _notifications = await _offlineService.getOfflineNotifications(userId);
+    } finally {
+      _isLoading = false;
       notifyListeners();
-      print('❌ Error loading notifications: $e');
     }
   }
 
-  // Mark notification as read
-  Future<void> markAsRead(String notificationId) async {
-    try {
-      await _notificationRepository.markAsRead(notificationId);
-      
-      // Update local state
-      final index = _notifications.indexWhere((n) => n.id == notificationId);
-      if (index != -1) {
-        _notifications[index] = _notifications[index].copyWith(
-          isRead: true,
-          readAt: DateTime.now(),
-        );
-        _hasUnread = _notifications.any((notification) => !notification.isRead);
+  // Real-time notifications stream
+  Stream<List<AppNotification>> getNotificationsStream(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      if (snapshot.docs.isNotEmpty) {
+        final onlineNotifications = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return AppNotification.fromMap(data);
+        }).toList();
+
+        // Merge with offline notifications
+        final offlineNotifications =
+            await _offlineService.getOfflineNotifications(userId);
+
+        final allNotifications = [
+          ...onlineNotifications,
+          ...offlineNotifications
+        ];
+
+        // Remove duplicates and sort
+        final uniqueNotifications = allNotifications
+            .fold<Map<String, AppNotification>>({}, (map, notification) {
+              if (!map.containsKey(notification.id) ||
+                  notification.createdAt
+                      .isAfter(map[notification.id]!.createdAt)) {
+                map[notification.id] = notification;
+              }
+              return map;
+            })
+            .values
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        _notifications = uniqueNotifications;
         notifyListeners();
+        return uniqueNotifications;
+      } else {
+        // Fallback to offline only
+        final offlineNotifications =
+            await _offlineService.getOfflineNotifications(userId);
+        _notifications = offlineNotifications;
+        notifyListeners();
+        return offlineNotifications;
       }
-    } catch (e) {
-      _error = 'Failed to mark notification as read: $e';
+    });
+  }
+
+  // Create notification with offline support
+  Future<void> createNotification(AppNotification notification) async {
+    try {
+      if (await _offlineService.isConnected()) {
+        await _firestore
+            .collection('notifications')
+            .doc(notification.id)
+            .set(notification.toMap());
+
+        _notifications.insert(0, notification);
+      } else {
+        // Save offline
+        final offlineNotification = notification.copyWith(isSynced: false);
+        await _offlineService.saveNotificationOffline(offlineNotification);
+        _notifications.insert(0, offlineNotification);
+
+        // Add to sync queue
+        await _offlineService.addToSyncQueue('create_notification', {
+          'type': 'notification',
+          'notificationData': offlineNotification.toMap(),
+        });
+      }
+
       notifyListeners();
-      print('❌ Error marking notification as read: $e');
+    } catch (e) {
+      // Fallback to offline storage
+      final offlineNotification = notification.copyWith(isSynced: false);
+      await _offlineService.saveNotificationOffline(offlineNotification);
+      _notifications.insert(0, offlineNotification);
+      notifyListeners();
+    }
+  }
+
+  /// Mark as read
+  Future<void> markAsRead(String notificationId) async {
+    final index = _notifications.indexWhere((n) => n.id == notificationId);
+    if (index != -1) {
+      final updatedNotification = _notifications[index].copyWith(isRead: true);
+      _notifications[index] = updatedNotification;
+      notifyListeners();
+
+      try {
+        if (await _offlineService.isConnected()) {
+          await _firestore
+              .collection('notifications')
+              .doc(notificationId)
+              .update({'isRead': true});
+        } else {
+          // Update offline and queue sync
+          await _offlineService.saveNotificationOffline(updatedNotification);
+          await _offlineService.addToSyncQueue('update_notification', {
+            'type': 'notification',
+            'notificationId': notificationId,
+            'updates': {'isRead': true},
+          });
+        }
+      } catch (e) {
+        // Revert on error
+        _notifications[index] = _notifications[index].copyWith(isRead: false);
+        notifyListeners();
+        throw Exception('Failed to mark as read: $e');
+      }
     }
   }
 
   // Mark all notifications as read
+  // Mark all as read
   Future<void> markAllAsRead(String userId) async {
+    final unreadNotifications = _notifications.where((n) => !n.isRead).toList();
+
+    for (final notification in unreadNotifications) {
+      final index = _notifications.indexWhere((n) => n.id == notification.id);
+      _notifications[index] = notification.copyWith(isRead: true);
+    }
+
+    notifyListeners();
+
     try {
-      await _notificationRepository.markAllAsRead(userId);
-      
-      // Update local state
-      for (int i = 0; i < _notifications.length; i++) {
-        if (!_notifications[i].isRead) {
-          _notifications[i] = _notifications[i].copyWith(
-            isRead: true,
-            readAt: DateTime.now(),
-          );
+      if (await _offlineService.isConnected()) {
+        final batch = _firestore.batch();
+        for (final notification in unreadNotifications) {
+          final docRef =
+              _firestore.collection('notifications').doc(notification.id);
+          batch.update(docRef, {'isRead': true});
         }
+        await batch.commit();
+      } else {
+        // Update offline and queue sync
+        for (final notification in unreadNotifications) {
+          final updatedNotification = notification.copyWith(isRead: true);
+          await _offlineService.saveNotificationOffline(updatedNotification);
+        }
+
+        await _offlineService.addToSyncQueue('mark_all_read', {
+          'type': 'notification_batch',
+          'userId': userId,
+          'action': 'mark_all_read',
+        });
       }
-      _hasUnread = false;
-      _error = null;
-      notifyListeners();
     } catch (e) {
-      _error = 'Failed to mark all notifications as read: $e';
+      // Revert on error
+      for (final notification in unreadNotifications) {
+        final index = _notifications.indexWhere((n) => n.id == notification.id);
+        _notifications[index] = notification.copyWith(isRead: false);
+      }
       notifyListeners();
-      print('❌ Error marking all notifications as read: $e');
+      throw Exception('Failed to mark all as read: $e');
     }
   }
 
@@ -98,33 +231,150 @@ class NotificationProvider with ChangeNotifier {
 
   // Clear all notifications
   Future<void> clearAllNotifications(String userId) async {
+    final notificationsToDelete = List<AppNotification>.from(_notifications);
+    _notifications.clear();
+    notifyListeners();
+
     try {
-      await _notificationRepository.clearAllNotifications(userId);
-      _notifications.clear();
-      _hasUnread = false;
-      _error = null;
-      notifyListeners();
+      if (await _offlineService.isConnected()) {
+        final batch = _firestore.batch();
+        for (final notification in notificationsToDelete) {
+          final docRef =
+              _firestore.collection('notifications').doc(notification.id);
+          batch.delete(docRef);
+        }
+        await batch.commit();
+      } else {
+        // Clear offline storage and queue sync
+        await _offlineService.clearAllOfflineNotifications(userId);
+        await _offlineService.addToSyncQueue('clear_all_notifications', {
+          'type': 'notification_batch',
+          'userId': userId,
+          'action': 'clear_all',
+        });
+      }
     } catch (e) {
-      _error = 'Failed to clear notifications: $e';
+      // Restore on error
+      _notifications.addAll(notificationsToDelete);
       notifyListeners();
-      print('❌ Error clearing notifications: $e');
+      throw Exception('Failed to clear all notifications: $e');
+    }
+  }
+
+  // Sync offline notifications
+  Future<void> _syncOfflineNotifications(String userId) async {
+    try {
+      final offlineNotifications =
+          await _offlineService.getOfflineNotifications(userId);
+      final pendingSyncItems = await _offlineService.getPendingSyncItems();
+
+      for (final notification in offlineNotifications) {
+        if (!notification.isSynced) {
+          await _firestore
+              .collection('notifications')
+              .doc(notification.id)
+              .set(notification.toMap());
+
+          await _offlineService.removeOfflineNotification(notification.id);
+        }
+      }
+
+      // Process sync queue
+      final notificationSyncItems = pendingSyncItems
+          .where((item) => item['type'] == 'notification')
+          .toList();
+
+      for (final item in notificationSyncItems) {
+        try {
+          switch (item['action']) {
+            case 'create_notification':
+              final notificationData =
+                  Map<String, dynamic>.from(item['data']['notificationData']);
+              await _firestore
+                  .collection('notifications')
+                  .doc(notificationData['id'])
+                  .set(notificationData);
+              break;
+
+            case 'update_notification':
+              await _firestore
+                  .collection('notifications')
+                  .doc(item['data']['notificationId'])
+                  .update(item['data']['updates']);
+              break;
+
+            case 'delete_notification':
+              await _firestore
+                  .collection('notifications')
+                  .doc(item['data']['notificationId'])
+                  .delete();
+              break;
+
+            case 'mark_all_read':
+              final userNotifications = await _firestore
+                  .collection('notifications')
+                  .where('userId', isEqualTo: userId)
+                  .where('isRead', isEqualTo: false)
+                  .get();
+
+              final batch = _firestore.batch();
+              for (final doc in userNotifications.docs) {
+                batch.update(doc.reference, {'isRead': true});
+              }
+              await batch.commit();
+              break;
+
+            case 'clear_all':
+              final userNotifications = await _firestore
+                  .collection('notifications')
+                  .where('userId', isEqualTo: userId)
+                  .get();
+
+              final batch = _firestore.batch();
+              for (final doc in userNotifications.docs) {
+                batch.delete(doc.reference);
+              }
+              await batch.commit();
+              break;
+          }
+
+          await _offlineService.removeFromSyncQueue(item['id']);
+        } catch (e) {
+          print('Failed to sync notification operation ${item['action']}: $e');
+        }
+      }
+    } catch (e) {
+      print('Error syncing offline notifications: $e');
     }
   }
 
   // Delete single notification
   Future<void> deleteNotification(String notificationId) async {
+    final notification =
+        _notifications.firstWhere((n) => n.id == notificationId);
+    _notifications.removeWhere((n) => n.id == notificationId);
+    notifyListeners();
+
     try {
-      await _notificationRepository.deleteNotification(notificationId);
-      
-      // Remove from local state
-      _notifications.removeWhere((n) => n.id == notificationId);
-      _hasUnread = _notifications.any((notification) => !notification.isRead);
-      _error = null;
-      notifyListeners();
+      if (await _offlineService.isConnected()) {
+        await _firestore
+            .collection('notifications')
+            .doc(notificationId)
+            .delete();
+      } else {
+        // Remove from offline storage and queue sync
+        await _offlineService.removeOfflineNotification(notificationId);
+        await _offlineService.addToSyncQueue('delete_notification', {
+          'type': 'notification',
+          'notificationId': notificationId,
+        });
+      }
     } catch (e) {
-      _error = 'Failed to delete notification: $e';
+      // Restore on error
+      _notifications.add(notification);
+      _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       notifyListeners();
-      print('❌ Error deleting notification: $e');
+      throw Exception('Failed to delete notification: $e');
     }
   }
 
@@ -301,14 +551,8 @@ class NotificationProvider with ChangeNotifier {
   }
 
   // Refresh notifications
-  void refreshNotifications(String userId) {
-    _notifications.clear();
-    _hasUnread = false;
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    
-    loadNotifications(userId);
+  Future<void> refreshNotifications(String userId) async {
+    await loadNotifications(userId);
   }
 
   // Get notification by ID
@@ -324,17 +568,37 @@ class NotificationProvider with ChangeNotifier {
 
   // Check if notification exists
   bool hasNotification(String notificationId) {
-    return _notifications.any((notification) => notification.id == notificationId);
+    return _notifications
+        .any((notification) => notification.id == notificationId);
   }
 
   // Get notifications by type
   List<AppNotification> getNotificationsByType(NotificationType type) {
-    return _notifications.where((notification) => notification.type == type).toList();
+    return _notifications
+        .where((notification) => notification.type == type)
+        .toList();
   }
 
   // Get unread notifications
-  List<AppNotification> get unreadNotifications {
-    return _notifications.where((notification) => !notification.isRead).toList();
+  List<AppNotification> get unreadNotifications =>
+      _notifications.where((n) => !n.isRead).toList();
+
+  List<AppNotification> get todaysNotifications => _notifications
+      .where((n) => n.category == NotificationCategory.today)
+      .toList();
+
+  // Categorized notifications
+  Map<NotificationCategory, List<AppNotification>>
+      get categorizedNotifications {
+    final categorized = <NotificationCategory, List<AppNotification>>{};
+
+    for (final category in NotificationCategory.values) {
+      categorized[category] = _notifications
+          .where((notification) => notification.category == category)
+          .toList();
+    }
+
+    return categorized;
   }
 
   // Get read notifications
@@ -347,13 +611,16 @@ class NotificationProvider with ChangeNotifier {
     return _notifications.take(10).toList();
   }
 
-  // Get today's notifications
-  List<AppNotification> get todaysNotifications {
-    final today = DateTime.now();
-    return _notifications.where((notification) {
-      return notification.createdAt.year == today.year &&
-             notification.createdAt.month == today.month &&
-             notification.createdAt.day == today.day;
-    }).toList();
+  // Get notification counts by category
+  Map<NotificationCategory, int> get notificationCountsByCategory {
+    final counts = <NotificationCategory, int>{};
+    
+    for (final category in NotificationCategory.values) {
+      counts[category] = _notifications
+          .where((n) => n.category == category)
+          .length;
+    }
+    
+    return counts;
   }
 }

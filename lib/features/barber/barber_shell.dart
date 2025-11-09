@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
+import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/features/barber/appointments/appointment_details_screen.dart';
@@ -18,7 +19,6 @@ import 'package:sheersync/features/barber/services/manage_availability_screen.da
 import 'package:sheersync/features/shared/chat/chat_screen.dart';
 import 'package:sheersync/features/shared/notification/notification_center_screen.dart';
 import 'package:sheersync/features/shared/settings/settings_screen.dart';
-import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/models/chat_room_model.dart';
 
 class BarberShell extends StatefulWidget {

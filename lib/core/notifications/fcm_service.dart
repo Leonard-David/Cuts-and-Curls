@@ -191,6 +191,7 @@ class FCMService {
 
   ////////////////////////
   // Handle different notification types
+  // ignore: unused_element
   static void _handleNotificationByType(Map<String, dynamic> data) {
     final type = data['type'];
     
@@ -271,6 +272,7 @@ class FCMService {
 
         if (fcmToken != null && fcmToken.isNotEmpty) {
           // Prepare notification payload
+          // ignore: unused_local_variable
           final message = {
             'token': fcmToken,
             'notification': {

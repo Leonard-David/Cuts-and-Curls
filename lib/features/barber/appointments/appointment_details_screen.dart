@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
-import 'package:sheersync/data/models/appointment_model.dart';
+import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/models/notification_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/repositories/booking_repository.dart';

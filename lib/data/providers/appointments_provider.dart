@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/appointment_model.dart';
+import 'package:sheersync/data/adapters/hive_adapters.dart';
 import '../repositories/booking_repository.dart';
 
 class AppointmentsProvider with ChangeNotifier {
   final BookingRepository _bookingRepository = BookingRepository();
-  
+
   List<AppointmentModel> _allAppointments = [];
   List<AppointmentModel> _appointmentRequests = [];
   List<AppointmentModel> _todaysAppointments = [];
@@ -13,7 +13,7 @@ class AppointmentsProvider with ChangeNotifier {
   List<AppointmentModel> _clientAppointments = [];
   List<AppointmentModel> _clientTodaysAppointments = [];
   List<AppointmentModel> _clientUpcomingAppointments = [];
-  
+
   bool _isLoading = false;
   String? _error;
   String _currentFilter = 'all';
@@ -24,8 +24,11 @@ class AppointmentsProvider with ChangeNotifier {
   List<AppointmentModel> get todaysAppointments => _todaysAppointments;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
   List<AppointmentModel> get clientAppointments => _clientAppointments;
-  List<AppointmentModel> get clientTodaysAppointments => _clientTodaysAppointments;
-  List<AppointmentModel> get clientUpcomingAppointments => _clientUpcomingAppointments;
+  List<AppointmentModel> get clientTodaysAppointments =>
+      _clientTodaysAppointments;
+  List<AppointmentModel> get clientUpcomingAppointments =>
+      _clientUpcomingAppointments;
+
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get currentFilter => _currentFilter;
@@ -47,8 +50,9 @@ class AppointmentsProvider with ChangeNotifier {
 
     // Cancel existing subscription
     _appointmentsSubscription?.cancel();
-    
-    _appointmentsSubscription = _bookingRepository.getBarberAppointments(barberId).listen(
+
+    _appointmentsSubscription =
+        _bookingRepository.getBarberAppointments(barberId).listen(
       (appointments) {
         _allAppointments = appointments;
         _isLoading = false;
@@ -71,8 +75,9 @@ class AppointmentsProvider with ChangeNotifier {
 
     // Cancel existing subscription
     _clientAppointmentsSubscription?.cancel();
-    
-    _clientAppointmentsSubscription = _bookingRepository.getClientAppointments(clientId).listen(
+
+    _clientAppointmentsSubscription =
+        _bookingRepository.getClientAppointments(clientId).listen(
       (appointments) {
         _clientAppointments = appointments;
         _isLoading = false;
@@ -90,8 +95,9 @@ class AppointmentsProvider with ChangeNotifier {
   // Load appointment requests (pending appointments from clients for barber)
   void loadAppointmentRequests(String barberId) {
     _requestsSubscription?.cancel();
-    
-    _requestsSubscription = _bookingRepository.getAppointmentRequests(barberId).listen(
+
+    _requestsSubscription =
+        _bookingRepository.getAppointmentRequests(barberId).listen(
       (requests) {
         _appointmentRequests = requests;
         notifyListeners();
@@ -106,8 +112,9 @@ class AppointmentsProvider with ChangeNotifier {
   // Load today's appointments for barber
   void loadTodaysAppointments(String barberId) {
     _todaySubscription?.cancel();
-    
-    _todaySubscription = _bookingRepository.getTodaysAppointments(barberId).listen(
+
+    _todaySubscription =
+        _bookingRepository.getTodaysAppointments(barberId).listen(
       (appointments) {
         _todaysAppointments = appointments;
         notifyListeners();
@@ -122,8 +129,9 @@ class AppointmentsProvider with ChangeNotifier {
   // Load today's appointments for client
   void loadClientTodaysAppointments(String clientId) {
     _clientTodaySubscription?.cancel();
-    
-    _clientTodaySubscription = _bookingRepository.getClientTodaysAppointments(clientId).listen(
+
+    _clientTodaySubscription =
+        _bookingRepository.getClientTodaysAppointments(clientId).listen(
       (appointments) {
         _clientTodaysAppointments = appointments;
         notifyListeners();
@@ -138,8 +146,9 @@ class AppointmentsProvider with ChangeNotifier {
   // Load upcoming appointments for barber (excluding today)
   void loadUpcomingAppointments(String barberId) {
     _upcomingSubscription?.cancel();
-    
-    _upcomingSubscription = _bookingRepository.getUpcomingAppointments(barberId).listen(
+
+    _upcomingSubscription =
+        _bookingRepository.getUpcomingAppointments(barberId).listen(
       (appointments) {
         _upcomingAppointments = appointments;
         notifyListeners();
@@ -154,8 +163,9 @@ class AppointmentsProvider with ChangeNotifier {
   // Load upcoming appointments for client (excluding today)
   void loadClientUpcomingAppointments(String clientId) {
     _clientUpcomingSubscription?.cancel();
-    
-    _clientUpcomingSubscription = _bookingRepository.getClientUpcomingAppointments(clientId).listen(
+
+    _clientUpcomingSubscription =
+        _bookingRepository.getClientUpcomingAppointments(clientId).listen(
       (appointments) {
         _clientUpcomingAppointments = appointments;
         notifyListeners();
@@ -170,8 +180,10 @@ class AppointmentsProvider with ChangeNotifier {
   // Get appointments by status for barber
   void loadBarberAppointmentsByStatus(String barberId, String status) {
     _appointmentsSubscription?.cancel();
-    
-    _appointmentsSubscription = _bookingRepository.getBarberAppointmentsByStatus(barberId, status).listen(
+
+    _appointmentsSubscription = _bookingRepository
+        .getBarberAppointmentsByStatus(barberId, status)
+        .listen(
       (appointments) {
         _allAppointments = appointments;
         notifyListeners();
@@ -186,8 +198,10 @@ class AppointmentsProvider with ChangeNotifier {
   // Get appointments by status for client
   void loadClientAppointmentsByStatus(String clientId, String status) {
     _clientAppointmentsSubscription?.cancel();
-    
-    _clientAppointmentsSubscription = _bookingRepository.getClientAppointmentsByStatus(clientId, status).listen(
+
+    _clientAppointmentsSubscription = _bookingRepository
+        .getClientAppointmentsByStatus(clientId, status)
+        .listen(
       (appointments) {
         _clientAppointments = appointments;
         notifyListeners();
@@ -200,8 +214,10 @@ class AppointmentsProvider with ChangeNotifier {
   }
 
   // Get completed appointments for barber (for earnings)
-  Stream<List<AppointmentModel>> getCompletedAppointmentsStream(String barberId, {DateTime? startDate, DateTime? endDate}) {
-    return _bookingRepository.getCompletedAppointments(barberId, startDate: startDate, endDate: endDate);
+  Stream<List<AppointmentModel>> getCompletedAppointmentsStream(String barberId,
+      {DateTime? startDate, DateTime? endDate}) {
+    return _bookingRepository.getCompletedAppointments(barberId,
+        startDate: startDate, endDate: endDate);
   }
 
   // Create new appointment
@@ -209,9 +225,9 @@ class AppointmentsProvider with ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-      
+
       await _bookingRepository.createAppointment(appointment);
-      
+
       // Add to local state for immediate UI update
       _clientAppointments.insert(0, appointment);
       _isLoading = false;
@@ -226,12 +242,14 @@ class AppointmentsProvider with ChangeNotifier {
   }
 
   // Update appointment status
-  Future<void> updateAppointmentStatus(String appointmentId, String status) async {
+  Future<void> updateAppointmentStatus(
+      String appointmentId, String status) async {
     try {
       await _bookingRepository.updateAppointmentStatus(appointmentId, status);
-      
+
       // Update local state
-      _updateAppointmentInLists(appointmentId, (appointment) => appointment.copyWith(status: status));
+      _updateAppointmentInLists(
+          appointmentId, (appointment) => appointment.copyWith(status: status));
       notifyListeners();
     } catch (e) {
       _error = 'Failed to update appointment status: $e';
@@ -244,9 +262,10 @@ class AppointmentsProvider with ChangeNotifier {
   Future<void> cancelAppointment(String appointmentId) async {
     try {
       await _bookingRepository.cancelAppointment(appointmentId, 'cancelled');
-      
+
       // Update local state
-      _updateAppointmentInLists(appointmentId, (appointment) => appointment.copyWith(status: 'cancelled'));
+      _updateAppointmentInLists(appointmentId,
+          (appointment) => appointment.copyWith(status: 'cancelled'));
       notifyListeners();
     } catch (e) {
       _error = 'Failed to cancel appointment: $e';
@@ -259,7 +278,7 @@ class AppointmentsProvider with ChangeNotifier {
   Future<void> deleteAppointment(String appointmentId) async {
     try {
       await _bookingRepository.deleteAppointment(appointmentId);
-      
+
       // Remove from local state
       _removeAppointmentFromLists(appointmentId);
       notifyListeners();
@@ -282,9 +301,11 @@ class AppointmentsProvider with ChangeNotifier {
   }
 
   // Check barber availability
-  Future<bool> checkBarberAvailability(String barberId, DateTime dateTime) async {
+  Future<bool> checkBarberAvailability(
+      String barberId, DateTime dateTime) async {
     try {
-      return await _bookingRepository.checkBarberAvailability(barberId, dateTime);
+      return await _bookingRepository.checkBarberAvailability(
+          barberId, dateTime);
     } catch (e) {
       _error = 'Failed to check availability: $e';
       notifyListeners();
@@ -293,7 +314,8 @@ class AppointmentsProvider with ChangeNotifier {
   }
 
   // Get available time slots for a barber
-  Future<List<DateTime>> getAvailableTimeSlots(String barberId, DateTime date) async {
+  Future<List<DateTime>> getAvailableTimeSlots(
+      String barberId, DateTime date) async {
     try {
       return await _bookingRepository.getAvailableTimeSlots(barberId, date);
     } catch (e) {
@@ -304,7 +326,8 @@ class AppointmentsProvider with ChangeNotifier {
   }
 
   // Helper method to update appointment in all lists
-  void _updateAppointmentInLists(String appointmentId, AppointmentModel Function(AppointmentModel) updateFn) {
+  void _updateAppointmentInLists(String appointmentId,
+      AppointmentModel Function(AppointmentModel) updateFn) {
     final updateList = (List<AppointmentModel> list) {
       final index = list.indexWhere((a) => a.id == appointmentId);
       if (index != -1) {
@@ -345,7 +368,8 @@ class AppointmentsProvider with ChangeNotifier {
 
   // Update appointment in local state
   void updateAppointment(AppointmentModel updatedAppointment) {
-    final index = _clientAppointments.indexWhere((a) => a.id == updatedAppointment.id);
+    final index =
+        _clientAppointments.indexWhere((a) => a.id == updatedAppointment.id);
     if (index != -1) {
       _clientAppointments[index] = updatedAppointment;
       _updateFilteredLists();
@@ -365,42 +389,47 @@ class AppointmentsProvider with ChangeNotifier {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     today.add(const Duration(days: 1));
-    
+
     // Update today's appointments for client
     _clientTodaysAppointments = _clientAppointments.where((appointment) {
-      final appointmentDate = DateTime(appointment.date.year, appointment.date.month, appointment.date.day);
-      return appointmentDate == today && 
-             appointment.status != 'cancelled' && 
-             appointment.status != 'completed';
+      final appointmentDate = DateTime(
+          appointment.date.year, appointment.date.month, appointment.date.day);
+      return appointmentDate == today &&
+          appointment.status != 'cancelled' &&
+          appointment.status != 'completed';
     }).toList();
-    
+
     // Update upcoming appointments for client
     _clientUpcomingAppointments = _clientAppointments.where((appointment) {
-      final appointmentDate = DateTime(appointment.date.year, appointment.date.month, appointment.date.day);
-      return appointmentDate.isAfter(today) && 
-             appointment.status != 'cancelled' && 
-             appointment.status != 'completed';
+      final appointmentDate = DateTime(
+          appointment.date.year, appointment.date.month, appointment.date.day);
+      return appointmentDate.isAfter(today) &&
+          appointment.status != 'cancelled' &&
+          appointment.status != 'completed';
     }).toList();
-    
+
     // Update appointment requests for barber
     _appointmentRequests = _allAppointments.where((appointment) {
-      return appointment.status == 'pending' && !appointment.clientId.startsWith('manual_');
+      return appointment.status == 'pending' &&
+          !appointment.clientId.startsWith('manual_');
     }).toList();
 
     // Update today's appointments for barber
     _todaysAppointments = _allAppointments.where((appointment) {
-      final appointmentDate = DateTime(appointment.date.year, appointment.date.month, appointment.date.day);
-      return appointmentDate == today && 
-             appointment.status != 'cancelled' && 
-             appointment.status != 'completed';
+      final appointmentDate = DateTime(
+          appointment.date.year, appointment.date.month, appointment.date.day);
+      return appointmentDate == today &&
+          appointment.status != 'cancelled' &&
+          appointment.status != 'completed';
     }).toList();
 
     // Update upcoming appointments for barber
     _upcomingAppointments = _allAppointments.where((appointment) {
-      final appointmentDate = DateTime(appointment.date.year, appointment.date.month, appointment.date.day);
-      return appointmentDate.isAfter(today) && 
-             appointment.status != 'cancelled' && 
-             appointment.status != 'completed';
+      final appointmentDate = DateTime(
+          appointment.date.year, appointment.date.month, appointment.date.day);
+      return appointmentDate.isAfter(today) &&
+          appointment.status != 'cancelled' &&
+          appointment.status != 'completed';
     }).toList();
   }
 
@@ -437,12 +466,12 @@ class AppointmentsProvider with ChangeNotifier {
   int getUpcomingAppointmentsCount() {
     final now = DateTime.now();
     final nextWeek = now.add(const Duration(days: 7));
-    
+
     return _clientAppointments.where((appointment) {
-      return appointment.date.isAfter(now) && 
-             appointment.date.isBefore(nextWeek) &&
-             appointment.status != 'cancelled' &&
-             appointment.status != 'completed';
+      return appointment.date.isAfter(now) &&
+          appointment.date.isBefore(nextWeek) &&
+          appointment.status != 'cancelled' &&
+          appointment.status != 'completed';
     }).length;
   }
 
@@ -460,7 +489,7 @@ class AppointmentsProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    
+
     loadClientAppointments(clientId);
     loadClientTodaysAppointments(clientId);
     loadClientUpcomingAppointments(clientId);
@@ -475,13 +504,12 @@ class AppointmentsProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    
+
     loadBarberAppointments(barberId);
     loadAppointmentRequests(barberId);
     loadTodaysAppointments(barberId);
     loadUpcomingAppointments(barberId);
   }
-  
 
   // Set current filter
   void setFilter(String filter) {
@@ -499,9 +527,13 @@ class AppointmentsProvider with ChangeNotifier {
       case 'pending':
         return _clientAppointments.where((a) => a.status == 'pending').toList();
       case 'completed':
-        return _clientAppointments.where((a) => a.status == 'completed').toList();
+        return _clientAppointments
+            .where((a) => a.status == 'completed')
+            .toList();
       case 'cancelled':
-        return _clientAppointments.where((a) => a.status == 'cancelled').toList();
+        return _clientAppointments
+            .where((a) => a.status == 'cancelled')
+            .toList();
       default:
         return _clientAppointments;
     }
@@ -510,12 +542,14 @@ class AppointmentsProvider with ChangeNotifier {
   // Search appointments
   List<AppointmentModel> searchAppointments(String query) {
     if (query.isEmpty) return _clientAppointments;
-    
+
     final lowercaseQuery = query.toLowerCase();
     return _clientAppointments.where((appointment) {
-      return appointment.barberName?.toLowerCase().contains(lowercaseQuery) == true ||
-             appointment.serviceName?.toLowerCase().contains(lowercaseQuery) == true ||
-             appointment.notes?.toLowerCase().contains(lowercaseQuery) == true;
+      return appointment.barberName?.toLowerCase().contains(lowercaseQuery) ==
+              true ||
+          appointment.serviceName?.toLowerCase().contains(lowercaseQuery) ==
+              true ||
+          appointment.notes?.toLowerCase().contains(lowercaseQuery) == true;
     }).toList();
   }
 

@@ -1,9 +1,22 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum NotificationType {
   appointment,
   payment,
-  system,
-  promotion,
   reminder,
+  promotion,
+  system,
+  marketing,
+  availability,
+  discount
+}
+
+enum NotificationCategory {
+  today,
+  thisWeek,
+  thisMonth,
+  older,
+  all
 }
 
 class AppNotification {
@@ -12,11 +25,11 @@ class AppNotification {
   final String title;
   final String message;
   final NotificationType type;
-  final String? relatedId; // appointmentId, paymentId, etc.
+  final String? relatedId;
   final bool isRead;
   final DateTime createdAt;
-  final DateTime? readAt;
   final Map<String, dynamic>? data;
+  final bool isSynced;
 
   AppNotification({
     required this.id,
@@ -27,11 +40,10 @@ class AppNotification {
     this.relatedId,
     this.isRead = false,
     required this.createdAt,
-    this.readAt,
     this.data,
+    this.isSynced = true,
   });
 
-  // Convert model to map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -42,53 +54,73 @@ class AppNotification {
       'relatedId': relatedId,
       'isRead': isRead,
       'createdAt': createdAt.millisecondsSinceEpoch,
-      'readAt': readAt?.millisecondsSinceEpoch,
       'data': data,
+      'isSynced': isSynced,
+      'createdAtTimestamp': FieldValue.serverTimestamp(),
     };
   }
 
-  // Create model from Firestore data
   factory AppNotification.fromMap(Map<String, dynamic> map) {
     return AppNotification(
-      id: map['id'],
-      userId: map['userId'],
-      title: map['title'],
-      message: map['message'],
+      id: map['id'] ?? '',
+      userId: map['userId'] ?? '',
+      title: map['title'] ?? '',
+      message: map['message'] ?? '',
       type: NotificationType.values.firstWhere(
         (e) => e.name == map['type'],
         orElse: () => NotificationType.system,
       ),
       relatedId: map['relatedId'],
       isRead: map['isRead'] ?? false,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt']),
-      readAt: map['readAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['readAt'])
-          : null,
-      data: map['data'] != null 
-          ? Map<String, dynamic>.from(map['data'])
-          : null,
+      createdAt: map['createdAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
+          : DateTime.now(),
+      data: map['data'] != null ? Map<String, dynamic>.from(map['data']) : null,
+      isSynced: map['isSynced'] ?? true,
     );
   }
 
-  // Create copy with method for updates
   AppNotification copyWith({
+    String? id,
+    String? userId,
     String? title,
     String? message,
+    NotificationType? type,
+    String? relatedId,
     bool? isRead,
-    DateTime? readAt,
+    DateTime? createdAt,
     Map<String, dynamic>? data,
+    bool? isSynced,
   }) {
     return AppNotification(
-      id: id,
-      userId: userId,
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       message: message ?? this.message,
-      type: type,
-      relatedId: relatedId,
+      type: type ?? this.type,
+      relatedId: relatedId ?? this.relatedId,
       isRead: isRead ?? this.isRead,
-      createdAt: createdAt,
-      readAt: readAt ?? this.readAt,
+      createdAt: createdAt ?? this.createdAt,
       data: data ?? this.data,
+      isSynced: isSynced ?? this.isSynced,
     );
+  }
+
+  NotificationCategory get category {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final notificationDate = DateTime(createdAt.year, createdAt.month, createdAt.day);
+    
+    final difference = today.difference(notificationDate).inDays;
+
+    if (difference == 0) {
+      return NotificationCategory.today;
+    } else if (difference <= 7) {
+      return NotificationCategory.thisWeek;
+    } else if (difference <= 30) {
+      return NotificationCategory.thisMonth;
+    } else {
+      return NotificationCategory.older;
+    }
   }
 }

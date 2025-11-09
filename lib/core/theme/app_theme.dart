@@ -107,21 +107,23 @@ class AppTheme {
         color: Colors.white,
       ),
     ),
-    textTheme: GoogleFonts.poppinsTextTheme().apply(
-      bodyColor: Colors.white,
-      displayColor: Colors.white,
-    ).copyWith(
-      bodyMedium: GoogleFonts.poppins(
-        color: Colors.white,
-      ),
-      titleLarge: GoogleFonts.poppins(
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-      bodySmall: GoogleFonts.poppins(
-        color: Colors.grey[400],
-      ),
-    ),
+    textTheme: GoogleFonts.poppinsTextTheme()
+        .apply(
+          bodyColor: Colors.white,
+          displayColor: Colors.white,
+        )
+        .copyWith(
+          bodyMedium: GoogleFonts.poppins(
+            color: Colors.white,
+          ),
+          titleLarge: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          bodySmall: GoogleFonts.poppins(
+            color: Colors.grey[400],
+          ),
+        ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.blue[300],

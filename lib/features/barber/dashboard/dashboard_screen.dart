@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sheersync/core/constants/colors.dart';
-import 'package:sheersync/data/models/appointment_model.dart';
+import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/models/notification_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
@@ -61,7 +61,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  void _calculateRealTimeEarnings(List<QueryDocumentSnapshot> paymentDocs, String barberId) {
+  void _calculateRealTimeEarnings(
+      List<QueryDocumentSnapshot> paymentDocs, String barberId) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
@@ -73,15 +74,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     for (final doc in paymentDocs) {
       final payment = doc.data() as Map<String, dynamic>;
       final amount = payment['amount']?.toDouble() ?? 0.0;
-      final completedAt = payment['completedAt'] != null 
+      final completedAt = payment['completedAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch(payment['completedAt'])
           : null;
 
       totalEarnings += amount;
 
       // Today's earnings (only from today's completed payments)
-      if (completedAt != null && 
-          completedAt.isAfter(today) && 
+      if (completedAt != null &&
+          completedAt.isAfter(today) &&
           completedAt.isBefore(tomorrow)) {
         todayEarnings += amount;
       }
@@ -103,7 +104,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  DashboardMetrics _calculateAppointmentMetrics(List<AppointmentModel> appointments) {
+  DashboardMetrics _calculateAppointmentMetrics(
+      List<AppointmentModel> appointments) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -119,12 +121,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       // Count today's appointments (only confirmed and pending for today)
       if (appointmentDate == today &&
-          (appointment.status == 'confirmed' || appointment.status == 'pending')) {
+          (appointment.status == 'confirmed' ||
+              appointment.status == 'pending')) {
         todayAppointments++;
       }
 
       // Count pending appointments (all non-completed, non-cancelled)
-      if (appointment.status != 'completed' && appointment.status != 'cancelled') {
+      if (appointment.status != 'completed' &&
+          appointment.status != 'cancelled') {
         pendingAppointments++;
       }
     }
@@ -238,9 +242,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       .where('status', isEqualTo: 'completed')
                       .snapshots(),
                   builder: (context, snapshot) {
-                    final lastUpdated = snapshot.hasData 
-                        ? 'Updated just now' 
-                        : 'Loading...';
+                    final lastUpdated =
+                        snapshot.hasData ? 'Updated just now' : 'Loading...';
                     return Text(
                       lastUpdated,
                       style: TextStyle(
@@ -336,7 +339,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 if (isLive)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -750,6 +754,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Colors.purple;
       case NotificationType.system:
         return AppColors.textSecondary;
+      case NotificationType.marketing:
+        throw UnimplementedError();
+      case NotificationType.availability:
+        throw UnimplementedError();
+      case NotificationType.discount:
+        throw UnimplementedError();
     }
   }
 
@@ -765,6 +775,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Icons.local_offer;
       case NotificationType.system:
         return Icons.info;
+      case NotificationType.marketing:
+        throw UnimplementedError();
+      case NotificationType.availability:
+        throw UnimplementedError();
+      case NotificationType.discount:
+        throw UnimplementedError();
     }
   }
 }

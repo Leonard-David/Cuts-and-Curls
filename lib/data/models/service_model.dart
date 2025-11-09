@@ -1,5 +1,7 @@
 import 'package:hive/hive.dart';
 
+part 'service_model.g.dart'; // Add this line for Hive code generation
+
 @HiveType(typeId: 2)
 class ServiceModel {
   @HiveField(0)
@@ -59,37 +61,83 @@ class ServiceModel {
   // Create model from Firestore data
   factory ServiceModel.fromMap(Map<String, dynamic> map) {
     return ServiceModel(
-      id: map['id'],
-      barberId: map['barberId'],
-      name: map['name'],
-      description: map['description'],
-      price: map['price'].toDouble(),
-      duration: map['duration'],
+      id: map['id'] ?? '',
+      barberId: map['barberId'] ?? '',
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      price: (map['price'] is int ? (map['price'] as int).toDouble() : map['price']) ?? 0.0,
+      duration: map['duration'] ?? 30,
       isActive: map['isActive'] ?? true,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt']),
+      createdAt: map['createdAt'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
+          : DateTime.now(),
       category: map['category'],
     );
   }
 
+  // Create model from Hive data (Map)
+  factory ServiceModel.fromHiveMap(Map<String, dynamic> map) {
+    return ServiceModel(
+      id: map['id'] ?? '',
+      barberId: map['barberId'] ?? '',
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      price: (map['price'] as num).toDouble(),
+      duration: map['duration'] ?? 30,
+      isActive: map['isActive'] ?? true,
+      createdAt: map['createdAt'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
+          : DateTime.now(),
+      category: map['category'],
+    );
+  }
+
+  // Convert to Hive-compatible map
+  Map<String, dynamic> toHiveMap() {
+    return {
+      'id': id,
+      'barberId': barberId,
+      'name': name,
+      'description': description,
+      'price': price,
+      'duration': duration,
+      'isActive': isActive,
+      'createdAt': createdAt.millisecondsSinceEpoch,
+      'category': category,
+    };
+  }
+
   // Create copy with method for updates
   ServiceModel copyWith({
+    String? id,
+    String? barberId,
     String? name,
     String? description,
     double? price,
     int? duration,
     bool? isActive,
+    DateTime? createdAt,
     String? category,
   }) {
     return ServiceModel(
-      id: id,
-      barberId: barberId,
+      id: id ?? this.id,
+      barberId: barberId ?? this.barberId,
       name: name ?? this.name,
       description: description ?? this.description,
       price: price ?? this.price,
       duration: duration ?? this.duration,
       isActive: isActive ?? this.isActive,
-      createdAt: createdAt,
+      createdAt: createdAt ?? this.createdAt,
       category: category ?? this.category,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ServiceModel && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }
