@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
+import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/features/barber/appointments/appointment_details_screen.dart';
 import 'package:sheersync/features/barber/appointments/barber_appointments_screen.dart';
 import 'package:sheersync/features/barber/appointments/create_appointment_screen.dart';
@@ -54,22 +55,23 @@ class _BarberShellState extends State<BarberShell> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final notificationProvider = Provider.of<NotificationProvider>(context);
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: AppColors.background,
-        appBar: _buildAppBar(),
+        appBar: _buildAppBar(notificationProvider),
         body: _buildBody(),
         bottomNavigationBar: _buildBottomNavigationBar(),
         floatingActionButton: _buildFloatingActionButton(),
-        drawer: _buildDrawer(authProvider),
+        drawer: _buildDrawer(authProvider, notificationProvider),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(NotificationProvider notificationProvider) {
     return AppBar(
       title: Row(
         children: [
@@ -318,130 +320,143 @@ class _BarberShellState extends State<BarberShell> {
     }
   }
 
-  Widget _buildDrawer(AuthProvider authProvider) {
+  Widget _buildDrawer(AuthProvider authProvider, NotificationProvider notificationProvider) {
     return Drawer(
       backgroundColor: AppColors.background,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Drawer Header
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+          // Updated Drawer Header to match client shell
+          _buildDrawerHeader(authProvider),
+
+          // Main Navigation Section
+          _buildDrawerSection('Navigation', [
+            _buildDrawerItem(
+              icon: Icons.dashboard,
+              title: 'Dashboard',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(0)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.primary.withOpacity(0.2),
-                  child: Icon(Icons.person, size: 30, color: AppColors.primary),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  authProvider.user?.fullName ?? 'Professional',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  authProvider.user?.userType == 'barber'
-                      ? 'Professional Barber'
-                      : 'Hairstylist',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+            _buildDrawerItem(
+              icon: Icons.person,
+              title: 'My Profile',
+              onTap: () => _closeDrawerAndNavigate(
+                  () => _navigateToProfile(authProvider)),
             ),
-          ),
-          // Quick Actions
-          _buildDrawerItem(
-            icon: Icons.dashboard,
-            title: 'Dashboard',
-            onTap: () {
-              _closeDrawerAndNavigate(() {
-                _setCurrentIndex(0);
-              });
-            },
-          ),
-          _buildDrawerItem(
-            icon: Icons.person,
-            title: 'My Profile',
-            onTap: () =>
-                _closeDrawerAndNavigate(() => _navigateToProfile(authProvider)),
-          ),
-          _buildDrawerItem(
-            icon: Icons.calendar_today,
-            title: 'Appointments',
-            onTap: () {
-              _closeDrawerAndNavigate(() {
-                _setCurrentIndex(2);
-              });
-            },
-          ),
-          _buildDrawerItem(
-            icon: Icons.construction,
-            title: 'My Services',
-            onTap: () => _closeDrawerAndNavigate(_navigateToServices),
-          ),
-          _buildDrawerItem(
-            icon: Icons.access_time,
-            title: 'Availability',
-            onTap: () => _closeDrawerAndNavigate(_navigateToAvailability),
-          ),
-          _buildDrawerItem(
-            icon: Icons.attach_money,
-            title: 'Earnings',
-            onTap: () {
-              _closeDrawerAndNavigate(() {
-                _setCurrentIndex(3);
-              });
-            },
-          ),
-          _buildDrawerItem(
-            icon: Icons.chat,
-            title: 'Messages',
-            onTap: () {
-              _closeDrawerAndNavigate(() {
-                _setCurrentIndex(1);
-              });
-            },
-          ),
-          // ADD MARKETING ITEM TO DRAWER
-          _buildDrawerItem(
-            icon: Icons.campaign,
-            title: 'Marketing Tools',
-            onTap: () => _closeDrawerAndNavigate(_navigateToMarketing),
-          ),
-          const Divider(),
-          _buildDrawerItem(
-            icon: Icons.payment,
-            title: 'Payment Setup',
-            onTap: () => _closeDrawerAndNavigate(_navigateToPaymentSetup),
-          ),
-          _buildDrawerItem(
-            icon: Icons.settings,
-            title: 'Settings',
-            onTap: () => _closeDrawerAndNavigate(_navigateToSettings),
-          ),
-          _buildDrawerItem(
-            icon: Icons.help_outline,
-            title: 'Help & Support',
-            onTap: () => _closeDrawerAndNavigate(_showHelpSupport),
-          ),
-          const Divider(),
-          _buildDrawerItem(
-            icon: Icons.logout,
-            title: 'Logout',
-            color: AppColors.error,
-            onTap: () => _closeDrawerAndNavigate(
-                () => _showLogoutConfirmation(authProvider)),
+            _buildDrawerItem(
+              icon: Icons.calendar_today,
+              title: 'Appointments',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(2)),
+            ),
+            _buildDrawerItem(
+              icon: Icons.construction,
+              title: 'My Services',
+              onTap: () => _closeDrawerAndNavigate(_navigateToServices),
+            ),
+            _buildDrawerItem(
+              icon: Icons.access_time,
+              title: 'Availability',
+              onTap: () => _closeDrawerAndNavigate(_navigateToAvailability),
+            ),
+            _buildDrawerItem(
+              icon: Icons.attach_money,
+              title: 'Earnings',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(3)),
+            ),
+            _buildDrawerItem(
+              icon: Icons.chat,
+              title: 'Messages',
+              onTap: () => _closeDrawerAndNavigate(() => _setCurrentIndex(1)),
+            ),
+            _buildDrawerItem(
+              icon: Icons.campaign,
+              title: 'Marketing Tools',
+              onTap: () => _closeDrawerAndNavigate(_navigateToMarketing),
+            ),
+          ]),
+
+          // Account Section
+          _buildDrawerSection('Account', [
+            _buildDrawerItem(
+              icon: Icons.payment,
+              title: 'Payment Setup',
+              onTap: () => _closeDrawerAndNavigate(_navigateToPaymentSetup),
+            ),
+            _buildDrawerItem(
+              icon: Icons.settings,
+              title: 'Settings',
+              onTap: () => _closeDrawerAndNavigate(_navigateToSettings),
+            ),
+          ]),
+
+          // Support Section
+          _buildDrawerSection('Support', [
+            _buildDrawerItem(
+              icon: Icons.help_outline,
+              title: 'Help & Support',
+              onTap: () => _closeDrawerAndNavigate(_showHelpSupport),
+            ),
+          ]),
+
+          // Logout Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _buildDrawerItem(
+              icon: Icons.logout,
+              title: 'Logout',
+              color: AppColors.error,
+              onTap: () => _closeDrawerAndNavigate(
+                  () => _showLogoutConfirmation(authProvider)),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDrawerHeader(AuthProvider authProvider) {
+    return UserAccountsDrawerHeader(
+      accountName: Text(
+        authProvider.user?.fullName ?? 'Professional',
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      accountEmail: Text(
+        authProvider.user?.email ?? 'professional@sheersync.com',
+        style: TextStyle(color: Colors.white.withOpacity(0.8)),
+      ),
+      currentAccountPicture: CircleAvatar(
+        backgroundColor: Colors.white,
+        backgroundImage: authProvider.user?.profileImage != null
+            ? NetworkImage(authProvider.user!.profileImage!)
+            : null,
+        child: authProvider.user?.profileImage == null
+            ? Icon(Icons.person, color: AppColors.primary)
+            : null,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+      ),
+    );
+  }
+
+  Widget _buildDrawerSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        ...children,
+        const Divider(height: 1),
+      ],
     );
   }
 
@@ -499,8 +514,27 @@ class _BarberShellState extends State<BarberShell> {
       return false;
     }
 
-    // If we're on the first route of the current tab, allow back to exit app
-    return true;
+    // If we're on the first route of the current tab, show exit confirmation
+    final shouldExit = await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exit App'),
+            content: const Text('Are you sure you want to exit SheerSync?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Exit'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    return shouldExit;
   }
 
   void _handleBackPress() {

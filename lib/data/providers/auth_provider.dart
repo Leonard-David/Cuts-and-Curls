@@ -11,7 +11,8 @@ class AuthProvider with ChangeNotifier {
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
-  bool get isEmailVerified => FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+  bool get isEmailVerified =>
+      FirebaseAuth.instance.currentUser?.emailVerified ?? false;
   String? get error => _error;
 
   AuthProvider() {
@@ -24,16 +25,16 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     User? firebaseUser = FirebaseAuth.instance.currentUser;
-    
+
     if (firebaseUser != null) {
       await _fetchUserData(firebaseUser.uid);
-      
+
       // If user exists but email is not verified, sign them out
       if (!firebaseUser.emailVerified && _user != null) {
         await signOut();
       }
     }
-    
+
     _isLoading = false;
     notifyListeners();
   }
@@ -41,17 +42,16 @@ class AuthProvider with ChangeNotifier {
   // Fetch user data from Firestore
   Future<void> _fetchUserData(String uid) async {
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (userDoc.exists) {
         _user = UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
-        
+
         // Update email verification status in Firestore if it changed
         final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null && currentUser.emailVerified != _user!.isEmailVerified) {
+        if (currentUser != null &&
+            currentUser.emailVerified != _user!.isEmailVerified) {
           await _updateEmailVerificationStatus(currentUser.emailVerified);
         }
       }
@@ -69,9 +69,9 @@ class AuthProvider with ChangeNotifier {
           .collection('users')
           .doc(_user!.id)
           .update({
-            'isEmailVerified': isVerified,
-          });
-      
+        'isEmailVerified': isVerified,
+      });
+
       // Update local user model
       _user = _user!.copyWith(isEmailVerified: isVerified);
     } catch (e) {
@@ -79,49 +79,56 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Sign in with email and password
-  // In your auth_provider.dart, update the signIn method:
+  // Sign in with email and password,
+  Future<bool> signIn(String email, String password) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
-Future<bool> signIn(String email, String password) async {
-  _isLoading = true;
-  _error = null;
-  notifyListeners();
+    try {
+      UserCredential credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
 
-  try {
-    UserCredential credential = await FirebaseAuth.instance
-        .signInWithEmailAndPassword(email: email, password: password);
-    
-    // Check if email is verified
-    if (!credential.user!.emailVerified) {
-      _error = 'Please verify your email before signing in';
+      // Check if email is verified
+      if (!credential.user!.emailVerified) {
+        _error =
+            'Please verify your email before signing in. Check your inbox for the verification link.';
+        _isLoading = false;
+        notifyListeners();
+
+        // This allows the AuthWrapper to redirect to VerifyEmailScreen
+        await _fetchUserData(credential.user!.uid);
+        return false;
+      }
+
+
+      await _fetchUserData(credential.user!.uid);
       _isLoading = false;
       notifyListeners();
-      
-      // Don't sign out - keep the user in verification flow
-      // This allows the AuthWrapper to redirect to VerifyEmailScreen
-      await _fetchUserData(credential.user!.uid);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      //HANDLING FOR PASSWORD CHANGE SCENARIO
+      if (e.code == 'invalid-credential' || e.code == 'wrong-password') {
+        _error =
+            'Invalid credentials. If you recently changed your password, please use the new password.';
+      } else {
+        _error = _getAuthErrorMessage(e);
+      }
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error =
+          'An unexpected error occurred. Please check your internet connection and try again.';
+      _isLoading = false;
+      notifyListeners();
       return false;
     }
-    
-    await _fetchUserData(credential.user!.uid);
-    _isLoading = false;
-    notifyListeners();
-    return true;
-  } on FirebaseAuthException catch (e) {
-    _error = _getAuthErrorMessage(e);
-    _isLoading = false;
-    notifyListeners();
-    return false;
-  } catch (e) {
-    _error = 'An unexpected error occurred';
-    _isLoading = false;
-    notifyListeners();
-    return false;
   }
-}
 
   // Sign up new user
-  Future<bool> signUp(String email, String password, String fullName, String userType) async {
+  Future<bool> signUp(
+      String email, String password, String fullName, String userType) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -129,10 +136,10 @@ Future<bool> signIn(String email, String password) async {
     try {
       UserCredential credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
-      
+
       // Send email verification
       await credential.user!.sendEmailVerification();
-      
+
       // Create user document in Firestore
       _user = UserModel(
         id: credential.user!.uid,
@@ -170,15 +177,15 @@ Future<bool> signIn(String email, String password) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return false;
-      
+
       await currentUser.reload();
       final isVerified = currentUser.emailVerified;
-      
+
       // Update Firestore if verification status changed
       if (_user != null && isVerified != _user!.isEmailVerified) {
         await _updateEmailVerificationStatus(isVerified);
       }
-      
+
       return isVerified;
     } catch (e) {
       debugPrint('Error checking email verification: $e');
@@ -191,7 +198,7 @@ Future<bool> signIn(String email, String password) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return false;
-      
+
       await currentUser.sendEmailVerification();
       return true;
     } on FirebaseAuthException catch (e) {
@@ -214,11 +221,11 @@ Future<bool> signIn(String email, String password) async {
             .collection('users')
             .doc(_user!.id)
             .update({
-              'isOnline': false,
-              'lastSeen': DateTime.now().millisecondsSinceEpoch,
-            });
+          'isOnline': false,
+          'lastSeen': DateTime.now().millisecondsSinceEpoch,
+        });
       }
-      
+
       await FirebaseAuth.instance.signOut();
       _user = null;
       _error = null;
@@ -292,9 +299,9 @@ Future<bool> signIn(String email, String password) async {
           .collection('users')
           .doc(_user!.id)
           .update({
-            'isOnline': isOnline,
-            if (!isOnline) 'lastSeen': DateTime.now().millisecondsSinceEpoch,
-          });
+        'isOnline': isOnline,
+        if (!isOnline) 'lastSeen': DateTime.now().millisecondsSinceEpoch,
+      });
 
       _user = _user!.copyWith(isOnline: isOnline);
       notifyListeners();
@@ -303,27 +310,29 @@ Future<bool> signIn(String email, String password) async {
     }
   }
 
-  // Helper method to get user-friendly error messages
+  // Map FirebaseAuthException codes to user-friendly messages
   String _getAuthErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'No user found with this email';
+        return 'No account found with this email address. Please check your email or create a new account.';
       case 'wrong-password':
-        return 'Incorrect password';
+        return 'Incorrect password. Please try again or reset your password.';
       case 'email-already-in-use':
-        return 'An account already exists with this email';
+        return 'An account already exists with this email address. Please sign in or use a different email.';
       case 'weak-password':
-        return 'Password is too weak';
+        return 'Password is too weak. Please use at least 6 characters with a mix of letters and numbers.';
       case 'invalid-email':
-        return 'Email address is invalid';
+        return 'Email address is invalid. Please enter a valid email address.';
       case 'user-disabled':
-        return 'This account has been disabled';
+        return 'This account has been disabled. Please contact support for assistance.';
       case 'too-many-requests':
-        return 'Too many attempts. Please try again later';
+        return 'Too many unsuccessful attempts. Please try again in a few minutes.';
       case 'network-request-failed':
-        return 'Network error. Please check your connection';
+        return 'Network connection failed. Please check your internet connection and try again.';
+      case 'operation-not-allowed':
+        return 'Email/password accounts are not enabled. Please contact support.';
       default:
-        return 'An error occurred. Please try again';
+        return 'An unexpected authentication error occurred. Please try again.';
     }
   }
 

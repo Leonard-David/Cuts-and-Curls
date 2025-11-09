@@ -10,7 +10,8 @@ class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key});
 
   @override
-  State<NotificationCenterScreen> createState() => _NotificationCenterScreenState();
+  State<NotificationCenterScreen> createState() =>
+      _NotificationCenterScreenState();
 }
 
 class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
@@ -23,7 +24,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   void _loadNotifications() {
     final authProvider = context.read<AuthProvider>();
     final notificationProvider = context.read<NotificationProvider>();
-    
+
     if (authProvider.user != null) {
       notificationProvider.loadNotifications(authProvider.user!.id);
     }
@@ -34,44 +35,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     final notificationProvider = Provider.of<NotificationProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        actions: [
-          if (notificationProvider.hasUnread)
-            IconButton(
-              icon: const Icon(Icons.mark_email_read),
-              onPressed: () {
-                final authProvider = context.read<AuthProvider>();
-                if (authProvider.user != null) {
-                  notificationProvider.markAllAsRead(authProvider.user!.id);
-                }
-              },
-              tooltip: 'Mark all as read',
-            ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              final authProvider = context.read<AuthProvider>();
-              if (authProvider.user != null) {
-                if (value == 'mark_all_read') {
-                  notificationProvider.markAllAsRead(authProvider.user!.id);
-                } else if (value == 'clear_all') {
-                  _showClearAllDialog(authProvider.user!.id);
-                }
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'mark_all_read',
-                child: Text('Mark all as read'),
-              ),
-              const PopupMenuItem(
-                value: 'clear_all',
-                child: Text('Clear all notifications'),
-              ),
-            ],
-          ),
-        ],
-      ),
       body: notificationProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : notificationProvider.notifications.isEmpty
@@ -85,7 +48,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none, size: 64, color: AppColors.textSecondary),
+          Icon(Icons.notifications_none,
+              size: 64, color: AppColors.textSecondary),
           const SizedBox(height: 16),
           Text(
             'No Notifications',
@@ -120,7 +84,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               itemCount: notificationProvider.notifications.length,
               itemBuilder: (context, index) {
                 final notification = notificationProvider.notifications[index];
-                return _buildNotificationItem(notification, notificationProvider);
+                return _buildNotificationItem(
+                    notification, notificationProvider);
               },
             ),
           ),
@@ -164,7 +129,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+      String label, String value, IconData icon, Color color) {
     return Column(
       children: [
         Container(
@@ -196,19 +162,20 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   Widget _buildNotificationItem(
-    AppNotification notification, 
-    NotificationProvider notificationProvider
-  ) {
+      AppNotification notification, NotificationProvider notificationProvider) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: notification.isRead ? AppColors.surfaceLight : AppColors.primary.withOpacity(0.05),
+      color: notification.isRead
+          ? AppColors.surfaceLight
+          : AppColors.primary.withOpacity(0.05),
       elevation: 1,
       child: ListTile(
         leading: _buildNotificationIcon(notification.type),
         title: Text(
           notification.title,
           style: TextStyle(
-            fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+            fontWeight:
+                notification.isRead ? FontWeight.normal : FontWeight.bold,
             color: AppColors.text,
           ),
         ),
@@ -285,9 +252,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   void _handleNotificationTap(
-    AppNotification notification, 
-    NotificationProvider notificationProvider
-  ) {
+      AppNotification notification, NotificationProvider notificationProvider) {
     if (!notification.isRead) {
       notificationProvider.markAsRead(notification.id);
     }
@@ -340,9 +305,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   void _showNotificationOptions(
-    AppNotification notification, 
-    NotificationProvider notificationProvider
-  ) {
+      AppNotification notification, NotificationProvider notificationProvider) {
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -352,7 +315,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             children: [
               if (!notification.isRead)
                 ListTile(
-                  leading: Icon(Icons.mark_email_read, color: AppColors.primary),
+                  leading:
+                      Icon(Icons.mark_email_read, color: AppColors.primary),
                   title: const Text('Mark as Read'),
                   onTap: () {
                     Navigator.pop(context);
@@ -374,12 +338,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     );
   }
 
-  void _deleteNotification(String notificationId, NotificationProvider notificationProvider) {
+  void _deleteNotification(
+      String notificationId, NotificationProvider notificationProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Notification'),
-        content: const Text('Are you sure you want to delete this notification?'),
+        content:
+            const Text('Are you sure you want to delete this notification?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -408,7 +374,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear All Notifications'),
-        content: const Text('Are you sure you want to clear all notifications? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to clear all notifications? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

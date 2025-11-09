@@ -10,6 +10,7 @@ import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/chat_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
+import 'package:sheersync/data/providers/payment_provider.dart';
 import 'package:sheersync/data/providers/settings_provider.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/features/auth/auth_wrapper.dart';
@@ -88,6 +89,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => PaymentProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, child) {
