@@ -676,6 +676,7 @@ class _ClientShellState extends State<ClientShell> {
             ),
             TextButton(
               onPressed: () {
+                Navigator.pop(context);
                 authProvider.signOut();
               },
               child: const Text(

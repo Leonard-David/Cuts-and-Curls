@@ -27,7 +27,7 @@ class _MarketingScreenState extends State<MarketingScreen> {
   final TextEditingController _offerController = TextEditingController();
   final TextEditingController _discountController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
-  
+
   bool _isCreatingOffer = false;
   double _discountPercentage = 10.0;
 
@@ -47,76 +47,119 @@ class _MarketingScreenState extends State<MarketingScreen> {
     }
 
     return Scaffold(
-     
-      body: widget.isClientView 
+      body: widget.isClientView
           ? _buildClientView(currentBarberId)
           : _buildBarberView(barber!),
     );
   }
 
   Widget _buildClientView(String barberId) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header for client view
-          _buildClientHeader(),
-          const SizedBox(height: 24),
-          
-          // Active Offers for this barber
-          _buildActiveOffersSection(barberId, isClientView: true),
-        ],
-      ),
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          title: Text(
+            'Special Offers',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          elevation: 0,
+          pinned: true,
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Enhanced Client Header
+                _buildClientHeader(),
+                const SizedBox(height: 32),
+
+                // Active Offers for this barber
+                _buildActiveOffersSection(barberId, isClientView: true),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildBarberView(dynamic barber) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Quick Share Section
-          _buildQuickShareSection(barber),
-          const SizedBox(height: 24),
-          
-          // Create Special Offer
-          _buildSpecialOfferSection(),
-          const SizedBox(height: 24),
-          
-          // Active Offers (Real-time)
-          _buildActiveOffersSection(barber.id),
-          const SizedBox(height: 24),
-          
-          // Marketing Analytics
-          _buildAnalyticsSection(barber.id),
-        ],
-      ),
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          title: Text(
+            'Fuel your Growth',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          elevation: 0,
+          pinned: true,
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Quick Share Section
+                _buildQuickShareSection(barber),
+                const SizedBox(height: 24),
+
+                // Create Special Offer
+                _buildSpecialOfferSection(),
+                const SizedBox(height: 24),
+
+                // Active Offers (Real-time)
+                _buildActiveOffersSection(barber.id),
+                const SizedBox(height: 24),
+
+                // Marketing Analytics
+                _buildAnalyticsSection(barber.id),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildClientHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.accent.withOpacity(0.05),
+            AppColors.primary.withOpacity(0.08),
+            AppColors.accent.withOpacity(0.04),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.1),
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary.withOpacity(0.15),
+                  AppColors.accent.withOpacity(0.1),
+                ],
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -125,26 +168,25 @@ class _MarketingScreenState extends State<MarketingScreen> {
               color: AppColors.primary,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Special Offers',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
+                  'Exclusive Offers',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  'Exclusive discounts and promotions from this barber',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                  ),
+                  'Discover special discounts and promotions tailored just for you',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
                 ),
               ],
             ),
@@ -156,46 +198,73 @@ class _MarketingScreenState extends State<MarketingScreen> {
 
   Widget _buildQuickShareSection(dynamic barber) {
     return Card(
-      elevation: 3,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Quick Share',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Share your profile and services on social media',
-              style: TextStyle(color: AppColors.textSecondary),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.share_rounded,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Quick Share',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
+            Text(
+              'Expand your reach by sharing your profile and services',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 20),
+            Row(
               children: [
-                _buildShareButton(
-                  'Share Profile',
-                  Icons.person,
-                  AppColors.primary,
-                  () => _shareProfile(barber),
+                Expanded(
+                  child: _buildShareButton(
+                    'Profile',
+                    Icons.person_outline_rounded,
+                    AppColors.primary,
+                    () => _shareProfile(barber),
+                  ),
                 ),
-                _buildShareButton(
-                  'Share Services',
-                  Icons.work,
-                  AppColors.accent,
-                  () => _shareServices(barber),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildShareButton(
+                    'Services',
+                    Icons.work_outline_rounded,
+                    AppColors.accent,
+                    () => _shareServices(barber),
+                  ),
                 ),
-                _buildShareButton(
-                  'Share Promo',
-                  Icons.local_offer,
-                  Colors.purple,
-                  () => _sharePromotion(barber),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildShareButton(
+                    'Promotion',
+                    Icons.campaign_outlined,
+                    Colors.purple,
+                    () => _sharePromotion(barber),
+                  ),
                 ),
               ],
             ),
@@ -205,27 +274,40 @@ class _MarketingScreenState extends State<MarketingScreen> {
     );
   }
 
-  Widget _buildShareButton(String text, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildShareButton(
+      String text, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        height: 100,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withOpacity(0.2),
+            width: 1.5,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 8),
             Text(
               text,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w500,
-              ),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ],
         ),
@@ -235,91 +317,177 @@ class _MarketingScreenState extends State<MarketingScreen> {
 
   Widget _buildSpecialOfferSection() {
     return Card(
-      elevation: 3,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Create Special Offer',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.create_rounded,
+                    color: AppColors.accent,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Create Special Offer',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _offerController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Offer Title',
                 hintText: 'e.g., Summer Special, New Client Discount',
-                border: OutlineInputBorder(),
+                floatingLabelBehavior: FloatingLabelBehavior.always,
               ),
+              style: Theme.of(context).textTheme.bodyMedium,
               maxLines: 1,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _messageController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Offer Description',
-                hintText: 'Describe your special offer...',
-                border: OutlineInputBorder(),
+                hintText: 'Describe your special offer and benefits...',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                alignLabelWithHint: true,
               ),
+              style: Theme.of(context).textTheme.bodyMedium,
               maxLines: 3,
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Discount: ${_discountPercentage.toStringAsFixed(0)}%',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      Slider(
-                        value: _discountPercentage,
-                        min: 5,
-                        max: 50,
-                        divisions: 9,
-                        onChanged: (value) {
-                          setState(() {
-                            _discountPercentage = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _discountController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Discount Code',
-                      hintText: 'SUMMER25',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 20),
+            Card(
+              elevation: 0,
+              color: AppColors.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: AppColors.border.withOpacity(0.3),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Discount Percentage',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_discountPercentage.toStringAsFixed(0)}% OFF',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _discountController,
+                            keyboardType: TextInputType.text,
+                            decoration: const InputDecoration(
+                              labelText: 'Discount Code',
+                              hintText: 'SUMMER25',
+                              floatingLabelBehavior:
+                                  FloatingLabelBehavior.always,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Slider(
+                      value: _discountPercentage,
+                      min: 5,
+                      max: 50,
+                      divisions: 9,
+                      activeColor: AppColors.primary,
+                      inactiveColor: AppColors.border,
+                      onChanged: (value) {
+                        setState(() {
+                          _discountPercentage = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 54,
               child: ElevatedButton(
                 onPressed: _isCreatingOffer ? null : _createSpecialOffer,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
                 ),
                 child: _isCreatingOffer
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Create & Share Offer'),
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.local_offer_outlined, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Create & Share Offer',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ],
@@ -328,29 +496,51 @@ class _MarketingScreenState extends State<MarketingScreen> {
     );
   }
 
-  Widget _buildActiveOffersSection(String barberId, {bool isClientView = false}) {
+  Widget _buildActiveOffersSection(String barberId,
+      {bool isClientView = false}) {
     return Card(
-      elevation: 3,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              isClientView ? 'Available Offers' : 'Active Offers',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.flash_on_rounded,
+                    color: AppColors.success,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isClientView ? 'Available Offers' : 'Active Campaigns',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              isClientView 
-                  ? 'Special discounts and promotions available'
-                  : 'Real-time tracking of your active promotions',
-              style: TextStyle(color: AppColors.textSecondary),
+              isClientView
+                  ? 'Limited-time promotions available for you'
+                  : 'Track performance of your active promotions',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             StreamBuilder<QuerySnapshot>(
               stream: _firestore
                   .collection('marketing_offers')
@@ -360,7 +550,9 @@ class _MarketingScreenState extends State<MarketingScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
                 }
 
                 final offers = snapshot.data!.docs;
@@ -369,11 +561,18 @@ class _MarketingScreenState extends State<MarketingScreen> {
                   return _buildEmptyOffersState(isClientView);
                 }
 
-                return Column(
-                  children: offers.map((doc) {
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: offers.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final doc = offers[index];
                     final offer = doc.data() as Map<String, dynamic>;
-                    return _buildOfferCard(offer, doc.id, isClientView: isClientView);
-                  }).toList(),
+                    return _buildOfferCard(offer, doc.id,
+                        isClientView: isClientView);
+                  },
                 );
               },
             ),
@@ -385,20 +584,46 @@ class _MarketingScreenState extends State<MarketingScreen> {
 
   Widget _buildAnalyticsSection(String barberId) {
     return Card(
-      elevation: 3,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Marketing Analytics',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.analytics_outlined,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Performance Insights',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            Text(
+              'Track your marketing efforts and engagement',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 20),
             StreamBuilder<QuerySnapshot>(
               stream: _firestore
                   .collection('marketing_analytics')
@@ -416,25 +641,34 @@ class _MarketingScreenState extends State<MarketingScreen> {
 
                 return Row(
                   children: [
-                    _buildAnalyticCard(
-                      'Profile Shares',
-                      stats['profileShares'].toString(),
-                      Icons.share,
-                      AppColors.primary,
+                    Expanded(
+                      child: _buildAnalyticCard(
+                        'Profile\nShares',
+                        stats['profileShares'].toString(),
+                        Icons.share_rounded,
+                        AppColors.primary,
+                        '',
+                      ),
                     ),
                     const SizedBox(width: 12),
-                    _buildAnalyticCard(
-                      'Offer Views',
-                      stats['offerViews'].toString(),
-                      Icons.visibility,
-                      AppColors.accent,
+                    Expanded(
+                      child: _buildAnalyticCard(
+                        'Offer\nViews',
+                        stats['offerViews'].toString(),
+                        Icons.visibility_rounded,
+                        AppColors.accent,
+                        '',
+                      ),
                     ),
                     const SizedBox(width: 12),
-                    _buildAnalyticCard(
-                      'Redemptions',
-                      stats['redemptions'].toString(),
-                      Icons.local_offer,
-                      Colors.green,
+                    Expanded(
+                      child: _buildAnalyticCard(
+                        'Redemptions',
+                        stats['redemptions'].toString(),
+                        Icons.verified_rounded,
+                        AppColors.success,
+                        '',
+                      ),
                     ),
                   ],
                 );
@@ -446,75 +680,159 @@ class _MarketingScreenState extends State<MarketingScreen> {
     );
   }
 
-  Widget _buildOfferCard(Map<String, dynamic> offer, String offerId, {bool isClientView = false}) {
-    final isExpired = DateTime.now().millisecondsSinceEpoch > offer['expiresAt'];
-    
+  Widget _buildOfferCard(Map<String, dynamic> offer, String offerId,
+      {bool isClientView = false}) {
+    final isExpired =
+        DateTime.now().millisecondsSinceEpoch > offer['expiresAt'];
+
     if (isExpired && isClientView) {
       return Container(); // Don't show expired offers to clients
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: isExpired ? Colors.grey[100] : AppColors.primary.withOpacity(0.05),
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: isExpired ? Colors.grey : AppColors.primary.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.local_offer, 
-            color: isExpired ? Colors.grey : AppColors.primary
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color:
+            isExpired ? Colors.grey[50] : AppColors.primary.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isExpired
+              ? Colors.grey[300]!
+              : AppColors.primary.withOpacity(0.1),
+          width: 1.5,
         ),
-        title: Text(
-          offer['title'],
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isExpired ? Colors.grey : AppColors.text,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
           children: [
-            Text(
-              offer['description'],
-              style: TextStyle(
-                color: isExpired ? Colors.grey : AppColors.textSecondary,
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: isExpired
+                    ? LinearGradient(
+                        colors: [Colors.grey[400]!, Colors.grey[500]!],
+                      )
+                    : LinearGradient(
+                        colors: [
+                          AppColors.primary.withOpacity(0.15),
+                          AppColors.accent.withOpacity(0.1),
+                        ],
+                      ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.local_offer_rounded,
+                color: isExpired ? Colors.grey[600] : AppColors.primary,
+                size: 24,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${offer['discount']}% off • Code: ${offer['discountCode']}',
-              style: TextStyle(
-                color: isExpired ? Colors.grey : AppColors.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          offer['title'],
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: isExpired
+                                        ? Colors.grey[600]
+                                        : AppColors.text,
+                                  ),
+                        ),
+                      ),
+                      if (!isClientView && isExpired)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'EXPIRED',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    offer['description'],
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isExpired
+                              ? Colors.grey[500]
+                              : AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${offer['discount']}% OFF',
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Code: ${offer['discountCode']}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isExpired
+                                  ? Colors.grey[500]
+                                  : AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        DateFormat('MMM d').format(
+                            DateTime.fromMillisecondsSinceEpoch(
+                                offer['expiresAt'])),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isExpired
+                                  ? Colors.grey[500]
+                                  : AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            Text(
-              'Valid until ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpoch(offer['expiresAt']))}',
-              style: TextStyle(
-                color: isExpired ? Colors.grey : AppColors.textSecondary,
-                fontSize: 12,
-              ),
-            ),
-            if (isExpired) 
-              Text(
-                'EXPIRED',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            if (!isClientView) ...[
+              const SizedBox(width: 12),
+              _buildBarberOfferActions(offer, offerId, isExpired),
+            ] else ...[
+              const SizedBox(width: 12),
+              _buildClientOfferActions(offer),
+            ],
           ],
         ),
-        trailing: isClientView 
-            ? _buildClientOfferActions(offer)
-            : _buildBarberOfferActions(offer, offerId, isExpired),
       ),
     );
   }
@@ -523,133 +841,147 @@ class _MarketingScreenState extends State<MarketingScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.success.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
+        IconButton(
+          icon: Icon(
+            Icons.content_copy_rounded,
+            color: AppColors.primary,
+            size: 20,
           ),
-          child: Text(
-            '${offer['discount']}% OFF',
-            style: TextStyle(
-              color: AppColors.success,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          onPressed: () => _copyDiscountCode(offer['discountCode']),
+          tooltip: 'Copy\ncode',
         ),
         const SizedBox(height: 4),
-        GestureDetector(
-          onTap: () => _copyDiscountCode(offer['discountCode']),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Copy Code',
-              style: TextStyle(
+        Text(
+          'Copy',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: AppColors.primary,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
-            ),
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildBarberOfferActions(Map<String, dynamic> offer, String offerId, bool isExpired) {
+  Widget _buildBarberOfferActions(
+      Map<String, dynamic> offer, String offerId, bool isExpired) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          icon: Icon(Icons.share, color: AppColors.primary),
+          icon: Icon(
+            Icons.share_rounded,
+            color: AppColors.primary,
+            size: 20,
+          ),
           onPressed: () => _shareExistingOffer(offer),
+          tooltip: 'Share\noffer',
         ),
         IconButton(
           icon: Icon(
-            isExpired ? Icons.delete_forever : Icons.delete,
+            isExpired
+                ? Icons.delete_forever_rounded
+                : Icons.delete_outline_rounded,
             color: isExpired ? Colors.grey : AppColors.error,
+            size: 20,
           ),
           onPressed: isExpired ? null : () => _deactivateOffer(offerId),
+          tooltip: isExpired ? 'Offer\nexpired' : 'Deactivate offer',
         ),
       ],
     );
   }
 
-  Widget _buildAnalyticCard(String title, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
+  Widget _buildAnalyticCard(
+      String title, String value, IconData icon, Color color, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
           color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
+          width: 1.5,
         ),
       ),
-    );
-  }
-
-  Widget _buildEmptyOffersState(bool isClientView) {
-    return Container(
-      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.local_offer_outlined, 
-            size: 48, 
-            color: AppColors.textSecondary
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 12),
           Text(
-            isClientView ? 'No Current Offers' : 'No Active Offers',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.bold,
-            ),
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
-            isClientView 
-                ? 'Check back later for special promotions'
-                : 'Create your first special offer to attract more clients',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
+            title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
           ),
         ],
       ),
     );
   }
 
-  // Marketing Functions
+  Widget _buildEmptyOffersState(bool isClientView) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        children: [
+          Icon(
+            Icons.offline_bolt_outlined,
+            size: 64,
+            color: AppColors.textSecondary.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            isClientView ? 'No Current Offers' : 'No Active Campaigns',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              isClientView
+                  ? 'Check back soon for exclusive promotions and discounts'
+                  : 'Create your first promotional offer to attract more clients and grow your business',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Marketing Functions (unchanged, but now with better UI integration)
   Future<void> _shareProfile(dynamic barber) async {
     try {
-      final shareText =  '''💈 Discover ${barber.fullName} on VerveBook!  
+      final shareText = '''💈 Discover ${barber.fullName} on SheerSync!  
         Expert ${barber.userType} delivering quality
         grooming services.  
 
@@ -660,13 +992,15 @@ class _MarketingScreenState extends State<MarketingScreen> {
         ''';
 
       await Share.share(shareText);
-      
+
       // Track the share event
       await _trackMarketingEvent(barber.id, 'profile_share');
-      
-      showCustomSnackBar(context, 'Profile shared successfully!', type: SnackBarType.success);
+
+      showCustomSnackBar(context, 'Profile shared successfully!',
+          type: SnackBarType.success);
     } catch (e) {
-      showCustomSnackBar(context, 'Failed to share profile: $e', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Failed to share profile: $e',
+          type: SnackBarType.error);
     }
   }
 
@@ -680,7 +1014,8 @@ class _MarketingScreenState extends State<MarketingScreen> {
 
       final services = servicesSnapshot.docs;
       if (services.isEmpty) {
-        showCustomSnackBar(context, 'No services available to share', type: SnackBarType.warning);
+        showCustomSnackBar(context, 'No services available to share',
+            type: SnackBarType.warning);
         return;
       }
 
@@ -689,15 +1024,17 @@ class _MarketingScreenState extends State<MarketingScreen> {
         final data = service.data();
         servicesText += '• ${data['name']} - N\$${data['price']}\n';
       }
-      
-      servicesText += '\n📱 Book now on VerveBook! #${barber.role}Services';
+
+      servicesText += '\n📱 Book now on SheerSync! #BarberServices';
 
       await Share.share(servicesText);
       await _trackMarketingEvent(barber.id, 'services_share');
-      
-      showCustomSnackBar(context, 'Services shared successfully!', type: SnackBarType.success);
+
+      showCustomSnackBar(context, 'Services shared successfully!',
+          type: SnackBarType.success);
     } catch (e) {
-      showCustomSnackBar(context, 'Failed to share services: $e', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Failed to share services: $e',
+          type: SnackBarType.error);
     }
   }
 
@@ -710,23 +1047,26 @@ class _MarketingScreenState extends State<MarketingScreen> {
       - Highly rated, professional service
       - Limited-time promotion
 
-      📱 Book now via the VerveBook app
+      📱 Book now via the SheerSync app
 
       #BarberPromo #SheerSync #Haircare
       ''';
 
       await Share.share(shareText);
       await _trackMarketingEvent(barber.id, 'promotion_share');
-      
-      showCustomSnackBar(context, 'Promotion shared successfully!', type: SnackBarType.success);
+
+      showCustomSnackBar(context, 'Promotion shared successfully!',
+          type: SnackBarType.success);
     } catch (e) {
-      showCustomSnackBar(context, 'Failed to share promotion: $e', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Failed to share promotion: $e',
+          type: SnackBarType.error);
     }
   }
 
   Future<void> _createSpecialOffer() async {
     if (_offerController.text.isEmpty || _discountController.text.isEmpty) {
-      showCustomSnackBar(context, 'Please fill all required fields', type: SnackBarType.warning);
+      showCustomSnackBar(context, 'Please fill all required fields',
+          type: SnackBarType.warning);
       return;
     }
 
@@ -748,7 +1088,8 @@ class _MarketingScreenState extends State<MarketingScreen> {
         'discountCode': _discountController.text.trim().toUpperCase(),
         'isActive': true,
         'createdAt': DateTime.now().millisecondsSinceEpoch,
-        'expiresAt': DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch,
+        'expiresAt':
+            DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch,
         'redemptionCount': 0,
       };
 
@@ -785,9 +1126,11 @@ Valid until ${DateFormat('MMM d, yyyy').format(DateTime.now().add(const Duration
         _discountPercentage = 10.0;
       });
 
-      showCustomSnackBar(context, 'Offer created and shared successfully!', type: SnackBarType.success);
+      showCustomSnackBar(context, 'Offer created and shared successfully!',
+          type: SnackBarType.success);
     } catch (e) {
-      showCustomSnackBar(context, 'Failed to create offer: $e', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Failed to create offer: $e',
+          type: SnackBarType.error);
     } finally {
       setState(() {
         _isCreatingOffer = false;
@@ -815,10 +1158,12 @@ Valid until ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpo
 
       await Share.share(shareText);
       await _trackMarketingEvent(offer['barberId'], 'offer_shared');
-      
-      showCustomSnackBar(context, 'Offer shared successfully!', type: SnackBarType.success);
+
+      showCustomSnackBar(context, 'Offer shared successfully!',
+          type: SnackBarType.success);
     } catch (e) {
-      showCustomSnackBar(context, 'Failed to share offer: $e', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Failed to share offer: $e',
+          type: SnackBarType.error);
     }
   }
 
@@ -828,18 +1173,18 @@ Valid until ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpo
           .collection('marketing_offers')
           .doc(offerId)
           .update({'isActive': false});
-      
-      showCustomSnackBar(context, 'Offer deactivated', type: SnackBarType.success);
+
+      showCustomSnackBar(context, 'Offer deactivated',
+          type: SnackBarType.success);
     } catch (e) {
-      showCustomSnackBar(context, 'Failed to deactivate offer: $e', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Failed to deactivate offer: $e',
+          type: SnackBarType.error);
     }
   }
 
   Future<void> _copyDiscountCode(String code) async {
-    // You would typically use clipboard functionality here
-    // For now, we'll show a snackbar
     showCustomSnackBar(
-      context, 
+      context,
       'Discount code "$code" copied! Use it during booking.',
       type: SnackBarType.success,
     );
@@ -858,7 +1203,8 @@ Valid until ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpo
     }
   }
 
-  Map<String, int> _calculateMarketingStats(List<QueryDocumentSnapshot> analytics) {
+  Map<String, int> _calculateMarketingStats(
+      List<QueryDocumentSnapshot> analytics) {
     int profileShares = 0;
     int offerViews = 0;
     int redemptions = 0;
@@ -893,15 +1239,18 @@ Valid until ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpo
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: AppColors.error,
+            ),
             const SizedBox(height: 16),
             Text(
               'Unable to Load',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.w500,
-                fontSize: 18,
-              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             const SizedBox(height: 8),
             Padding(
@@ -909,10 +1258,9 @@ Valid until ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpo
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
               ),
             ),
           ],
