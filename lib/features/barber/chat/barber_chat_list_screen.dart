@@ -66,6 +66,13 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
     if (_isLoading) {
       return _buildLoadingState();
     }
@@ -97,13 +104,19 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Loading conversations...'),
+          CircularProgressIndicator(color: AppColors.primary),
+          const SizedBox(height: 16),
+          Text(
+            'Loading conversations...',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
@@ -116,15 +129,18 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline,
-                size: 80, color: AppColors.textSecondary),
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 80,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(height: 16),
             Text(
               'No Messages Yet',
               style: TextStyle(
                 fontSize: 20,
                 color: AppColors.text,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
@@ -155,7 +171,7 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
               'Unable to Load Messages',
               style: TextStyle(
                 color: AppColors.error,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 fontSize: 18,
               ),
             ),
@@ -177,6 +193,10 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
+                minimumSize: const Size(140, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: const Text('Try Again'),
             ),
@@ -196,99 +216,7 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.person,
-            color: AppColors.accent,
-            size: 24,
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                chatRoom.clientName,
-                style: TextStyle(
-                  fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
-                  color: hasUnread ? AppColors.text : AppColors.text,
-                  fontSize: 16,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (hasUnread)
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            if (lastMessage != null)
-              Text(
-                lastMessage.message,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: hasUnread ? AppColors.text : AppColors.textSecondary,
-                  fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
-                ),
-              ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time,
-                  size: 12,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _formatLastMessageTime(chatRoom.updatedAt),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        trailing: hasUnread
-            ? Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  chatRoom.unreadCount > 9
-                      ? '9+'
-                      : chatRoom.unreadCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              )
-            : null,
+      child: InkWell(
         onTap: () {
           Navigator.push(
             context,
@@ -297,6 +225,102 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
             ),
           );
         },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Client Avatar
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.accent.withOpacity(0.1),
+                    child: Icon(
+                      Icons.person,
+                      color: AppColors.accent,
+                      size: 24,
+                    ),
+                  ),
+                  // Online Status Indicator (could be dynamic based on client status)
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              // Chat Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          chatRoom.clientName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: hasUnread
+                                ? AppColors.text
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          _formatLastMessageTime(chatRoom.updatedAt),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      lastMessage?.message ?? 'No messages yet',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        fontWeight:
+                            hasUnread ? FontWeight.w500 : FontWeight.normal,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // Unread Badge
+              if (hasUnread)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    chatRoom.unreadCount > 99
+                        ? '99+'
+                        : chatRoom.unreadCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -308,7 +332,7 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
     final messageDate = DateTime(time.year, time.month, time.day);
 
     if (messageDate == today) {
-      return DateFormat('h:mm a').format(time);
+      return DateFormat('HH:mm').format(time);
     } else if (messageDate == yesterday) {
       return 'Yesterday';
     } else {

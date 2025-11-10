@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:sheersync/core/constants/colors.dart';
+import 'package:sheersync/core/utils/connectivity_notification.dart';
+import 'package:sheersync/core/widgets/connection_banner.dart';
 import 'package:sheersync/data/models/notification_model.dart';
+import 'package:sheersync/data/providers/chat_provider.dart';
+import 'package:sheersync/data/providers/connectivity_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
 
@@ -33,27 +37,52 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final notificationProvider = Provider.of<NotificationProvider>(context);
+    final chatProvider = Provider.of<ChatProvider>(context);
+    Provider.of<ConnectivityProvider>(context); // Add this provider
 
     return Scaffold(
-      body: notificationProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildNotificationContent(notificationProvider),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              // Connection Banner for notification screen too
+              if (!chatProvider.isConnected)
+                ConnectionBanner(
+                  isConnected: chatProvider.isConnected,
+                  isOfflineMode: chatProvider.isOfflineMode,
+                ),
+
+              // Rest of your notification center content
+              Expanded(
+                child: notificationProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildNotificationContent(notificationProvider),
+              ),
+            ],
+          ),
+
+          // Global connectivity notification
+          ConnectivityNotification(),
+        ],
+      ),
     );
   }
 
   Widget _buildNotificationContent(NotificationProvider notificationProvider) {
-    final filteredNotifications = _getFilteredNotifications(notificationProvider);
+    final filteredNotifications =
+        _getFilteredNotifications(notificationProvider);
 
     return Column(
       children: [
         // Stats header
         _buildStatsHeader(notificationProvider),
-        
+
         // Category filter chips
         _buildCategoryFilter(notificationProvider),
-        
+
         // Notifications list
         Expanded(
           child: filteredNotifications.isEmpty
@@ -172,15 +201,16 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                 selected: _selectedCategory == category,
                 onSelected: (selected) {
                   setState(() {
-                    _selectedCategory = selected ? category : NotificationCategory.all;
+                    _selectedCategory =
+                        selected ? category : NotificationCategory.all;
                   });
                 },
                 backgroundColor: AppColors.surfaceLight,
                 selectedColor: AppColors.primary.withOpacity(0.1),
                 checkmarkColor: AppColors.primary,
                 labelStyle: TextStyle(
-                  color: _selectedCategory == category 
-                      ? AppColors.primary 
+                  color: _selectedCategory == category
+                      ? AppColors.primary
                       : AppColors.text,
                 ),
               ),
@@ -211,7 +241,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     if (_selectedCategory == NotificationCategory.all) {
       return notificationProvider.notifications;
     }
-    
+
     return notificationProvider.notifications
         .where((notification) => notification.category == _selectedCategory)
         .toList();
@@ -223,7 +253,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.notifications_off,
-              size: 80, color: AppColors.textSecondary.withOpacity(0.5)),
+              size: 80, color: AppColors.textSecondary.withOpacity(0.3)),
           const SizedBox(height: 16),
           Text(
             'No Notifications',
@@ -266,21 +296,22 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: notification.isRead
-          ? Colors.grey[50] // Much better HCI-compliant read color
-          : AppColors.primary.withOpacity(0.03),
+          ? AppColors.surfaceLight // Subtle background for read
+          : AppColors.primary.withOpacity(0.05), // Highlight for unread
       elevation: notification.isRead ? 1 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: notification.isRead 
-              ? AppColors.border 
-              : AppColors.primary.withOpacity(0.1),
-          width: 1,
+          color: notification.isRead
+              ? AppColors.border
+              : AppColors.primary
+                  .withOpacity(0.3), // Stronger border for unread
+          width: notification.isRead ? 1 : 1.5,
         ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
-        leading: _buildNotificationIcon(notification.type),
+        leading: _buildNotificationIcon(notification.type, notification.isRead),
         title: Text(
           notification.title,
           style: TextStyle(
@@ -304,15 +335,28 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.access_time, size: 12, color: AppColors.textSecondary),
+                Icon(Icons.access_time,
+                    size: 12, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
                   _formatNotificationTime(notification.createdAt),
                   style: TextStyle(
-                    fontSize: 12, 
+                    fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (notification.readAt != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.done_all, size: 12, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Read',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
                 if (!notification.isSynced) ...[
                   const SizedBox(width: 8),
                   Icon(Icons.sync_disabled, size: 12, color: Colors.orange),
@@ -320,7 +364,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                   Text(
                     'Offline',
                     style: TextStyle(
-                      fontSize: 12, 
+                      fontSize: 12,
                       color: Colors.orange,
                     ),
                   ),
@@ -331,14 +375,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         ),
         trailing: !notification.isRead
             ? Container(
-                width: 12,
-                height: 12,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
+                      color: AppColors.primary.withOpacity(0.5),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),
@@ -347,7 +391,11 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               )
             : null,
         onTap: () {
-          _handleNotificationTap(notification, notificationProvider);
+          // Immediate mark as read on tap
+          if (!notification.isRead) {
+            notificationProvider.markAsRead(notification.id);
+          }
+          _handleNotificationAction(notification);
         },
         onLongPress: () {
           _showNotificationOptions(notification, notificationProvider);
@@ -356,7 +404,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     );
   }
 
-  Widget _buildNotificationIcon(NotificationType type) {
+  Widget _buildNotificationIcon(NotificationType type, bool isRead) {
     IconData icon;
     Color color;
     String tooltip;
@@ -364,42 +412,42 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     switch (type) {
       case NotificationType.appointment:
         icon = Icons.calendar_today;
-        color = AppColors.primary;
+        color = isRead ? AppColors.textSecondary : AppColors.primary;
         tooltip = 'Appointment';
         break;
       case NotificationType.payment:
         icon = Icons.payment;
-        color = Colors.green;
+        color = isRead ? AppColors.textSecondary : Colors.green;
         tooltip = 'Payment';
         break;
       case NotificationType.reminder:
         icon = Icons.access_time;
-        color = Colors.orange;
+        color = isRead ? AppColors.textSecondary : Colors.orange;
         tooltip = 'Reminder';
         break;
       case NotificationType.promotion:
         icon = Icons.local_offer;
-        color = Colors.purple;
+        color = isRead ? AppColors.textSecondary : Colors.purple;
         tooltip = 'Promotion';
         break;
       case NotificationType.system:
         icon = Icons.info;
-        color = Colors.blue;
+        color = isRead ? AppColors.textSecondary : Colors.blue;
         tooltip = 'System';
         break;
       case NotificationType.marketing:
         icon = Icons.campaign;
-        color = Colors.pink;
+        color = isRead ? AppColors.textSecondary : Colors.pink;
         tooltip = 'Marketing';
         break;
       case NotificationType.availability:
         icon = Icons.schedule;
-        color = Colors.teal;
+        color = isRead ? AppColors.textSecondary : Colors.teal;
         tooltip = 'Availability';
         break;
       case NotificationType.discount:
         icon = Icons.discount;
-        color = Colors.red;
+        color = isRead ? AppColors.textSecondary : Colors.red;
         tooltip = 'Discount';
         break;
     }
@@ -410,17 +458,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              color.withOpacity(0.1),
-              color.withOpacity(0.2),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: color.withOpacity(isRead ? 0.05 : 0.1),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: color, size: 24),
+        child: Icon(icon, color: color, size: 22),
       ),
     );
   }
@@ -429,7 +470,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final notificationDate = DateTime(date.year, date.month, date.day);
-    
+
     final difference = today.difference(notificationDate).inDays;
 
     if (difference == 0) {
@@ -441,15 +482,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     } else {
       return DateFormat('MMM d, yyyy • h:mm a').format(date);
     }
-  }
-
-  void _handleNotificationTap(
-      AppNotification notification, NotificationProvider notificationProvider) {
-    if (!notification.isRead) {
-      notificationProvider.markAsRead(notification.id);
-    }
-
-    _handleNotificationAction(notification);
   }
 
   void _handleNotificationAction(AppNotification notification) {
@@ -535,8 +567,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               const SizedBox(height: 16),
               const Text('Promotion Details:',
                   style: TextStyle(fontWeight: FontWeight.bold)),
-              ...notification.data!.entries.map((entry) => Text(
-                  '${entry.key}: ${entry.value}')),
+              ...notification.data!.entries
+                  .map((entry) => Text('${entry.key}: ${entry.value}')),
             ],
           ],
         ),
@@ -582,7 +614,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               const Divider(),
               const SizedBox(height: 8),
               Text('Type: ${notification.type.name}'),
-              Text('Time: ${DateFormat('MMM d, yyyy • h:mm a').format(notification.createdAt)}'),
+              Text(
+                  'Time: ${DateFormat('MMM d, yyyy • h:mm a').format(notification.createdAt)}'),
               Text('Status: ${notification.isRead ? 'Read' : 'Unread'}'),
               Text('Synced: ${notification.isSynced ? 'Yes' : 'No'}'),
               if (notification.relatedId != null)
@@ -619,19 +652,28 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               ),
               if (!notification.isRead)
                 ListTile(
-                  leading: Icon(Icons.mark_email_read, color: AppColors.primary),
+                  leading:
+                      Icon(Icons.mark_email_read, color: AppColors.primary),
                   title: const Text('Mark as Read'),
                   onTap: () {
                     Navigator.pop(context);
                     notificationProvider.markAsRead(notification.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Notification marked as read'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   },
                 ),
               ListTile(
-                leading: Icon(Icons.delete, color: AppColors.error),
-                title: Text('Delete', style: TextStyle(color: AppColors.error)),
+                leading: Icon(Icons.delete_forever, color: AppColors.error),
+                title: Text('Delete Permanently',
+                    style: TextStyle(color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(context);
-                  _deleteNotification(notification.id, notificationProvider);
+                  _deleteNotificationPermanently(
+                      notification.id, notificationProvider);
                 },
               ),
             ],
@@ -641,14 +683,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     );
   }
 
-  void _deleteNotification(
+  void _deleteNotificationPermanently(
       String notificationId, NotificationProvider notificationProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Notification'),
-        content:
-            const Text('Are you sure you want to delete this notification?'),
+        title: const Text('Delete Permanently'),
+        content: const Text(
+            'This notification will be deleted from all devices and cannot be recovered. Are you sure?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -657,15 +699,17 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              notificationProvider.deleteNotification(notificationId);
+              notificationProvider
+                  .permanentlyDeleteNotification(notificationId);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Notification deleted'),
-                  backgroundColor: AppColors.primary,
+                  content: Text('Notification deleted permanently'),
+                  backgroundColor: Colors.green,
                 ),
               );
             },
-            child: Text('Delete', style: TextStyle(color: AppColors.error)),
+            child: Text('Delete Forever',
+                style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,6 +14,7 @@ import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
 import 'package:sheersync/features/client/bookings/client_appointment_details_screen.dart';
 import 'package:sheersync/features/client/bookings/select_barber_screen.dart';
 import 'package:sheersync/features/client/bookings/select_service_screen.dart';
+import 'package:sheersync/features/client/reviews/special_offers_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,9 +27,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<UserModel> _availableBarbers = [];
   List<AppointmentModel> _upcomingAppointments = [];
-  List<Map<String, dynamic>> _recentActivities = [];
-  List<MarketingOffer> _activeOffers = [];
+  List<Map<String, dynamic>> _activeOffers = [];
   bool _isLoading = true;
+
+  // Stream subscriptions for real-time updates
+  StreamSubscription<List<UserModel>>? _barbersSubscription;
+  StreamSubscription<List<AppointmentModel>>? _appointmentsSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _offersSubscription;
 
   @override
   void initState() {
@@ -34,86 +41,175 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeRealTimeData();
   }
 
+  @override
+  void dispose() {
+    _barbersSubscription?.cancel();
+    _appointmentsSubscription?.cancel();
+    _offersSubscription?.cancel();
+    super.dispose();
+  }
+
   void _initializeRealTimeData() {
     _loadAvailableBarbers();
     _loadUpcomingAppointments();
-    _loadRecentActivities();
+    _loadActiveOffers();
   }
 
-  Stream<List<UserModel>> _getAvailableBarbersStream() {
-    return _firestore
+  void _loadAvailableBarbers() {
+    _barbersSubscription?.cancel();
+
+    _barbersSubscription = _firestore
         .collection('users')
         .where('userType', whereIn: ['barber', 'hairstylist'])
         .where('isOnline', isEqualTo: true)
         .where('isActive', isEqualTo: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => UserModel.fromMap(doc.data())).toList());
+        .asyncMap((snapshot) async {
+          final barbers = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return UserModel.fromMap({...data, 'id': doc.id});
+          }).toList();
+
+          // Filter barbers who are actually available (not fully booked)
+          final availableBarbers = await _filterTrulyAvailableBarbers(barbers);
+          return availableBarbers;
+        })
+        .listen((barbers) {
+          if (mounted) {
+            setState(() {
+              _availableBarbers = barbers;
+              _checkLoadingState();
+            });
+          }
+        }, onError: (error) {
+          print('Error loading barbers: $error');
+          if (mounted) {
+            setState(() {
+              _checkLoadingState();
+            });
+          }
+        });
   }
 
-  void _loadAvailableBarbers() {
-    _getAvailableBarbersStream().listen((barbers) {
-      if (mounted) {
-        setState(() {
-          _availableBarbers = barbers;
-          _isLoading =
-              _upcomingAppointments.isEmpty && _recentActivities.isEmpty;
-        });
+  Future<List<UserModel>> _filterTrulyAvailableBarbers(
+      List<UserModel> barbers) async {
+    final availableBarbers = <UserModel>[];
+    // ignore: unused_local_variable
+    final now = DateTime.now();
+
+    for (final barber in barbers) {
+      try {
+        // Check if barber has available slots today or tomorrow
+        final isAvailable = await _checkBarberAvailability(barber.id);
+        if (isAvailable) {
+          availableBarbers.add(barber);
+        }
+      } catch (e) {
+        // If check fails, include barber anyway
+        availableBarbers.add(barber);
+        print('Error checking availability for ${barber.fullName}: $e');
       }
-    }, onError: (error) {
-      print('Error loading barbers: $error');
-    });
+    }
+
+    return availableBarbers;
+  }
+
+  Future<bool> _checkBarberAvailability(String barberId) async {
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+
+      // Check for appointments in the next 2 days
+      final appointments = await _firestore
+          .collection('appointments')
+          .where('barberId', isEqualTo: barberId)
+          .where('date', isGreaterThanOrEqualTo: today.millisecondsSinceEpoch)
+          .where('date',
+              isLessThan:
+                  tomorrow.add(const Duration(days: 2)).millisecondsSinceEpoch)
+          .where('status', whereIn: ['pending', 'confirmed']).get();
+
+      // Consider barber available if they have less than 8 appointments per day
+      final appointmentCount = appointments.docs.length;
+      return appointmentCount < 16; // 8 per day for 2 days
+    } catch (e) {
+      return true; // Default to available if check fails
+    }
   }
 
   void _loadUpcomingAppointments() {
+    _appointmentsSubscription?.cancel();
     final authProvider = context.read<AuthProvider>();
     if (authProvider.user == null) return;
 
-    _firestore
+    _appointmentsSubscription = _firestore
         .collection('appointments')
         .where('clientId', isEqualTo: authProvider.user!.id)
         .where('status', whereIn: ['pending', 'confirmed'])
         .where('date',
             isGreaterThanOrEqualTo: DateTime.now().millisecondsSinceEpoch)
         .orderBy('date', descending: false)
-        .limit(3)
         .snapshots()
-        .listen((snapshot) {
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return AppointmentModel.fromMap({...data, 'id': doc.id});
+          }).toList();
+        })
+        .listen((appointments) {
           if (mounted) {
             setState(() {
-              _upcomingAppointments = snapshot.docs
-                  .map((doc) => AppointmentModel.fromMap(doc.data()))
-                  .toList();
-              _isLoading =
-                  _availableBarbers.isEmpty && _recentActivities.isEmpty;
+              _upcomingAppointments = appointments;
+              _checkLoadingState();
             });
           }
         }, onError: (error) {
           print('Error loading appointments: $error');
+          if (mounted) {
+            setState(() {
+              _checkLoadingState();
+            });
+          }
         });
   }
 
-  void _loadRecentActivities() {
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.user == null) return;
+  void _loadActiveOffers() {
+    _offersSubscription?.cancel();
 
-    _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: authProvider.user!.id)
-        .orderBy('createdAt', descending: true)
-        .limit(5)
+    _offersSubscription = _firestore
+        .collection('marketing_offers')
+        .where('isActive', isEqualTo: true)
+        .where('expiresAt',
+            isGreaterThan: DateTime.now().millisecondsSinceEpoch)
+        .orderBy('expiresAt', descending: false)
         .snapshots()
-        .listen((snapshot) {
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList())
+        .listen((offers) {
       if (mounted) {
         setState(() {
-          _recentActivities = snapshot.docs.map((doc) => doc.data()).toList();
-          _isLoading =
-              _availableBarbers.isEmpty && _upcomingAppointments.isEmpty;
+          _activeOffers = offers;
+          _checkLoadingState();
         });
       }
     }, onError: (error) {
-      print('Error loading activities: $error');
+      print('Error loading offers: $error');
+      if (mounted) {
+        setState(() {
+          _checkLoadingState();
+        });
+      }
     });
+  }
+
+  void _checkLoadingState() {
+    if (_availableBarbers.isNotEmpty ||
+        _upcomingAppointments.isNotEmpty ||
+        _activeOffers.isNotEmpty) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -144,10 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
             // Upcoming Appointments
             _buildUpcomingAppointmentsSection(),
             const SizedBox(height: 24),
-
-            // Special Offers
-            _buildSpecialOffersSection(),
-            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -159,7 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.delayed(const Duration(seconds: 1));
     _initializeRealTimeData();
   }
-
 
   Widget _buildWelcomeSection(AuthProvider authProvider) {
     return Container(
@@ -216,61 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 8),
-                // Quick stats
-                Row(
-                  children: [
-                    _buildStatChip(
-                      icon: Icons.calendar_today,
-                      value: _upcomingAppointments.length.toString(),
-                      label: 'Upcoming',
-                    ),
-                    const SizedBox(width: 12),
-                    _buildStatChip(
-                      icon: Icons.star,
-                      value: authProvider.user?.totalRatings?.toString() ?? '0',
-                      label: 'Reviews',
-                    ),
-                  ],
-                ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip({
-    required IconData icon,
-    required String value,
-    required String label,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: AppColors.primary),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -305,35 +342,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildQuickActionCard(
-                icon: Icons.calendar_today_rounded,
-                title: 'Book Appointment',
-                subtitle: 'Schedule your visit',
-                color: Colors.green,
-                onTap: _navigateToQuickBooking,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionCard(
                 icon: Icons.local_offer_rounded,
                 title: 'Special Offers',
                 subtitle: 'View discounts & deals',
                 color: AppColors.accent,
-                onTap: _navigateToOffers,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionCard(
-                icon: Icons.star_rounded,
-                title: 'My Reviews',
-                subtitle: 'See your ratings',
-                color: Colors.purple,
-                onTap: _navigateToReviews,
+                onTap: _navigateToSpecialOffers,
               ),
             ),
           ],
@@ -437,8 +450,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProfessionalCard(UserModel barber) {
-    final hasDiscount = _checkBarberHasDiscount(barber.id);
-
     return Container(
       width: 160,
       margin: const EdgeInsets.only(right: 12),
@@ -540,34 +551,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              // Discount Badge
-              if (hasDiscount)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.local_offer,
-                      size: 12,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  bool _checkBarberHasDiscount(String barberId) {
-    return _activeOffers.any((offer) => offer.barberId == barberId);
   }
 
   Widget _buildUpcomingAppointmentsSection() {
@@ -662,126 +650,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildSpecialOffersSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Special Offers',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _activeOffers.isEmpty
-            ? _buildNoOffersAvailable()
-            : SizedBox(
-                height: 120,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _activeOffers.length,
-                  itemBuilder: (context, index) {
-                    final offer = _activeOffers[index];
-                    return _buildOfferCard(offer);
-                  },
-                ),
-              ),
-      ],
-    );
-  }
-
-  Widget _buildOfferCard(MarketingOffer offer) {
-    return Container(
-      width: 280,
-      margin: const EdgeInsets.only(right: 12),
-      child: Card(
-        elevation: 3,
-        color: AppColors.primary.withOpacity(0.05),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: InkWell(
-          onTap: () => _viewOfferDetails(offer),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.local_offer,
-                      color: AppColors.primary, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        offer.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        offer.description,
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Use code: ${offer.discountCode}',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${offer.discount}% OFF',
-                    style: TextStyle(
-                      color: AppColors.success,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-
 
   // Loading and Empty States
   Widget _buildLoadingProfessionals() {
@@ -884,36 +752,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNoOffersAvailable() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.local_offer_outlined,
-              size: 48, color: AppColors.textSecondary),
-          const SizedBox(height: 12),
-          Text(
-            'No Current Offers',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Check back later for special promotions and discounts',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Navigation methods
   void _navigateToFindProfessionals() {
     Navigator.push(
@@ -922,23 +760,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _navigateToQuickBooking() {
+  void _navigateToSpecialOffers() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const SelectBarberScreen()),
+      MaterialPageRoute(builder: (context) => SpecialOffersScreen()),
     );
-  }
-
-  void _navigateToOffers() {
-    // Navigate to offers screen
-    showCustomSnackBar(context, 'Offers screen will be implemented',
-        type: SnackBarType.info);
-  }
-
-  void _navigateToReviews() {
-    // Navigate to reviews screen
-    showCustomSnackBar(context, 'Reviews screen will be implemented',
-        type: SnackBarType.info);
   }
 
   void _navigateToAllProfessionals() {
@@ -952,6 +778,13 @@ class _HomeScreenState extends State<HomeScreen> {
     // Navigate to all appointments screen
     showCustomSnackBar(context, 'All appointments screen will be implemented',
         type: SnackBarType.info);
+  }
+
+  void _navigateToQuickBooking() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SelectBarberScreen()),
+    );
   }
 
   void _viewBarberProfile(UserModel barber) {
@@ -971,68 +804,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ClientAppointmentDetailsScreen(appointment: appointment),
       ),
     );
-  }
-
-  void _viewOfferDetails(MarketingOffer offer) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(offer.title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(offer.description),
-            const SizedBox(height: 12),
-            Text(
-              'Discount: ${offer.discount}%',
-              style: TextStyle(
-                color: AppColors.success,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Code: ${offer.discountCode}',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Valid until: ${DateFormat('MMM d, yyyy').format(offer.expiresAt)}',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _useOffer(offer);
-            },
-            child: const Text('Use Offer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _useOffer(MarketingOffer offer) {
-    showCustomSnackBar(
-      context,
-      'Offer code ${offer.discountCode} copied to clipboard',
-      type: SnackBarType.success,
-    );
-    // In a real app, you would copy to clipboard and navigate to booking
   }
 
   void _showBarberQuickActions(UserModel barber) {
@@ -1121,54 +892,5 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return Icons.help;
     }
-  }
-}
-
-// Marketing Offer Model
-class MarketingOffer {
-  final String id;
-  final String title;
-  final String description;
-  final int discount;
-  final String discountCode;
-  final String barberId;
-  final DateTime expiresAt;
-  final bool isActive;
-
-  MarketingOffer({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.discount,
-    required this.discountCode,
-    required this.barberId,
-    required this.expiresAt,
-    required this.isActive,
-  });
-
-  factory MarketingOffer.fromMap(Map<String, dynamic> map) {
-    return MarketingOffer(
-      id: map['id'],
-      title: map['title'],
-      description: map['description'],
-      discount: map['discount'],
-      discountCode: map['discountCode'],
-      barberId: map['barberId'],
-      expiresAt: DateTime.fromMillisecondsSinceEpoch(map['expiresAt']),
-      isActive: map['isActive'],
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'description': description,
-      'discount': discount,
-      'discountCode': discountCode,
-      'barberId': barberId,
-      'expiresAt': expiresAt.millisecondsSinceEpoch,
-      'isActive': isActive,
-    };
   }
 }

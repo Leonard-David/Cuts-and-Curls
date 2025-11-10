@@ -5,22 +5,32 @@ import 'package:sheersync/data/repositories/chat_repository.dart';
 
 class ChatProvider with ChangeNotifier {
   final ChatRepository _repository = ChatRepository();
-  
+  final Map<String, bool> _typingUsers = {};
+  Map<String, bool> get typingUsers => _typingUsers;
+
   // Chat rooms state
   List<ChatRoom> _chatRooms = [];
   bool _isLoadingChatRooms = false;
   String? _chatRoomsError;
-  
+
   // Current chat state
   List<ChatMessage> _currentMessages = [];
   bool _isLoadingMessages = false;
   String? _messagesError;
-  
+
+  // Connection state
+  bool _isConnected = true;
+  bool get isConnected => _isConnected;
+
+  // Offline state
+  bool _isOfflineMode = false;
+  bool get isOfflineMode => _isOfflineMode;
+
   // Getters
   List<ChatRoom> get chatRooms => _chatRooms;
   bool get isLoadingChatRooms => _isLoadingChatRooms;
   String? get chatRoomsError => _chatRoomsError;
-  
+
   List<ChatMessage> get currentMessages => _currentMessages;
   bool get isLoadingMessages => _isLoadingMessages;
   String? get messagesError => _messagesError;
@@ -66,10 +76,25 @@ class ChatProvider with ChangeNotifier {
         _messagesError = error.toString();
         notifyListeners();
       });
+      // Load typing indicators
+      _repository.getTypingStatusStream(chatId).listen((typingStatus) {
+        _typingUsers.clear();
+        _typingUsers.addAll(typingStatus);
+        notifyListeners();
+      });
     } catch (e) {
       _isLoadingMessages = false;
       _messagesError = e.toString();
       notifyListeners();
+    }
+  }
+
+  // Set typing status
+  Future<void> setTyping(String chatId, String userId, bool isTyping) async {
+    try {
+      await _repository.setTypingStatus(chatId, userId, isTyping);
+    } catch (e) {
+      print('Error setting typing status: $e');
     }
   }
 
@@ -82,6 +107,21 @@ class ChatProvider with ChangeNotifier {
     required String message,
   }) async {
     try {
+      if (!_isConnected) {
+        // Queue message for offline sending
+        await _repository.queueOfflineMessage({
+          'chatId': chatId,
+          'senderId': senderId,
+          'senderName': senderName,
+          'senderType': senderType,
+          'message': message,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+        _isOfflineMode = true;
+        notifyListeners();
+        return;
+      }
+
       await _repository.sendMessage(
         chatId: chatId,
         senderId: senderId,
@@ -130,5 +170,25 @@ class ChatProvider with ChangeNotifier {
   void dispose() {
     _repository.dispose();
     super.dispose();
+  }
+
+  // Sync offline messages when connection restored
+  Future<void> syncOfflineMessages() async {
+    try {
+      await _repository.syncOfflineMessages();
+      _isOfflineMode = false;
+      notifyListeners();
+    } catch (e) {
+      print('Error syncing offline messages: $e');
+    }
+  }
+
+  // Update connection status
+  void updateConnectionStatus(bool connected) {
+    _isConnected = connected;
+    if (connected && _isOfflineMode) {
+      syncOfflineMessages();
+    }
+    notifyListeners();
   }
 }

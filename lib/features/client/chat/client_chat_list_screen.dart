@@ -30,7 +30,7 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       final chatProvider = context.read<ChatProvider>();
-      
+
       if (authProvider.user != null) {
         // Load chat rooms with real-time updates
         chatProvider.loadChatRooms(authProvider.user!.id, 'client');
@@ -74,9 +74,19 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary),
           ),
           filled: true,
-          fillColor: AppColors.background,
+          fillColor: Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary,
+          ),
         ),
       ),
     );
@@ -116,8 +126,8 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
     final lastMessageTime = lastMessage?.timestamp ?? chatRoom.updatedAt;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -135,11 +145,11 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
                 children: [
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor: AppColors.accent.withOpacity(0.1),
                     child: Icon(
                       Icons.person,
                       size: 24,
-                      color: AppColors.textSecondary,
+                      color: AppColors.accent,
                     ),
                   ),
                   // Online Status Indicator
@@ -147,7 +157,7 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
                     width: 12,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: Colors.green, // This would come from barber's online status
+                      color: Colors.green,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -168,7 +178,9 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: hasUnread ? AppColors.text : AppColors.textSecondary,
+                            color: hasUnread
+                                ? AppColors.text
+                                : AppColors.textSecondary,
                           ),
                         ),
                         Text(
@@ -186,7 +198,8 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
-                        fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
+                        fontWeight:
+                            hasUnread ? FontWeight.w500 : FontWeight.normal,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -197,13 +210,16 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
               // Unread Badge
               if (hasUnread)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    chatRoom.unreadCount > 99 ? '99+' : chatRoom.unreadCount.toString(),
+                    chatRoom.unreadCount > 99
+                        ? '99+'
+                        : chatRoom.unreadCount.toString(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -224,12 +240,19 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
       itemCount: 5,
       itemBuilder: (context, index) {
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const CircleAvatar(radius: 24, backgroundColor: Colors.grey),
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.grey[300],
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -280,7 +303,7 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
               'Error Loading Chats',
               style: TextStyle(
                 fontSize: 18,
-                color: AppColors.textSecondary,
+                color: AppColors.error,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -295,6 +318,14 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _refreshChats,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                minimumSize: const Size(140, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               child: const Text('Try Again'),
             ),
           ],
@@ -319,8 +350,8 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
             Text(
               'No Conversations',
               style: TextStyle(
-                fontSize: 18,
-                color: AppColors.textSecondary,
+                fontSize: 20,
+                color: AppColors.text,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -330,11 +361,20 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textSecondary,
+                fontSize: 16,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _findProfessionals,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                minimumSize: const Size(180, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               child: const Text('Find Professionals'),
             ),
           ],
@@ -347,10 +387,11 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
     if (_searchQuery.isEmpty) {
       return chatRooms;
     }
-    
+
     return chatRooms.where((chat) {
       return chat.barberName.toLowerCase().contains(_searchQuery) ||
-             chat.lastMessage?.message.toLowerCase().contains(_searchQuery) == true;
+          chat.lastMessage?.message.toLowerCase().contains(_searchQuery) ==
+              true;
     }).toList();
   }
 
@@ -372,7 +413,7 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
   Future<void> _refreshChats() async {
     final authProvider = context.read<AuthProvider>();
     final chatProvider = context.read<ChatProvider>();
-    
+
     if (authProvider.user != null) {
       chatProvider.loadChatRooms(authProvider.user!.id, 'client');
     }
@@ -390,29 +431,42 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
   void _showChatOptions(ChatRoom chatRoom) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Delete Conversation'),
+              leading: Icon(Icons.delete, color: AppColors.error),
+              title: Text(
+                'Delete Conversation',
+                style: TextStyle(color: AppColors.text),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _deleteChat(chatRoom);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.block),
-              title: const Text('Block Professional'),
+              leading: Icon(Icons.block, color: AppColors.text),
+              title: Text(
+                'Block Professional',
+                style: TextStyle(color: AppColors.text),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _blockProfessional(chatRoom);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.report),
-              title: const Text('Report'),
+              leading: Icon(Icons.report, color: AppColors.text),
+              title: Text(
+                'Report',
+                style: TextStyle(color: AppColors.text),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _reportChat(chatRoom);
@@ -428,21 +482,32 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Conversation'),
-        content: const Text('Are you sure you want to delete this conversation? This action cannot be undone.'),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete Conversation',
+          style: TextStyle(color: AppColors.text),
+        ),
+        content: Text(
+          'Are you sure you want to delete this conversation? This action cannot be undone.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _confirmDeleteChat(chatRoom);
             },
-            child: const Text(
+            child: Text(
               'Delete',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -464,21 +529,32 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Block Professional'),
-        content: Text('Are you sure you want to block ${chatRoom.barberName}? You will no longer receive messages or be able to book appointments with them.'),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Block Professional',
+          style: TextStyle(color: AppColors.text),
+        ),
+        content: Text(
+          'Are you sure you want to block ${chatRoom.barberName}? You will no longer receive messages or be able to book appointments with them.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _confirmBlockProfessional(chatRoom);
             },
-            child: const Text(
+            child: Text(
               'Block',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -499,19 +575,33 @@ class _ClientChatListScreenState extends State<ClientChatListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Report Conversation'),
-        content: const Text('Please describe the issue with this conversation. Our team will review it within 24 hours.'),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Report Conversation',
+          style: TextStyle(color: AppColors.text),
+        ),
+        content: Text(
+          'Please describe the issue with this conversation. Our team will review it within 24 hours.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _submitReport(chatRoom);
             },
-            child: const Text('Submit Report'),
+            child: Text(
+              'Submit Report',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
         ],
       ),

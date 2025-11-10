@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -20,27 +23,85 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
+
   bool _isSending = false;
+  Timer? _typingTimer;
+  bool _isTyping = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _isConnected = true;
+  bool _isOfflineMode = false;
 
   @override
   void initState() {
     super.initState();
     _initializeChat();
+    _startConnectivityListener();
   }
 
   void _initializeChat() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final chatProvider = context.read<ChatProvider>();
       final authProvider = context.read<AuthProvider>();
-      
+
       // Load messages for this chat
       chatProvider.loadMessages(widget.chatRoom.id);
-      
+
       // Mark messages as read
       if (authProvider.user != null) {
-        chatProvider.markMessagesAsRead(widget.chatRoom.id, authProvider.user!.id);
+        chatProvider.markMessagesAsRead(
+            widget.chatRoom.id, authProvider.user!.id);
       }
     });
+  }
+
+  void _startConnectivityListener() {
+    _connectivitySubscription = Connectivity()
+        .onConnectivityChanged
+        .listen((List<ConnectivityResult> results) {
+      final wasConnected = _isConnected;
+      // Check if any of the results indicate we have connectivity
+      _isConnected = results.any((result) => result != ConnectivityResult.none);
+
+      if (!wasConnected && _isConnected) {
+        // Connection restored - sync offline messages
+        _syncOfflineMessages();
+      } else if (wasConnected && !_isConnected) {
+        // Connection lost
+        _isOfflineMode = true;
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _handleTyping() {
+    context.read<ChatProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    if (authProvider.user == null) return;
+
+    if (!_isTyping) {
+      _isTyping = true;
+      // We'll implement typing indicators in the provider later
+    }
+
+    // Reset typing timer
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 2), () {
+      _isTyping = false;
+    });
+  }
+
+  Future<void> _syncOfflineMessages() async {
+    context.read<ChatProvider>();
+    // This will be implemented when we add offline message queuing
+    _isOfflineMode = false;
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -50,13 +111,17 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
+      appBar: _buildAppBar(chatProvider),
       body: Column(
         children: [
+          // Connection Status Banner
+          if (!_isConnected || _isOfflineMode) _buildConnectionBanner(),
+
           // Messages List
           Expanded(
             child: _buildMessagesList(chatProvider, authProvider),
           ),
+
           // Message Input
           _buildMessageInput(chatProvider, authProvider),
         ],
@@ -64,17 +129,48 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  Widget _buildConnectionBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      color: _isConnected ? Colors.orange : AppColors.error,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _isConnected ? Icons.wifi : Icons.wifi_off,
+            size: 16,
+            color: Colors.white,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _isConnected
+                ? 'Slow connection - messages may be delayed'
+                : 'You are offline - messages will send when connected',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(ChatProvider chatProvider) {
     return AppBar(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
       title: Row(
         children: [
           CircleAvatar(
             radius: 16,
-            backgroundColor: Colors.grey[200],
+            backgroundColor: AppColors.accent.withOpacity(0.1),
             child: Icon(
               Icons.person,
               size: 16,
-              color: AppColors.textSecondary,
+              color: AppColors.accent,
             ),
           ),
           const SizedBox(width: 12),
@@ -87,13 +183,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
                 Text(
-                  'Online', // This would come from barber's online status
+                  _isConnected ? 'Online' : 'Offline',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: Colors.white.withOpacity(0.8),
                   ),
                 ),
               ],
@@ -103,16 +200,17 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.phone),
+          icon: const Icon(Icons.phone, color: Colors.white),
           onPressed: _callProfessional,
           tooltip: 'Call',
         ),
         IconButton(
-          icon: const Icon(Icons.videocam),
+          icon: const Icon(Icons.videocam, color: Colors.white),
           onPressed: _videoCallProfessional,
           tooltip: 'Video Call',
         ),
         PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Colors.white),
           onSelected: (value) => _handleMenuAction(value),
           itemBuilder: (context) => [
             const PopupMenuItem(
@@ -161,7 +259,8 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessagesList(ChatProvider chatProvider, AuthProvider authProvider) {
+  Widget _buildMessagesList(
+      ChatProvider chatProvider, AuthProvider authProvider) {
     if (chatProvider.isLoadingMessages) {
       return _buildLoadingState();
     }
@@ -205,7 +304,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe && showAvatar)
@@ -213,11 +313,11 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.only(right: 8),
               child: CircleAvatar(
                 radius: 12,
-                backgroundColor: Colors.grey[200],
+                backgroundColor: AppColors.accent.withOpacity(0.1),
                 child: Icon(
                   Icons.person,
                   size: 12,
-                  color: AppColors.textSecondary,
+                  color: AppColors.accent,
                 ),
               ),
             ),
@@ -227,6 +327,7 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: BoxDecoration(
                 color: isMe ? AppColors.primary : AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(18),
+                border: isMe ? null : Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,7 +337,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       message.senderName,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isMe ? Colors.white70 : AppColors.textSecondary,
+                        color: isMe ? Colors.white70 : AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -254,7 +355,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         DateFormat('HH:mm').format(message.timestamp),
                         style: TextStyle(
                           fontSize: 10,
-                          color: isMe ? Colors.white70 : AppColors.textSecondary,
+                          color:
+                              isMe ? Colors.white70 : AppColors.textSecondary,
                         ),
                       ),
                       if (isMe) ...[
@@ -298,6 +400,7 @@ class _ChatScreenState extends State<ChatScreen> {
           decoration: BoxDecoration(
             color: AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
           ),
           child: Text(
             _formatTimeSeparator(time),
@@ -311,7 +414,8 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageInput(ChatProvider chatProvider, AuthProvider authProvider) {
+  Widget _buildMessageInput(
+      ChatProvider chatProvider, AuthProvider authProvider) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -324,7 +428,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // Attachment Button
           IconButton(
-            icon: const Icon(Icons.attach_file),
+            icon: Icon(Icons.attach_file, color: AppColors.primary),
             onPressed: _attachFile,
             tooltip: 'Attach File',
           ),
@@ -332,12 +436,25 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: TextField(
               controller: _messageController,
+              focusNode: _focusNode,
+              onChanged: (value) => _handleTyping(),
               decoration: InputDecoration(
-                hintText: 'Type a message...',
+                hintText: _isOfflineMode
+                    ? 'Message will send when online...'
+                    : 'Type a message...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: AppColors.primary),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                suffixIcon: _isOfflineMode
+                    ? Icon(Icons.cloud_off, size: 20, color: AppColors.error)
+                    : null,
               ),
               maxLines: 3,
               minLines: 1,
@@ -347,13 +464,22 @@ class _ChatScreenState extends State<ChatScreen> {
           // Send Button
           IconButton(
             icon: _isSending
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
                   )
-                : const Icon(Icons.send),
-            onPressed: _isSending
+                : Icon(
+                    Icons.send,
+                    color: _isOfflineMode
+                        ? AppColors.textSecondary
+                        : AppColors.primary,
+                  ),
+            onPressed: _isSending ||
+                    (_isOfflineMode && _messageController.text.isEmpty)
                 ? null
                 : () => _sendMessage(chatProvider, authProvider),
             tooltip: 'Send',
@@ -368,7 +494,7 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(),
+          CircularProgressIndicator(color: AppColors.primary),
           const SizedBox(height: 16),
           Text(
             'Loading messages...',
@@ -401,16 +527,23 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            error,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _retryLoadingMessages,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Try Again'),
           ),
         ],
@@ -420,32 +553,36 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Messages Yet',
-            style: TextStyle(
-              fontSize: 18,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 80,
+              color: AppColors.textSecondary.withOpacity(0.5),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start the conversation by sending a message!',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
+            const SizedBox(height: 16),
+            Text(
+              'No Messages Yet',
+              style: TextStyle(
+                fontSize: 20,
+                color: AppColors.text,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Start the conversation by sending a message!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -453,23 +590,29 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _shouldShowAvatar(List<ChatMessage> messages, int index, bool isMe) {
     if (isMe) return false;
     if (index == 0) return true;
-    
+
     final previousMessage = messages[index - 1];
     final currentMessage = messages[index];
-    
+
     // Show avatar if previous message was from different sender or more than 5 minutes ago
     return previousMessage.senderId != currentMessage.senderId ||
-        currentMessage.timestamp.difference(previousMessage.timestamp).inMinutes > 5;
+        currentMessage.timestamp
+                .difference(previousMessage.timestamp)
+                .inMinutes >
+            5;
   }
 
   bool _shouldShowTime(List<ChatMessage> messages, int index) {
     if (index == 0) return true;
-    
+
     final previousMessage = messages[index - 1];
     final currentMessage = messages[index];
-    
+
     // Show time if more than 5 minutes between messages
-    return currentMessage.timestamp.difference(previousMessage.timestamp).inMinutes > 5;
+    return currentMessage.timestamp
+            .difference(previousMessage.timestamp)
+            .inMinutes >
+        5;
   }
 
   String _formatTimeSeparator(DateTime time) {
@@ -496,12 +639,14 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _sendMessage(ChatProvider chatProvider, AuthProvider authProvider) async {
+  Future<void> _sendMessage(
+      ChatProvider chatProvider, AuthProvider authProvider) async {
     final message = _messageController.text.trim();
     if (message.isEmpty || _isSending) return;
 
     if (authProvider.user == null) {
-      showCustomSnackBar(context, 'Please login to send messages', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Please login to send messages',
+          type: SnackBarType.error);
       return;
     }
 
@@ -518,10 +663,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
       _messageController.clear();
       _scrollToBottom();
+
+      // Show success message for offline mode
+      if (_isOfflineMode) {
+        showCustomSnackBar(
+          context,
+          'Message queued - will send when online',
+          type: SnackBarType.info,
+        );
+      }
     } catch (e) {
       showCustomSnackBar(
         context,
-        'Failed to send message: $e',
+        'Failed to send message: ${e.toString()}',
         type: SnackBarType.error,
       );
     } finally {
@@ -532,29 +686,35 @@ class _ChatScreenState extends State<ChatScreen> {
   void _attachFile() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo),
-              title: const Text('Photo Library'),
+              leading: Icon(Icons.photo, color: AppColors.primary),
+              title: Text('Photo Library',
+                  style: TextStyle(color: AppColors.text)),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo'),
+              leading: Icon(Icons.camera_alt, color: AppColors.primary),
+              title:
+                  Text('Take Photo', style: TextStyle(color: AppColors.text)),
               onTap: () {
                 Navigator.pop(context);
                 _takePhoto();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.insert_drive_file),
-              title: const Text('Document'),
+              leading: Icon(Icons.insert_drive_file, color: AppColors.primary),
+              title: Text('Document', style: TextStyle(color: AppColors.text)),
               onTap: () {
                 Navigator.pop(context);
                 _pickDocument();
@@ -643,21 +803,31 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Block Professional'),
-        content: Text('Are you sure you want to block ${widget.chatRoom.barberName}?'),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Block Professional',
+          style: TextStyle(color: AppColors.text),
+        ),
+        content: Text(
+            'Are you sure you want to block ${widget.chatRoom.barberName}? You will no longer receive messages from them.',
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _confirmBlockProfessional();
             },
-            child: const Text(
+            child: Text(
               'Block',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -677,19 +847,32 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Report Professional'),
-        content: const Text('Please describe the issue with this professional.'),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Report Professional',
+          style: TextStyle(color: AppColors.text),
+        ),
+        content: Text(
+            'Please describe the issue with this professional. Our team will review your report within 24 hours.',
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _submitReport();
             },
-            child: const Text('Submit Report'),
+            child: Text(
+              'Submit Report',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
         ],
       ),
@@ -711,8 +894,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _typingTimer?.cancel();
+    _connectivitySubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 }

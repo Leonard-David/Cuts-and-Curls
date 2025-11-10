@@ -25,6 +25,7 @@ class ChatMessage {
     this.readAt,
     this.attachmentUrl,
     this.attachmentType,
+    required Map<String, String> data,
   });
 
   // Convert model to map for Firestore
@@ -55,21 +56,22 @@ class ChatMessage {
       senderType: map['senderType'] ?? '',
       message: map['message'] ?? '',
       type: _parseMessageType(map['type']),
-      timestamp: map['timestamp'] != null 
+      timestamp: map['timestamp'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['timestamp'])
           : DateTime.now(),
       isRead: map['isRead'] ?? false,
-      readAt: map['readAt'] != null 
+      readAt: map['readAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['readAt'])
           : null,
       attachmentUrl: map['attachmentUrl'],
       attachmentType: map['attachmentType'],
+      data: {},
     );
   }
 
   static MessageType _parseMessageType(String? typeString) {
     if (typeString == null) return MessageType.text;
-    
+
     switch (typeString) {
       case 'text':
         return MessageType.text;
@@ -112,6 +114,7 @@ class ChatMessage {
       readAt: readAt ?? this.readAt,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
       attachmentType: attachmentType ?? this.attachmentType,
+      data: {},
     );
   }
 }

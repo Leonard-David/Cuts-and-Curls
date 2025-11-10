@@ -459,6 +459,7 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
             : null,
         attachmentUrl: fields[10] as String?,
         attachmentType: fields[11] as String?,
+        data: {},
       );
     } catch (e) {
       print('Error reading ChatMessage: $e');
@@ -471,6 +472,7 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
         message: 'Default message',
         timestamp: DateTime.now(),
         isRead: false,
+        data: {},
       );
     }
   }

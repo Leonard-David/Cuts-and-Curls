@@ -11,13 +11,7 @@ enum NotificationType {
   discount
 }
 
-enum NotificationCategory {
-  today,
-  thisWeek,
-  thisMonth,
-  older,
-  all
-}
+enum NotificationCategory { today, thisWeek, thisMonth, older, all }
 
 class AppNotification {
   final String id;
@@ -26,8 +20,9 @@ class AppNotification {
   final String message;
   final NotificationType type;
   final String? relatedId;
-  final bool isRead;
+  final bool isRead; // NEW: Read status field
   final DateTime createdAt;
+  final DateTime? readAt; // NEW: When it was read
   final Map<String, dynamic>? data;
   final bool isSynced;
 
@@ -38,8 +33,9 @@ class AppNotification {
     required this.message,
     required this.type,
     this.relatedId,
-    this.isRead = false,
+    this.isRead = false, // Default to unread
     required this.createdAt,
+    this.readAt,
     this.data,
     this.isSynced = true,
   });
@@ -52,7 +48,8 @@ class AppNotification {
       'message': message,
       'type': type.name,
       'relatedId': relatedId,
-      'isRead': isRead,
+      'isRead': isRead, // NEW: Include in Firestore
+      'readAt': readAt?.millisecondsSinceEpoch,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'data': data,
       'isSynced': isSynced,
@@ -71,10 +68,13 @@ class AppNotification {
         orElse: () => NotificationType.system,
       ),
       relatedId: map['relatedId'],
-      isRead: map['isRead'] ?? false,
+      isRead: map['isRead'] ?? false, // NEW: Parse from Firestore
       createdAt: map['createdAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
           : DateTime.now(),
+      readAt: map['readAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['readAt'])
+          : null,
       data: map['data'] != null ? Map<String, dynamic>.from(map['data']) : null,
       isSynced: map['isSynced'] ?? true,
     );
@@ -89,6 +89,7 @@ class AppNotification {
     String? relatedId,
     bool? isRead,
     DateTime? createdAt,
+    DateTime? readAt,
     Map<String, dynamic>? data,
     bool? isSynced,
   }) {
@@ -101,6 +102,7 @@ class AppNotification {
       relatedId: relatedId ?? this.relatedId,
       isRead: isRead ?? this.isRead,
       createdAt: createdAt ?? this.createdAt,
+      readAt: readAt ?? this.readAt,
       data: data ?? this.data,
       isSynced: isSynced ?? this.isSynced,
     );
@@ -109,8 +111,9 @@ class AppNotification {
   NotificationCategory get category {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final notificationDate = DateTime(createdAt.year, createdAt.month, createdAt.day);
-    
+    final notificationDate =
+        DateTime(createdAt.year, createdAt.month, createdAt.day);
+
     final difference = today.difference(notificationDate).inDays;
 
     if (difference == 0) {

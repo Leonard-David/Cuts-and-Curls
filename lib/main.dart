@@ -7,6 +7,7 @@ import 'package:sheersync/core/utils/offline_service.dart';
 import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/chat_provider.dart';
+import 'package:sheersync/data/providers/connectivity_provider.dart';
 import 'package:sheersync/data/providers/notification_provider.dart';
 import 'package:sheersync/data/providers/payment_provider.dart';
 import 'package:sheersync/data/providers/settings_provider.dart';
@@ -91,6 +92,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AppointmentsProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
+        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, child) {
@@ -101,6 +103,7 @@ class MyApp extends StatelessWidget {
                 : AppTheme.lightTheme,
             debugShowCheckedModeBanner: false,
             home: const AuthWrapper(),
+            navigatorKey: ConnectivityProvider.navigatorKey,
           );
         },
       ),

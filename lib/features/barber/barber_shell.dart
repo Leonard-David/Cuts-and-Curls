@@ -733,7 +733,7 @@ class _BarberShellState extends State<BarberShell> {
     // This would typically refresh the appointments data
     showCustomSnackBar(
       context,
-      'Refreshing appointments...',
+      'Refreshing System Data...',
       type: SnackBarType.success,
     );
   }

@@ -12,9 +12,6 @@ class PaymentDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Payment Details'),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -91,11 +88,16 @@ class PaymentDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Amount', 'N\$${payment.amount.toStringAsFixed(2)}'),
+            _buildDetailRow(
+                'Amount', 'N\$${payment.amount.toStringAsFixed(2)}'),
             _buildDetailRow('Payment Method', payment.paymentMethod),
-            _buildDetailRow('Created', DateFormat('MMM d, yyyy • HH:mm').format(payment.createdAt)),
+            _buildDetailRow('Created',
+                DateFormat('MMM d, yyyy • HH:mm').format(payment.createdAt)),
             if (payment.completedAt != null)
-              _buildDetailRow('Completed', DateFormat('MMM d, yyyy • HH:mm').format(payment.completedAt!)),
+              _buildDetailRow(
+                  'Completed',
+                  DateFormat('MMM d, yyyy • HH:mm')
+                      .format(payment.completedAt!)),
             if (payment.transactionId != null)
               _buildDetailRow('Transaction ID', payment.transactionId!),
             _buildDetailRow('Appointment ID', payment.appointmentId),

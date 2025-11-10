@@ -19,37 +19,6 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Appointment Details'),
-        actions: [
-          if (appointment.status == 'pending' || appointment.status == 'confirmed')
-            PopupMenuButton<String>(
-              onSelected: (value) => _handleMenuAction(value, context, appointmentsProvider),
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'reschedule',
-                  child: Row(
-                    children: [
-                      Icon(Icons.schedule),
-                      SizedBox(width: 8),
-                      Text('Reschedule'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'cancel',
-                  child: Row(
-                    children: [
-                      Icon(Icons.cancel),
-                      SizedBox(width: 8),
-                      Text('Cancel Appointment'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -132,12 +101,21 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Date', DateFormat('EEEE, MMMM d, yyyy').format(appointment.date)),
-            _buildDetailRow('Time', DateFormat('h:mm a').format(appointment.date)),
-            _buildDetailRow('Duration', '${appointment.reminderMinutes ?? 30} minutes'),
-            _buildDetailRow('Created', DateFormat('MMM d, yyyy • h:mm a').format(appointment.createdAt)),
+            _buildDetailRow('Date',
+                DateFormat('EEEE, MMMM d, yyyy').format(appointment.date)),
+            _buildDetailRow(
+                'Time', DateFormat('h:mm a').format(appointment.date)),
+            _buildDetailRow(
+                'Duration', '${appointment.reminderMinutes ?? 30} minutes'),
+            _buildDetailRow(
+                'Created',
+                DateFormat('MMM d, yyyy • h:mm a')
+                    .format(appointment.createdAt)),
             if (appointment.updatedAt != null)
-              _buildDetailRow('Last Updated', DateFormat('MMM d, yyyy • h:mm a').format(appointment.updatedAt!)),
+              _buildDetailRow(
+                  'Last Updated',
+                  DateFormat('MMM d, yyyy • h:mm a')
+                      .format(appointment.updatedAt!)),
           ],
         ),
       ),
@@ -262,18 +240,21 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _buildDetailRow('Service', appointment.serviceName ?? 'Haircut'),
             if (appointment.price != null)
-              _buildDetailRow('Price', 'N\$${appointment.price!.toStringAsFixed(2)}'),
+              _buildDetailRow(
+                  'Price', 'N\$${appointment.price!.toStringAsFixed(2)}'),
             if (appointment.notes != null && appointment.notes!.isNotEmpty)
               _buildDetailRow('Notes', appointment.notes!),
             if (appointment.hasReminder && appointment.reminderMinutes != null)
-              _buildDetailRow('Reminder', '${appointment.reminderMinutes} minutes before'),
+              _buildDetailRow(
+                  'Reminder', '${appointment.reminderMinutes} minutes before'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActionsCard(BuildContext context, AppointmentsProvider appointmentsProvider, AuthProvider authProvider) {
+  Widget _buildActionsCard(BuildContext context,
+      AppointmentsProvider appointmentsProvider, AuthProvider authProvider) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -301,7 +282,8 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () => _cancelAppointment(context, appointmentsProvider),
+                  onPressed: () =>
+                      _cancelAppointment(context, appointmentsProvider),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                     side: BorderSide(color: AppColors.error),
@@ -322,7 +304,8 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () => _cancelAppointment(context, appointmentsProvider),
+                  onPressed: () =>
+                      _cancelAppointment(context, appointmentsProvider),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                     side: BorderSide(color: AppColors.error),
@@ -401,23 +384,13 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _handleMenuAction(String value, BuildContext context, AppointmentsProvider appointmentsProvider) {
-    switch (value) {
-      case 'reschedule':
-        _rescheduleAppointment(context);
-        break;
-      case 'cancel':
-        _cancelAppointment(context, appointmentsProvider);
-        break;
-    }
-  }
-
   void _rescheduleAppointment(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reschedule Appointment'),
-        content: const Text('This feature will allow you to choose a new date and time for your appointment.'),
+        content: const Text(
+            'This feature will allow you to choose a new date and time for your appointment.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -439,12 +412,14 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _cancelAppointment(BuildContext context, AppointmentsProvider appointmentsProvider) {
+  void _cancelAppointment(
+      BuildContext context, AppointmentsProvider appointmentsProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Appointment'),
-        content: const Text('Are you sure you want to cancel this appointment? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to cancel this appointment? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -465,10 +440,12 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _confirmCancelAppointment(BuildContext context, AppointmentsProvider appointmentsProvider) {
+  void _confirmCancelAppointment(
+      BuildContext context, AppointmentsProvider appointmentsProvider) {
     // Show loading
-    showCustomSnackBar(context, 'Cancelling appointment...', type: SnackBarType.info);
-    
+    showCustomSnackBar(context, 'Cancelling appointment...',
+        type: SnackBarType.info);
+
     // Cancel the appointment
     appointmentsProvider.cancelAppointment(appointment.id).then((_) {
       showCustomSnackBar(

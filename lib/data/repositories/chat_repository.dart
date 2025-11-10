@@ -5,12 +5,13 @@ import 'package:sheersync/data/models/chat_room_model.dart';
 
 class ChatRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   // Use a map to track active listeners and prevent duplicates
   final Map<String, StreamSubscription> _activeSubscriptions = {};
-  final Map<String, StreamController<List<ChatMessage>>> _messageControllers = {};
+  final Map<String, StreamController<List<ChatMessage>>> _messageControllers =
+      {};
   final Map<String, StreamController<List<ChatRoom>>> _chatRoomControllers = {};
-
+  final List<Map<String, dynamic>> _offlineMessageQueue = [];
   // Create or get chat room efficiently
   Future<ChatRoom> getOrCreateChatRoom({
     required String clientId,
@@ -47,6 +48,31 @@ class ChatRepository {
     }
   }
 
+  Future<void> setTypingStatus(
+      String chatId, String userId, bool isTyping) async {
+    try {
+      await _firestore.collection('chat_rooms').doc(chatId).update({
+        'typingUsers.$userId': isTyping,
+        'lastActivity': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (e) {
+      print('Error setting typing status: $e');
+    }
+  }
+
+  // Get typing status stream
+  Stream<Map<String, bool>> getTypingStatusStream(String chatId) {
+    return _firestore
+        .collection('chat_rooms')
+        .doc(chatId)
+        .snapshots()
+        .map((snapshot) {
+      final data = snapshot.data();
+      final typingUsers = data?['typingUsers'] as Map<String, dynamic>? ?? {};
+      return typingUsers.map((key, value) => MapEntry(key, value == true));
+    });
+  }
+
   // Send message with batch operation
   Future<void> sendMessage({
     required String chatId,
@@ -70,6 +96,7 @@ class ChatRepository {
         message: message.trim(),
         timestamp: DateTime.now(),
         isRead: false,
+        data: {'status': 'sent'},
       );
 
       final batch = _firestore.batch();
@@ -82,17 +109,23 @@ class ChatRepository {
           .doc(messageId);
       batch.set(messageRef, chatMessage.toMap());
 
-      // Update chat room with last message
+      // Update chat room with last message and delivery status
       final chatRoomRef = _firestore.collection('chat_rooms').doc(chatId);
       batch.update(chatRoomRef, {
         'lastMessage': chatMessage.toMap(),
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
         'unreadCount': FieldValue.increment(1),
+        'lastActivity': DateTime.now().millisecondsSinceEpoch,
       });
 
       await batch.commit();
 
-      // Trigger notification
+      // Update message status to delivered
+      await messageRef.update({
+        'data.status': 'delivered',
+      });
+
+      // Send push notification
       await _sendPushNotification(chatId, chatMessage);
     } catch (e) {
       throw Exception('Failed to send message: $e');
@@ -216,18 +249,23 @@ class ChatRepository {
   // Send push notification
   Future<void> _sendPushNotification(String chatId, ChatMessage message) async {
     try {
-      final chatDoc = await _firestore.collection('chat_rooms').doc(chatId).get();
+      final chatDoc =
+          await _firestore.collection('chat_rooms').doc(chatId).get();
       if (chatDoc.exists) {
         final chatRoom = ChatRoom.fromMap(chatDoc.data()!);
-        final receiverName = message.senderId == chatRoom.clientId 
-            ? chatRoom.barberName 
+        final receiverName = message.senderId == chatRoom.clientId
+            ? chatRoom.barberName
             : chatRoom.clientName;
 
-        // Implement your FCM notification logic here
-        print('Notification: New message from ${message.senderName} to $receiverName');
+        // Send via NotificationRepository for better handling
+        // This integrates with your existing notification system
+        print('FCM: New message from ${message.senderName} to $receiverName');
+
+        // You can integrate with your NotificationProvider here
+        // await NotificationProvider().sendChatNotification(...);
       }
     } catch (e) {
-      print('Notification error: $e');
+      print('FCM Notification error: $e');
     }
   }
 
@@ -262,5 +300,37 @@ class ChatRepository {
       controller.close();
     }
     _chatRoomControllers.clear();
+  }
+
+  Future<void> queueOfflineMessage(Map<String, dynamic> messageData) async {
+    _offlineMessageQueue.add(messageData);
+    // Store in local storage (Hive/SQLite) for persistence
+    await _saveOfflineQueue();
+  }
+
+  Future<void> syncOfflineMessages() async {
+    for (final messageData in _offlineMessageQueue) {
+      try {
+        await sendMessage(
+          chatId: messageData['chatId'],
+          senderId: messageData['senderId'],
+          senderName: messageData['senderName'],
+          senderType: messageData['senderType'],
+          message: messageData['message'],
+        );
+      } catch (e) {
+        print('Failed to sync offline message: $e');
+      }
+    }
+    _offlineMessageQueue.clear();
+    await _clearOfflineQueue();
+  }
+
+  Future<void> _saveOfflineQueue() async {
+    // Implement local storage saving
+  }
+
+  Future<void> _clearOfflineQueue() async {
+    // Implement local storage clearing
   }
 }
