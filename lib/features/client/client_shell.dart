@@ -58,6 +58,7 @@ class _ClientShellState extends State<ClientShell> {
 
   // Track if showing a detail screen (to show back button)
   bool _showBackButton = false;
+  bool _isRouteUpdateScheduled = false;
 
   @override
   void initState() {
@@ -199,7 +200,7 @@ class _ClientShellState extends State<ClientShell> {
           onPressed: _navigateToNotifications,
           tooltip: 'Notifications',
         ),
-        // Green dot indicator for unread notifications - UPDATED
+        // Green dot indicator for unread notifications
         if (notificationProvider.hasUnread)
           Positioned(
             right: 8,
@@ -396,20 +397,46 @@ class _ClientShellState extends State<ClientShell> {
   void _updateRoute(int tabIndex, Route<dynamic>? route) {
     if (route != null && route is ModalRoute) {
       final routeName = route.settings.name ?? '/';
-      if (mounted) {
-        setState(() {
-          _currentRoutes[tabIndex] = routeName;
-          // Update back button visibility
-          _showBackButton =
-              _navigatorKeys[tabIndex].currentState?.canPop() == true;
+      
+      // Prevent multiple scheduled updates
+      if (!_isRouteUpdateScheduled) {
+        _isRouteUpdateScheduled = true;
+        
+        // Use WidgetsBinding to schedule the state update after build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _isRouteUpdateScheduled = false;
+          if (mounted) {
+            setState(() {
+              _currentRoutes[tabIndex] = routeName;
+              // Update back button visibility
+              _showBackButton =
+                  _navigatorKeys[tabIndex].currentState?.canPop() == true;
 
-          // Update title based on current route
-          if (tabIndex == _currentIndex) {
-            if (routeName == '/') {
-              _currentTitle = _baseTitles[tabIndex];
-            } else if (routeName == '/chat') {
-              _currentTitle = 'Chat';
-            }
+              // Update title based on current route
+              if (tabIndex == _currentIndex) {
+                if (routeName == '/') {
+                  _currentTitle = _baseTitles[tabIndex];
+                } else if (routeName == '/chat') {
+                  _currentTitle = 'Chat';
+                } else if (routeName == '/barber/profile') {
+                  _currentTitle = 'Barber Profile';
+                } else if (routeName == '/barber/services') {
+                  _currentTitle = 'Select Service';
+                } else if (routeName == '/booking/select-barber') {
+                  _currentTitle = 'Find Professional';
+                } else if (routeName == '/booking/confirm') {
+                  _currentTitle = 'Confirm Booking';
+                } else if (routeName == '/booking/details') {
+                  _currentTitle = 'Appointment Details';
+                } else if (routeName == '/booking/review') {
+                  _currentTitle = 'Write Review';
+                } else if (routeName == '/offers/special') {
+                  _currentTitle = 'Special Offers';
+                } else if (routeName == '/payment/history') {
+                  _currentTitle = 'Payment History';
+                }
+              }
+            });
           }
         });
       }
@@ -706,9 +733,8 @@ class _ClientShellState extends State<ClientShell> {
   }
 
   void _updateTitleAfterPop() {
-    // This would need to be more sophisticated in a real app
-    // For now, we'll reset to base title after a short delay
-    Future.delayed(const Duration(milliseconds: 300), () {
+    // Schedule title update after navigation completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final currentNavigator = _navigatorKeys[_currentIndex];
         final canPop = currentNavigator.currentState?.canPop() == true;
