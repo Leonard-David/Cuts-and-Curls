@@ -233,18 +233,6 @@ class PaymentRepository {
     }
   }
 
-  Future<void> _createFinancialRecord(PaymentModel payment) async {
-    try {
-      await _firestore.collection('financial_records').doc(payment.id).set({
-        ...payment.toMap(),
-        'backupCreatedAt': DateTime.now().millisecondsSinceEpoch,
-        'isDeleted': false,
-      });
-    } catch (e) {
-      print('Failed to create financial record backup: $e');
-    }
-  }
-
 // Method to get all financial records (for dashboard)
   Stream<List<PaymentModel>> getFinancialRecords(String barberId) {
     return _firestore
