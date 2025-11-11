@@ -80,7 +80,6 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Sign in with email and password,
-  // Sign in with email and password
   Future<bool> signIn(String email, String password) async {
     _isLoading = true;
     _error = null;
@@ -107,23 +106,20 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
-      _isLoading = false;
-
-      // Handle specific error cases
-      if (e.code == 'user-not-found') {
-        _error = 'email-not-found'; // Special identifier for email not found
-      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        _error = 'wrong-password'; // Special identifier for wrong password
+      //HANDLING FOR PASSWORD CHANGE SCENARIO
+      if (e.code == 'invalid-credential' || e.code == 'wrong-password') {
+        _error =
+            'Invalid credentials. If you recently changed your password, please use the new password.';
       } else {
         _error = _getAuthErrorMessage(e);
       }
-
+      _isLoading = false;
       notifyListeners();
       return false;
     } catch (e) {
-      _isLoading = false;
       _error =
           'An unexpected error occurred. Please check your internet connection and try again.';
+      _isLoading = false;
       notifyListeners();
       return false;
     }

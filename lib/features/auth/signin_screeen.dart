@@ -18,10 +18,6 @@ class _SignInScreenState extends State<SignInScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  // Track specific errors for each field
-  String? _emailError;
-  String? _passwordError;
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -32,12 +28,6 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Clear previous field errors
-    setState(() {
-      _emailError = null;
-      _passwordError = null;
-    });
-
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final success = await authProvider.signIn(
       _emailController.text.trim(),
@@ -47,17 +37,10 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!success && mounted) {
       final errorMessage = authProvider.error ?? 'Sign in failed';
 
-      // Handle specific error cases
-      if (errorMessage == 'email-not-found') {
-        setState(() {
-          _emailError =
-              'Account does not exist. Please check your email and try again.';
-        });
-      } else if (errorMessage == 'wrong-password') {
-        setState(() {
-          _passwordError =
-              'You have entered an incorrect password. Please try again.';
-        });
+      // Check if the error indicates user not found
+      if (errorMessage.contains('No user found') ||
+          errorMessage.contains('user-not-found')) {
+        _showUserNotFoundDialog();
       } else {
         showCustomSnackBar(
           context,
@@ -66,6 +49,39 @@ class _SignInScreenState extends State<SignInScreen> {
         );
       }
     }
+  }
+
+  void _showUserNotFoundDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Account Not Found'),
+          content: const Text(
+            'No account found with this email address. '
+            'Would you like to create a new account?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Try Again'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SignUpScreen(),
+                  ),
+                );
+              },
+              child: const Text('Sign Up'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -110,29 +126,20 @@ class _SignInScreenState extends State<SignInScreen> {
                 // Email Field
                 TextFormField(
                   controller: _emailController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Student Email Address',
-                    prefixIcon: const Icon(Icons.email_outlined),
+                    prefixIcon: Icon(Icons.email_outlined),
                     hintText: 'e.g studentnumber@students.unam.na',
-                    errorText: _emailError, // Display email-specific error
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your UNAM student email';
                     }
-                    if (!value.contains('@students.unam.na')) {
+                    if (!value.contains('@students.unam.n')) {
                       return 'Please enter a valid student email.';
                     }
                     return null;
-                  },
-                  onChanged: (value) {
-                    // Clear email error when user starts typing
-                    if (_emailError != null) {
-                      setState(() {
-                        _emailError = null;
-                      });
-                    }
                   },
                 ),
 
@@ -145,8 +152,6 @@ class _SignInScreenState extends State<SignInScreen> {
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     hintText: 'Enter your password',
-                    errorText:
-                        _passwordError, // Display password-specific error
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
@@ -169,14 +174,6 @@ class _SignInScreenState extends State<SignInScreen> {
                       return 'Password must be at least 8 characters long.';
                     }
                     return null;
-                  },
-                  onChanged: (value) {
-                    // Clear password error when user starts typing
-                    if (_passwordError != null) {
-                      setState(() {
-                        _passwordError = null;
-                      });
-                    }
                   },
                 ),
 
