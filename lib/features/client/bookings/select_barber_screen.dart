@@ -201,7 +201,7 @@ class _SelectBarberScreenState extends State<SelectBarberScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        barber.userType == 'barber' ? 'Professional Barber' : 'Hairstylist',
+                        barber.userType == 'barber' ? 'Barber' : 'Hairstylist',
                         style: TextStyle(
                           fontSize: 12,
                           color: barber.userType == 'barber' 

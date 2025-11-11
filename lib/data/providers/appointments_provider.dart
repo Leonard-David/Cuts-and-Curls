@@ -24,10 +24,8 @@ class AppointmentsProvider with ChangeNotifier {
   List<AppointmentModel> get todaysAppointments => _todaysAppointments;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
   List<AppointmentModel> get clientAppointments => _clientAppointments;
-  List<AppointmentModel> get clientTodaysAppointments =>
-      _clientTodaysAppointments;
-  List<AppointmentModel> get clientUpcomingAppointments =>
-      _clientUpcomingAppointments;
+  List<AppointmentModel> get clientTodaysAppointments => _clientTodaysAppointments;
+  List<AppointmentModel> get clientUpcomingAppointments => _clientUpcomingAppointments;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -241,15 +239,29 @@ class AppointmentsProvider with ChangeNotifier {
     }
   }
 
-  // Update appointment status
+  // Update appointment status with current user ID for notification routing
   Future<void> updateAppointmentStatus(
-      String appointmentId, String status) async {
+    String appointmentId, 
+    String status, {
+    String? reason,
+    required String currentUserId,
+  }) async {
     try {
-      await _bookingRepository.updateAppointmentStatus(appointmentId, status);
+      await _bookingRepository.updateAppointmentStatus(
+        appointmentId, 
+        status,
+        reason: reason,
+        currentUserId: currentUserId,
+      );
 
       // Update local state
       _updateAppointmentInLists(
-          appointmentId, (appointment) => appointment.copyWith(status: status));
+        appointmentId, 
+        (appointment) => appointment.copyWith(
+          status: status,
+          updatedAt: DateTime.now(),
+        )
+      );
       notifyListeners();
     } catch (e) {
       _error = 'Failed to update appointment status: $e';
@@ -258,17 +270,61 @@ class AppointmentsProvider with ChangeNotifier {
     }
   }
 
-  // Cancel appointment
-  Future<void> cancelAppointment(String appointmentId) async {
+  // Cancel appointment with current user ID for notification routing
+  Future<void> cancelAppointment(
+    String appointmentId, {
+    required String currentUserId,
+    String? reason,
+  }) async {
     try {
-      await _bookingRepository.cancelAppointment(appointmentId, 'cancelled');
+      await _bookingRepository.updateAppointmentStatus(
+        appointmentId, 
+        'cancelled',
+        reason: reason,
+        currentUserId: currentUserId,
+      );
 
       // Update local state
-      _updateAppointmentInLists(appointmentId,
-          (appointment) => appointment.copyWith(status: 'cancelled'));
+      _updateAppointmentInLists(
+        appointmentId,
+        (appointment) => appointment.copyWith(
+          status: 'cancelled',
+          updatedAt: DateTime.now(),
+        )
+      );
       notifyListeners();
     } catch (e) {
       _error = 'Failed to cancel appointment: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Reschedule appointment with current user ID for notification routing
+  Future<void> rescheduleAppointment(
+    String appointmentId,
+    DateTime newDate, {
+    required String currentUserId,
+  }) async {
+    try {
+      await _bookingRepository.rescheduleAppointment(
+        appointmentId, 
+        newDate, 
+        currentUserId,
+      );
+
+      // Update local state
+      _updateAppointmentInLists(
+        appointmentId,
+        (appointment) => appointment.copyWith(
+          date: newDate,
+          status: 'rescheduled',
+          updatedAt: DateTime.now(),
+        )
+      );
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to reschedule appointment: $e';
       notifyListeners();
       rethrow;
     }
@@ -326,8 +382,10 @@ class AppointmentsProvider with ChangeNotifier {
   }
 
   // Helper method to update appointment in all lists
-  void _updateAppointmentInLists(String appointmentId,
-      AppointmentModel Function(AppointmentModel) updateFn) {
+  void _updateAppointmentInLists(
+    String appointmentId,
+    AppointmentModel Function(AppointmentModel) updateFn,
+  ) {
     final updateList = (List<AppointmentModel> list) {
       final index = list.indexWhere((a) => a.id == appointmentId);
       if (index != -1) {
@@ -393,7 +451,10 @@ class AppointmentsProvider with ChangeNotifier {
     // Update today's appointments for client
     _clientTodaysAppointments = _clientAppointments.where((appointment) {
       final appointmentDate = DateTime(
-          appointment.date.year, appointment.date.month, appointment.date.day);
+        appointment.date.year, 
+        appointment.date.month, 
+        appointment.date.day
+      );
       return appointmentDate == today &&
           appointment.status != 'cancelled' &&
           appointment.status != 'completed';
@@ -402,7 +463,10 @@ class AppointmentsProvider with ChangeNotifier {
     // Update upcoming appointments for client
     _clientUpcomingAppointments = _clientAppointments.where((appointment) {
       final appointmentDate = DateTime(
-          appointment.date.year, appointment.date.month, appointment.date.day);
+        appointment.date.year, 
+        appointment.date.month, 
+        appointment.date.day
+      );
       return appointmentDate.isAfter(today) &&
           appointment.status != 'cancelled' &&
           appointment.status != 'completed';
@@ -417,7 +481,10 @@ class AppointmentsProvider with ChangeNotifier {
     // Update today's appointments for barber
     _todaysAppointments = _allAppointments.where((appointment) {
       final appointmentDate = DateTime(
-          appointment.date.year, appointment.date.month, appointment.date.day);
+        appointment.date.year, 
+        appointment.date.month, 
+        appointment.date.day
+      );
       return appointmentDate == today &&
           appointment.status != 'cancelled' &&
           appointment.status != 'completed';
@@ -426,7 +493,10 @@ class AppointmentsProvider with ChangeNotifier {
     // Update upcoming appointments for barber
     _upcomingAppointments = _allAppointments.where((appointment) {
       final appointmentDate = DateTime(
-          appointment.date.year, appointment.date.month, appointment.date.day);
+        appointment.date.year, 
+        appointment.date.month, 
+        appointment.date.day
+      );
       return appointmentDate.isAfter(today) &&
           appointment.status != 'cancelled' &&
           appointment.status != 'completed';

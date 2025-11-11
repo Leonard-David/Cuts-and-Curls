@@ -16,23 +16,32 @@ class AppointmentDetailsScreen extends StatefulWidget {
   const AppointmentDetailsScreen({super.key, required this.appointment});
 
   @override
-  State<AppointmentDetailsScreen> createState() => _AppointmentDetailsScreenState();
+  State<AppointmentDetailsScreen> createState() =>
+      _AppointmentDetailsScreenState();
 }
 
 class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   final BookingRepository _bookingRepository = BookingRepository();
-  final NotificationRepository _notificationRepository = NotificationRepository();
+  final NotificationRepository _notificationRepository =
+      NotificationRepository();
   bool _isLoading = false;
 
   Future<void> _updateAppointmentStatus(String status, {String? reason}) async {
+    final authProvider = context.read<AuthProvider>();
+    final currentUserId = authProvider.user!.id; 
     setState(() {
       _isLoading = true;
     });
 
     try {
       // Update in Firestore
+
       await _bookingRepository.updateAppointmentStatus(
-          widget.appointment.id, status);
+        widget.appointment.id,
+        status,
+        reason: reason,
+        currentUserId: currentUserId,
+      );
 
       // Update local state
       final appointmentsProvider = context.read<AppointmentsProvider>();
@@ -86,7 +95,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Appointment'),
-        content: const Text('Are you sure you want to cancel this appointment?'),
+        content:
+            const Text('Are you sure you want to cancel this appointment?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -121,7 +131,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Mark as Completed'),
-        content: const Text('Are you sure you want to mark this appointment as completed?'),
+        content: const Text(
+            'Are you sure you want to mark this appointment as completed?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -145,7 +156,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Appointment'),
-        content: const Text('Are you sure you want to permanently delete this appointment? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to permanently delete this appointment? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -215,7 +227,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
       case 'confirmed':
         return 'Your appointment has been confirmed by ${widget.appointment.barberName}';
       case 'cancelled':
-        return reason ?? 'Your appointment has been cancelled by ${widget.appointment.barberName}';
+        return reason ??
+            'Your appointment has been cancelled by ${widget.appointment.barberName}';
       case 'completed':
         return 'Your appointment with ${widget.appointment.barberName} has been completed';
       default:
@@ -487,7 +500,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                 ),
                 if (isPast)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.textSecondary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -509,7 +523,8 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                 Icon(Icons.calendar_today, color: AppColors.primary),
                 const SizedBox(width: 12),
                 Text(
-                  DateFormat('EEEE, MMMM d, yyyy').format(widget.appointment.date),
+                  DateFormat('EEEE, MMMM d, yyyy')
+                      .format(widget.appointment.date),
                   style: const TextStyle(fontSize: 16),
                 ),
               ],
@@ -525,11 +540,13 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                 ),
               ],
             ),
-            if (widget.appointment.hasReminder && widget.appointment.reminderMinutes != null) ...[
+            if (widget.appointment.hasReminder &&
+                widget.appointment.reminderMinutes != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.notifications_active_rounded, color: AppColors.accent),
+                  Icon(Icons.notifications_active_rounded,
+                      color: AppColors.accent),
                   const SizedBox(width: 12),
                   Text(
                     'Reminder: ${widget.appointment.reminderMinutes} minutes before',

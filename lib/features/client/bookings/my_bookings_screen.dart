@@ -7,6 +7,7 @@ import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/features/client/bookings/client_appointment_details_screen.dart';
+import 'package:sheersync/features/client/bookings/select_barber_screen.dart';
 import 'package:sheersync/features/client/reviews/review_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -16,14 +17,18 @@ class MyBookingsScreen extends StatefulWidget {
   State<MyBookingsScreen> createState() => _MyBookingsScreenState();
 }
 
-class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerProviderStateMixin {
+class _MyBookingsScreenState extends State<MyBookingsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _tabTitles = ['Upcoming', 'Pending', 'Completed', 'Cancelled'];
-  
+  final List<String> _tabTitles = [
+    'Upcoming',
+    'Pending',
+    'Completed',
+    'Cancelled'
+  ];
+
   // Filter states
   String _searchQuery = '';
-  DateTime? _selectedDate;
-  String _selectedStatus = 'all';
 
   @override
   void initState() {
@@ -36,12 +41,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       final appointmentsProvider = context.read<AppointmentsProvider>();
-      
+
       if (authProvider.user != null) {
         // Load all client appointments with real-time updates
         appointmentsProvider.loadClientAppointments(authProvider.user!.id);
-        appointmentsProvider.loadClientTodaysAppointments(authProvider.user!.id);
-        appointmentsProvider.loadClientUpcomingAppointments(authProvider.user!.id);
+        appointmentsProvider
+            .loadClientTodaysAppointments(authProvider.user!.id);
+        appointmentsProvider
+            .loadClientUpcomingAppointments(authProvider.user!.id);
       }
     });
   }
@@ -56,7 +63,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
       body: Column(
         children: [
           // Search and Filter Bar
-          _buildSearchFilterBar(),
+          (_buildSearchFilterBar)(),
           // Tab Bar
           _buildTabBar(),
           // Tab Content
@@ -135,72 +142,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
               fillColor: AppColors.background,
             ),
           ),
-          const SizedBox(height: 12),
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  label: 'All',
-                  selected: _selectedStatus == 'all',
-                  onSelected: (selected) {
-                    setState(() {
-                      _selectedStatus = selected ? 'all' : 'all';
-                    });
-                  },
-                ),
-                _buildFilterChip(
-                  label: 'Today',
-                  selected: _selectedDate != null && 
-                      _selectedDate!.day == DateTime.now().day,
-                  onSelected: (selected) {
-                    setState(() {
-                      _selectedDate = selected ? DateTime.now() : null;
-                    });
-                  },
-                ),
-                _buildFilterChip(
-                  label: 'This Week',
-                  selected: _selectedDate != null && 
-                      _isSameWeek(_selectedDate!, DateTime.now()),
-                  onSelected: (selected) {
-                    setState(() {
-                      _selectedDate = selected ? DateTime.now() : null;
-                    });
-                  },
-                ),
-                // Add more filter chips as needed
-              ],
-            ),
-          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    required bool selected,
-    required Function(bool) onSelected,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: onSelected,
-        backgroundColor: AppColors.background,
-        selectedColor: AppColors.primary.withOpacity(0.1),
-        checkmarkColor: AppColors.primary,
-        labelStyle: TextStyle(
-          color: selected ? AppColors.primary : AppColors.text,
-        ),
-        shape: StadiumBorder(
-          side: BorderSide(
-            color: selected ? AppColors.primary : AppColors.border,
-          ),
-        ),
       ),
     );
   }
@@ -271,9 +213,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(appointment.status).withOpacity(0.1),
+                      color:
+                          _getStatusColor(appointment.status).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -365,9 +309,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
                 ],
               ),
               // Actions based on status
-              if (appointment.status == 'pending') ..._buildPendingActions(appointment),
-              if (appointment.status == 'confirmed') ..._buildConfirmedActions(appointment),
-              if (appointment.status == 'completed') ..._buildCompletedActions(appointment),
+              if (appointment.status == 'pending')
+                ..._buildPendingActions(appointment),
+              if (appointment.status == 'confirmed')
+                ..._buildConfirmedActions(appointment),
+              if (appointment.status == 'completed')
+                ..._buildCompletedActions(appointment),
             ],
           ),
         ),
@@ -510,7 +457,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const CircleAvatar(radius: 20, backgroundColor: Colors.grey),
+                    const CircleAvatar(
+                        radius: 20, backgroundColor: Colors.grey),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -606,61 +554,36 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
       if (statusFilter != null && !statusFilter.contains(appointment.status)) {
         return false;
       }
-      
-      // Date filter
-      if (_selectedDate != null) {
-        if (_selectedDate!.day == DateTime.now().day) {
-          // Today filter
-          final appointmentDate = DateTime(
-            appointment.date.year,
-            appointment.date.month,
-            appointment.date.day,
-          );
-          final today = DateTime(
-            DateTime.now().year,
-            DateTime.now().month,
-            DateTime.now().day,
-          );
-          if (appointmentDate != today) return false;
-        } else if (_isSameWeek(_selectedDate!, appointment.date)) {
-          // This week filter
-          if (!_isSameWeek(appointment.date, DateTime.now())) return false;
-        }
-      }
-      
+
       // Search filter
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        final matchesBarber = appointment.barberName?.toLowerCase().contains(query) ?? false;
-        final matchesService = appointment.serviceName?.toLowerCase().contains(query) ?? false;
+        final matchesBarber =
+            appointment.barberName?.toLowerCase().contains(query) ?? false;
+        final matchesService =
+            appointment.serviceName?.toLowerCase().contains(query) ?? false;
         if (!matchesBarber && !matchesService) return false;
       }
-      
+
       // Upcoming filter
       if (isUpcoming && appointment.date.isBefore(DateTime.now())) {
         return false;
       }
-      
+
       return true;
     }).toList();
-    
+
     // Sort by date
     filtered.sort((a, b) => a.date.compareTo(b.date));
-    
-    return filtered;
-  }
 
-  bool _isSameWeek(DateTime a, DateTime b) {
-    final startOfWeekA = a.subtract(Duration(days: a.weekday - 1));
-    final startOfWeekB = b.subtract(Duration(days: b.weekday - 1));
-    return startOfWeekA.difference(startOfWeekB).inDays == 0;
+    return filtered;
   }
 
   // Action methods
   Future<void> _refreshData() async {
     final authProvider = context.read<AuthProvider>();
     final appointmentsProvider = context.read<AppointmentsProvider>();
-    
+
     if (authProvider.user != null) {
       appointmentsProvider.loadClientAppointments(authProvider.user!.id);
     }
@@ -670,7 +593,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ClientAppointmentDetailsScreen(appointment: appointment),
+        builder: (context) =>
+            ClientAppointmentDetailsScreen(appointment: appointment),
       ),
     );
   }
@@ -680,7 +604,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Appointment'),
-        content: const Text('Are you sure you want to cancel this appointment?'),
+        content:
+            const Text('Are you sure you want to cancel this appointment?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -703,10 +628,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
 
   void _confirmCancelAppointment(AppointmentModel appointment) {
     context.read<AppointmentsProvider>();
-    
+
     // Show loading
-    showCustomSnackBar(context, 'Cancelling appointment...', type: SnackBarType.info);
-    
+    showCustomSnackBar(context, 'Cancelling appointment...',
+        type: SnackBarType.info);
+
     // In a real app, you would call the repository to cancel the appointment
     // For now, we'll just show a success message
     Future.delayed(const Duration(seconds: 1), () {
@@ -748,11 +674,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
   }
 
   void _bookNewAppointment() {
-    // This will be handled by the FAB in the client shell
-    showCustomSnackBar(
+    Navigator.push(
       context,
-      'Use the + button to book a new appointment',
-      type: SnackBarType.info,
+      MaterialPageRoute(
+        builder: (context) => const SelectBarberScreen(),
+      ),
     );
   }
 

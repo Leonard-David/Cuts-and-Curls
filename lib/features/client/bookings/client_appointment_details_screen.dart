@@ -385,31 +385,61 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
   }
 
   void _rescheduleAppointment(BuildContext context) {
-    showDialog(
+    final authProvider = context.read<AuthProvider>();
+    final currentUserId = authProvider.user!.id;
+    final appointmentsProvider = context.read<AppointmentsProvider>();
+
+    // Show date picker to select new date
+    showDatePicker(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reschedule Appointment'),
-        content: const Text(
-            'This feature will allow you to choose a new date and time for your appointment.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
+      initialDate: appointment.date,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    ).then((selectedDate) {
+      if (selectedDate != null) {
+        // Show time picker after date is selected
+        showTimePicker(
+          context: context,
+          initialTime: TimeOfDay.fromDateTime(appointment.date),
+        ).then((selectedTime) {
+          if (selectedTime != null) {
+            // Combine selected date and time
+            final newDateTime = DateTime(
+              selectedDate.year,
+              selectedDate.month,
+              selectedDate.day,
+              selectedTime.hour,
+              selectedTime.minute,
+            );
+
+            // Show loading
+            showCustomSnackBar(context, 'Rescheduling appointment...',
+                type: SnackBarType.info);
+
+            // Call reschedule with all required parameters
+            appointmentsProvider
+                .rescheduleAppointment(
+              appointment.id,
+              newDateTime,
+              currentUserId: currentUserId,
+            )
+                .then((_) {
               showCustomSnackBar(
                 context,
-                'Reschedule functionality will be implemented',
-                type: SnackBarType.info,
+                'Appointment rescheduled successfully',
+                type: SnackBarType.success,
               );
-            },
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
+            }).catchError((error) {
+              showCustomSnackBar(
+                context,
+                'Failed to reschedule appointment: $error',
+                type: SnackBarType.error,
+              );
+            });
+          }
+        });
+      }
+    });
   }
 
   void _cancelAppointment(
@@ -442,12 +472,22 @@ class ClientAppointmentDetailsScreen extends StatelessWidget {
 
   void _confirmCancelAppointment(
       BuildContext context, AppointmentsProvider appointmentsProvider) {
+    // Get current user ID
+    final authProvider = context.read<AuthProvider>();
+    final currentUserId = authProvider.user!.id;
+
     // Show loading
     showCustomSnackBar(context, 'Cancelling appointment...',
         type: SnackBarType.info);
 
-    // Cancel the appointment
-    appointmentsProvider.cancelAppointment(appointment.id).then((_) {
+    // Cancel the appointment with currentUserId
+    appointmentsProvider
+        .cancelAppointment(
+      appointment.id,
+      currentUserId: currentUserId,
+      reason: 'Cancelled by client', // You can customize this reason
+    )
+        .then((_) {
       showCustomSnackBar(
         context,
         'Appointment cancelled successfully',

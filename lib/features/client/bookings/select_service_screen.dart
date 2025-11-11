@@ -3,6 +3,7 @@ import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/service_model.dart';
 import 'package:sheersync/data/models/user_model.dart';
 import 'package:sheersync/data/repositories/service_repository.dart';
+import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
 import 'package:sheersync/features/client/bookings/confirm_booking_screen.dart';
 
 class SelectServiceScreen extends StatefulWidget {
@@ -118,7 +119,9 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: widget.barber.isOnline ? AppColors.success : Colors.grey,
+                        color: widget.barber.isOnline
+                            ? AppColors.success
+                            : Colors.grey,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -126,7 +129,9 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                     Text(
                       widget.barber.isOnline ? 'Online' : 'Offline',
                       style: TextStyle(
-                        color: widget.barber.isOnline ? AppColors.success : AppColors.textSecondary,
+                        color: widget.barber.isOnline
+                            ? AppColors.success
+                            : AppColors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -142,7 +147,33 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
               ],
             ),
           ),
+          // View Profile Button
+          OutlinedButton(
+            onPressed: () => _viewBarberProfile(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: BorderSide(color: AppColors.primary),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'View Profile',
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _viewBarberProfile() {
+    //Navigate to a profile screen like:
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BarberProfileScreen(barber: widget.barber),
       ),
     );
   }
@@ -178,14 +209,16 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
 
   Widget _buildServiceCard(ServiceModel service) {
     final isSelected = _selectedService?.id == service.id;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: isSelected ? 4 : 2,
-      color: isSelected ? AppColors.primary.withOpacity(0.05) : AppColors.background,
+      color: isSelected
+          ? AppColors.primary.withOpacity(0.05)
+          : AppColors.background,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: isSelected 
+        side: isSelected
             ? BorderSide(color: AppColors.primary, width: 2)
             : BorderSide(color: AppColors.border),
       ),
@@ -207,7 +240,9 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                     width: 2,
                   ),
                   color: isSelected ? AppColors.primary : Colors.transparent,
@@ -256,7 +291,8 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                     const SizedBox(height: 8),
                     if (service.category != null) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.accent.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(6),
@@ -312,7 +348,8 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.construction_rounded, size: 64, color: AppColors.textSecondary),
+            Icon(Icons.construction_rounded,
+                size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
             Text(
               'No Services Available',

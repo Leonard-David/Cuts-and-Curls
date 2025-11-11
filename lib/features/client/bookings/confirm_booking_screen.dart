@@ -454,7 +454,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
     });
 
     try {
-      // Combine selected date and time
+      //elected date and time
       final appointmentDateTime = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -494,7 +494,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       await _bookingRepository.createAppointment(appointment);
 
       // Send notification to barber
-      await _notificationRepository.sendAppointmentRequest(
+      await _notificationRepository.sendAppointmentRequestToBarber(
         barberId: widget.barber.id,
         appointmentId: appointment.id,
         clientName: client.fullName,

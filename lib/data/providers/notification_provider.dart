@@ -460,7 +460,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to send notification: $e';
       notifyListeners();
-      print('❌ Error sending appointment notification: $e');
+      print('Error sending appointment notification: $e');
     }
   }
 
@@ -489,7 +489,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to send payment notification: $e';
       notifyListeners();
-      print('❌ Error sending payment notification: $e');
+      print('Error sending payment notification: $e');
     }
   }
 
@@ -514,7 +514,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to send chat notification: $e';
       notifyListeners();
-      print('❌ Error sending chat notification: $e');
+      print('Error sending chat notification: $e');
     }
   }
 
@@ -543,7 +543,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to send reminder: $e';
       notifyListeners();
-      print('❌ Error sending appointment reminder: $e');
+      print('Error sending appointment reminder: $e');
     }
   }
 
@@ -557,7 +557,7 @@ class NotificationProvider with ChangeNotifier {
     bool sendPush = true,
   }) async {
     try {
-      await _notificationRepository.sendAppointmentRequest(
+      await _notificationRepository.sendAppointmentRequestToBarber(
         barberId: barberId,
         appointmentId: appointmentId,
         clientName: clientName,
@@ -568,7 +568,7 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Failed to send appointment request: $e';
       notifyListeners();
-      print('❌ Error sending appointment request: $e');
+      print('Error sending appointment request: $e');
     }
   }
 
@@ -585,21 +585,18 @@ class NotificationProvider with ChangeNotifier {
     bool sendPush = true,
   }) async {
     try {
-      await _notificationRepository.sendAppointmentStatusUpdate(
-        userId: userId,
+      await _notificationRepository.sendAppointmentStatusToClient(
         appointmentId: appointmentId,
         status: status,
         barberName: barberName,
         serviceName: serviceName,
-        appointmentTime: appointmentTime,
-        userType: userType,
         reason: reason,
-        sendPush: sendPush,
+        sendPush: sendPush, clientId: userId,
       );
     } catch (e) {
       _error = 'Failed to send status update: $e';
       notifyListeners();
-      print('❌ Error sending appointment status update: $e');
+      print('Error sending appointment status update: $e');
     }
   }
 

@@ -51,6 +51,187 @@ class NotificationRepository {
     }
   }
 
+  // Send appointment request notification to barber
+  Future<void> sendAppointmentRequestToBarber({
+    required String barberId,
+    required String appointmentId,
+    required String clientName,
+    required String serviceName,
+    required DateTime appointmentTime,
+    bool sendPush = true,
+  }) async {
+    try {
+      final title = 'New Appointment Request 📅';
+      final message =
+          '$clientName requested $serviceName on ${_formatDate(appointmentTime)}';
+
+      await sendAppointmentNotification(
+        userId: barberId,
+        appointmentId: appointmentId,
+        title: title,
+        message: message,
+        type: NotificationType.appointment,
+        data: {
+          'appointmentId': appointmentId,
+          'clientName': clientName,
+          'serviceName': serviceName,
+          'appointmentTime': appointmentTime.millisecondsSinceEpoch,
+          'notificationType': 'appointment_request',
+          'actionRequired': true,
+        },
+        sendPush: sendPush,
+      );
+
+      print('Appointment request sent to barber $barberId');
+    } catch (e) {
+      print('Error sending appointment request to barber: $e');
+      throw Exception('Failed to send appointment request: $e');
+    }
+  }
+
+  // Send appointment status update to client (Barber → Client)
+  Future<void> sendAppointmentStatusToClient({
+    required String clientId,
+    required String appointmentId,
+    required String status, // confirmed, declined, cancelled, rescheduled
+    required String barberName,
+    required String serviceName,
+    DateTime? newAppointmentTime,
+    String? reason,
+    bool sendPush = true,
+  }) async {
+    try {
+      String title;
+      String message;
+
+      switch (status) {
+        case 'confirmed':
+          title = 'Appointment Confirmed! ✅';
+          message = '$barberName has confirmed your $serviceName appointment';
+          break;
+        case 'declined':
+          title = 'Appointment Declined ❌';
+          message =
+              '$barberName has declined your appointment request${reason != null ? ': $reason' : ''}';
+          break;
+        case 'cancelled':
+          title = 'Appointment Cancelled 🚫';
+          message =
+              '$barberName has cancelled your appointment${reason != null ? ': $reason' : ''}';
+          break;
+        case 'rescheduled':
+          title = 'Appointment Rescheduled 🔄';
+          message =
+              '$barberName has rescheduled your appointment${newAppointmentTime != null ? ' to ${_formatDate(newAppointmentTime)}' : ''}';
+          break;
+        default:
+          title = 'Appointment Update';
+          message = 'Your appointment status has been updated';
+      }
+
+      await sendAppointmentNotification(
+        userId: clientId,
+        appointmentId: appointmentId,
+        title: title,
+        message: message,
+        type: NotificationType.appointment,
+        data: {
+          'appointmentId': appointmentId,
+          'status': status,
+          'barberName': barberName,
+          'serviceName': serviceName,
+          'notificationType': 'appointment_status_update',
+          if (newAppointmentTime != null)
+            'newAppointmentTime': newAppointmentTime.millisecondsSinceEpoch,
+          if (reason != null) 'reason': reason,
+        },
+        sendPush: sendPush,
+      );
+
+      print('Status update sent to client $clientId: $status');
+    } catch (e) {
+      print('Error sending status update to client: $e');
+      throw Exception('Failed to send status update: $e');
+    }
+  }
+
+  // Send client-initiated cancellation to barber
+  Future<void> sendClientCancellationToBarber({
+    required String barberId,
+    required String appointmentId,
+    required String clientName,
+    required String serviceName,
+    String? reason,
+    bool sendPush = true,
+  }) async {
+    try {
+      final title = 'Appointment Cancelled by Client';
+      final message =
+          '$clientName cancelled their $serviceName appointment${reason != null ? ': $reason' : ''}';
+
+      await sendAppointmentNotification(
+        userId: barberId,
+        appointmentId: appointmentId,
+        title: title,
+        message: message,
+        type: NotificationType.appointment,
+        data: {
+          'appointmentId': appointmentId,
+          'clientName': clientName,
+          'serviceName': serviceName,
+          'notificationType': 'client_cancellation',
+          if (reason != null) 'reason': reason,
+        },
+        sendPush: sendPush,
+      );
+
+      print('Client cancellation sent to barber $barberId');
+    } catch (e) {
+      print('Error sending client cancellation to barber: $e');
+      throw Exception('Failed to send client cancellation: $e');
+    }
+  }
+
+  // Send client-initiated reschedule to barber
+  Future<void> sendClientRescheduleToBarber({
+    required String barberId,
+    required String appointmentId,
+    required String clientName,
+    required String serviceName,
+    required DateTime newAppointmentTime,
+    String? reason,
+    bool sendPush = true,
+  }) async {
+    try {
+      final title = 'Reschedule Request 🔄';
+      final message =
+          '$clientName wants to reschedule $serviceName to ${_formatDate(newAppointmentTime)}';
+
+      await sendAppointmentNotification(
+        userId: barberId,
+        appointmentId: appointmentId,
+        title: title,
+        message: message,
+        type: NotificationType.appointment,
+        data: {
+          'appointmentId': appointmentId,
+          'clientName': clientName,
+          'serviceName': serviceName,
+          'newAppointmentTime': newAppointmentTime.millisecondsSinceEpoch,
+          'notificationType': 'reschedule_request',
+          'actionRequired': true,
+          if (reason != null) 'reason': reason,
+        },
+        sendPush: sendPush,
+      );
+
+      print('Reschedule request sent to barber $barberId');
+    } catch (e) {
+      print('Error sending reschedule request to barber: $e');
+      throw Exception('Failed to send reschedule request: $e');
+    }
+  }
+
   // Send payment notification
   Future<void> sendPaymentNotification({
     required String userId,
@@ -235,145 +416,6 @@ class NotificationRepository {
     } catch (e) {
       print('Error sending reminder notification: $e');
       throw Exception('Failed to send reminder notification: $e');
-    }
-  }
-
-  // Send appointment request notification
-  Future<void> sendAppointmentRequest({
-    required String barberId,
-    required String appointmentId,
-    required String clientName,
-    required String serviceName,
-    required DateTime appointmentTime,
-    bool sendPush = true,
-  }) async {
-    try {
-      final notification = AppNotification(
-        id: 'request_${DateTime.now().millisecondsSinceEpoch}_$barberId',
-        userId: barberId,
-        title: 'New Appointment Request',
-        message:
-            '$clientName requested $serviceName on ${_formatDate(appointmentTime)}',
-        type: NotificationType.appointment,
-        relatedId: appointmentId,
-        isRead: false,
-        createdAt: DateTime.now(),
-        data: {
-          'appointmentId': appointmentId,
-          'clientName': clientName,
-          'serviceName': serviceName,
-          'appointmentTime': appointmentTime.millisecondsSinceEpoch,
-          'notificationType': 'appointment_request',
-        },
-      );
-
-      await _firestore
-          .collection('notifications')
-          .doc(notification.id)
-          .set(notification.toMap());
-
-      if (sendPush) {
-        await FCMService.sendNotificationToUser(
-          userId: barberId,
-          title: 'New Appointment Request',
-          body: '$clientName requested $serviceName',
-          data: {
-            'type': 'appointment_request',
-            'appointmentId': appointmentId,
-            'clientName': clientName,
-          },
-        );
-      }
-
-      print('Appointment request sent to barber $barberId');
-    } catch (e) {
-      print('Error sending appointment request: $e');
-      throw Exception('Failed to send appointment request: $e');
-    }
-  }
-
-  // Send appointment status update notification
-  Future<void> sendAppointmentStatusUpdate({
-    required String userId,
-    required String appointmentId,
-    required String status,
-    required String barberName,
-    required String serviceName,
-    required DateTime appointmentTime,
-    required String userType,
-    String? reason,
-    bool sendPush = true,
-  }) async {
-    try {
-      String title, message;
-
-      switch (status) {
-        case 'confirmed':
-          title = 'Appointment Confirmed!';
-          message = userType == 'client'
-              ? 'Your appointment with $barberName for $serviceName has been confirmed'
-              : 'You confirmed an appointment for $serviceName';
-          break;
-        case 'cancelled':
-          title = 'Appointment Cancelled';
-          message = userType == 'client'
-              ? 'Your appointment with $barberName has been cancelled${reason != null ? ': $reason' : ''}'
-              : 'You cancelled an appointment${reason != null ? ': $reason' : ''}';
-          break;
-        case 'completed':
-          title = 'Appointment Completed';
-          message = userType == 'client'
-              ? 'Your appointment with $barberName has been completed'
-              : 'You marked an appointment as completed';
-          break;
-        default:
-          title = 'Appointment Updated';
-          message = 'Your appointment status has been updated to $status';
-      }
-
-      // Create notification
-      final notification = AppNotification(
-        id: 'status_${DateTime.now().millisecondsSinceEpoch}_$userId',
-        userId: userId,
-        title: title,
-        message: message,
-        type: NotificationType.appointment,
-        relatedId: appointmentId,
-        isRead: false,
-        createdAt: DateTime.now(),
-        data: {
-          'appointmentId': appointmentId,
-          'status': status,
-          'serviceName': serviceName,
-          'appointmentTime': appointmentTime.millisecondsSinceEpoch,
-          'userType': userType,
-          if (reason != null) 'reason': reason,
-        },
-      );
-
-      await _firestore
-          .collection('notifications')
-          .doc(notification.id)
-          .set(notification.toMap());
-
-      if (sendPush) {
-        await FCMService.sendNotificationToUser(
-          userId: userId,
-          title: title,
-          body: message,
-          data: {
-            'type': 'appointment_status',
-            'appointmentId': appointmentId,
-            'status': status,
-            'userType': userType,
-          },
-        );
-      }
-
-      print('Appointment status update sent to $userType $userId');
-    } catch (e) {
-      print('Error sending appointment status update: $e');
-      throw Exception('Failed to send appointment status update: $e');
     }
   }
 
