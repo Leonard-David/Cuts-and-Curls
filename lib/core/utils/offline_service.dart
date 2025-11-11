@@ -3,13 +3,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:sheersync/data/adapters/hive_adapters.dart'
     hide AppointmentModelAdapter;
+import 'package:sheersync/data/adapters/service_model_adapter.dart';
 import 'package:sheersync/data/models/appointment_model.dart'
-    hide PaymentModelAdapter, ServiceModelAdapter;
+    hide PaymentModelAdapter;
 import 'package:sheersync/data/models/chat_message_model.dart';
 import 'package:sheersync/data/models/chat_room_model.dart';
 import 'package:sheersync/data/models/notification_model.dart';
 import 'package:sheersync/data/models/payment_model.dart';
-import 'package:sheersync/data/models/service_model.dart';
+import 'package:sheersync/data/models/service_model.dart' hide ServiceModelAdapter;
 
 class OfflineService {
   static final OfflineService _instance = OfflineService._internal();

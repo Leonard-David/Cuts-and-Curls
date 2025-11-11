@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:sheersync/core/theme/app_theme.dart';
 import 'package:sheersync/core/utils/offline_service.dart';
+import 'package:sheersync/data/adapters/service_model_adapter.dart';
 import 'package:sheersync/data/models/appointment_model.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/chat_provider.dart';

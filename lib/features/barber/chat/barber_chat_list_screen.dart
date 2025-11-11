@@ -243,7 +243,7 @@ class _BarberChatListScreenState extends State<BarberChatListScreen> {
                       size: 24,
                     ),
                   ),
-                  // Online Status Indicator (could be dynamic based on client status)
+                  // Online Status Indicator
                   Container(
                     width: 12,
                     height: 12,

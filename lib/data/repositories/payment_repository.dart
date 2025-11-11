@@ -11,10 +11,19 @@ class PaymentRepository {
   // Create payment record with Stripe Connect integration
   Future<void> createPayment(PaymentModel payment) async {
     try {
+      // Ensure payment data is never deleted by using a separate collection
       await _firestore
           .collection('payments')
           .doc(payment.id)
-          .set(payment.toMap());
+          .set(payment.toMap(), SetOptions(merge: false));
+
+      // Also update a separate financial records collection for backup
+      await _firestore.collection('financial_records').doc(payment.id).set({
+        ...payment.toMap(),
+        'recordType': 'payment',
+        'permanent': true, // Mark as permanent record
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+      });
     } catch (e) {
       throw Exception('Failed to create payment: $e');
     }
@@ -27,12 +36,10 @@ class PaymentRepository {
         .where('clientId', isEqualTo: clientId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
+        .map((snapshot) => snapshot.docs.map((doc) {
               final data = doc.data();
               return PaymentModel.fromMap(data);
-            })
-            .toList());
+            }).toList());
   }
 
   // Get payments for barber
@@ -42,12 +49,10 @@ class PaymentRepository {
         .where('barberId', isEqualTo: barberId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
+        .map((snapshot) => snapshot.docs.map((doc) {
               final data = doc.data();
               return PaymentModel.fromMap(data);
-            })
-            .toList());
+            }).toList());
   }
 
   Stream<PaymentModel?> getPaymentByAppointmentStream(String appointmentId) {
@@ -57,11 +62,11 @@ class PaymentRepository {
         .limit(1)
         .snapshots()
         .map((snapshot) {
-          if (snapshot.docs.isNotEmpty) {
-            return PaymentModel.fromMap(snapshot.docs.first.data());
-          }
-          return null;
-        });
+      if (snapshot.docs.isNotEmpty) {
+        return PaymentModel.fromMap(snapshot.docs.first.data());
+      }
+      return null;
+    });
   }
 
   // Update payment status with Stripe webhook integration
@@ -200,7 +205,7 @@ class PaymentRepository {
     try {
       final userDoc = await _firestore.collection('users').doc(barberId).get();
       final userData = userDoc.data();
-      
+
       if (userData == null || userData['stripeAccountId'] == null) {
         return {
           'connected': false,
@@ -216,7 +221,8 @@ class PaymentRepository {
         'connected': true,
         'verified': isVerified,
         'stripeAccountId': stripeAccountId,
-        'message': isVerified ? 'Account verified' : 'Account pending verification',
+        'message':
+            isVerified ? 'Account verified' : 'Account pending verification',
       };
     } catch (e) {
       return {
@@ -225,5 +231,31 @@ class PaymentRepository {
         'error': 'Failed to check Stripe status: $e',
       };
     }
+  }
+
+  Future<void> _createFinancialRecord(PaymentModel payment) async {
+    try {
+      await _firestore.collection('financial_records').doc(payment.id).set({
+        ...payment.toMap(),
+        'backupCreatedAt': DateTime.now().millisecondsSinceEpoch,
+        'isDeleted': false,
+      });
+    } catch (e) {
+      print('Failed to create financial record backup: $e');
+    }
+  }
+
+// Method to get all financial records (for dashboard)
+  Stream<List<PaymentModel>> getFinancialRecords(String barberId) {
+    return _firestore
+        .collection('financial_records')
+        .where('barberId', isEqualTo: barberId)
+        .where('status', isEqualTo: 'completed')
+        .orderBy('completedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = doc.data();
+              return PaymentModel.fromMap(data);
+            }).toList());
   }
 }

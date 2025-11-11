@@ -7,7 +7,8 @@ class AvailabilityRepository {
   final OfflineService _offlineService = OfflineService();
 
   // Save availability with offline support
-  Future<void> saveAvailability(String barberId, Map<String, dynamic> availabilityData) async {
+  Future<void> saveAvailability(
+      String barberId, Map<String, dynamic> availabilityData) async {
     try {
       if (await _offlineService.isConnected()) {
         await _firestore
@@ -26,8 +27,9 @@ class AvailabilityRepository {
         print('Availability saved offline for sync: $barberId');
       }
     } catch (e) {
-      if (e.toString().contains('network') || e.toString().contains('Connection')) {
-        await _offlineService.saveAvailabilityOffline( availabilityData);
+      if (e.toString().contains('network') ||
+          e.toString().contains('Connection')) {
+        await _offlineService.saveAvailabilityOffline(availabilityData);
         await _offlineService.addToSyncQueue('save_availability', {
           'type': 'availability',
           'barberId': barberId,
@@ -59,12 +61,14 @@ class AvailabilityRepository {
         }
       } else {
         // Return offline data
-        final offlineData = await _offlineService.getOfflineAvailability(barberId);
+        final offlineData =
+            await _offlineService.getOfflineAvailability(barberId);
         return offlineData ?? _getDefaultAvailability();
       }
     } catch (e) {
       print('Error getting availability, using offline data: $e');
-      final offlineData = await _offlineService.getOfflineAvailability(barberId);
+      final offlineData =
+          await _offlineService.getOfflineAvailability(barberId);
       return offlineData ?? _getDefaultAvailability();
     }
   }
@@ -76,28 +80,80 @@ class AvailabilityRepository {
         .doc(barberId)
         .snapshots()
         .asyncMap((snapshot) async {
-          if (snapshot.exists) {
-            final data = snapshot.data() ?? {};
-            // Save to offline storage
-            await _offlineService.saveAvailabilityOffline(data);
-            return data;
-          } else {
-            return _getDefaultAvailability();
-          }
-        })
-        .handleError((error) async {
-          print('Online availability error, using offline data: $error');
-          final offlineData = await _offlineService.getOfflineAvailability(barberId);
-          return offlineData ?? _getDefaultAvailability();
-        });
+      if (snapshot.exists) {
+        final data = snapshot.data() ?? {};
+        // Save to offline storage
+        await _offlineService.saveAvailabilityOffline(data);
+        return data;
+      } else {
+        return _getDefaultAvailability();
+      }
+    }).handleError((error) async {
+      print('Online availability error, using offline data: $error');
+      final offlineData =
+          await _offlineService.getOfflineAvailability(barberId);
+      return offlineData ?? _getDefaultAvailability();
+    });
+  }
+
+  Map<String, dynamic> getTodaysAvailability(
+      Map<String, dynamic> availability) {
+    final now = DateTime.now();
+    final days = [
+      'sunday',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday'
+    ];
+    final today =
+        days[now.weekday % 7]; // DateTime.weekday returns 1-7 where 1=Monday
+
+    return {
+      'day': today,
+      'isAvailable': availability[today]?['isAvailable'] ?? false,
+      'slots': availability[today]?['slots'] ?? [],
+    };
+  }
+
+  // Check if barber is currently available
+  bool isCurrentlyAvailable(Map<String, dynamic> availability) {
+    final todayAvailability = getTodaysAvailability(availability);
+
+    if (!todayAvailability['isAvailable']) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    final currentTime =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final slots =
+        List<Map<String, dynamic>>.from(todayAvailability['slots'] ?? []);
+
+    for (final slot in slots) {
+      final startTime = slot['start']?.toString() ?? '';
+      final endTime = slot['end']?.toString() ?? '';
+
+      if (startTime.isNotEmpty &&
+          endTime.isNotEmpty &&
+          currentTime.compareTo(startTime) >= 0 &&
+          currentTime.compareTo(endTime) <= 0) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // Sync pending availability operations
   Future<void> syncPendingAvailabilityOperations() async {
     try {
       final pendingItems = await _offlineService.getPendingSyncItems();
-      final availabilityItems = pendingItems.where((item) => item['type'] == 'availability').toList();
-      
+      final availabilityItems =
+          pendingItems.where((item) => item['type'] == 'availability').toList();
+
       for (final item in availabilityItems) {
         try {
           if (item['action'] == 'save_availability') {
@@ -105,15 +161,17 @@ class AvailabilityRepository {
                 .collection('barber_availability')
                 .doc(item['data']['barberId'])
                 .set(item['data']['availabilityData'], SetOptions(merge: true));
-            
+
             await _offlineService.removeFromSyncQueue(item['id']);
-            print('Synced availability for barber: ${item['data']['barberId']}');
+            print(
+                'Synced availability for barber: ${item['data']['barberId']}');
           }
         } catch (e) {
           // Update attempt count and retry later
           final attempts = (item['attempts'] ?? 0) + 1;
-          await _offlineService.updateSyncItemStatus(item['id'], 'pending', attempts: attempts);
-          
+          await _offlineService.updateSyncItemStatus(item['id'], 'pending',
+              attempts: attempts);
+
           if (attempts >= 3) {
             await _offlineService.updateSyncItemStatus(item['id'], 'failed');
           }
@@ -127,13 +185,24 @@ class AvailabilityRepository {
 
   Map<String, dynamic> _getDefaultAvailability() {
     // Return default empty availability structure
-    final days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    final days = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday'
+    ];
     final defaultAvailability = <String, dynamic>{};
-    
+
     for (final day in days) {
-      defaultAvailability[day] = [];
+      defaultAvailability[day] = {
+        'isAvailable': false,
+        'slots': [],
+      };
     }
-    
+
     return defaultAvailability;
   }
 }

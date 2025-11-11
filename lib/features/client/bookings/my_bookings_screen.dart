@@ -7,7 +7,6 @@ import 'package:sheersync/data/adapters/hive_adapters.dart';
 import 'package:sheersync/data/providers/appointments_provider.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/features/client/bookings/client_appointment_details_screen.dart';
-import 'package:sheersync/features/client/bookings/select_barber_screen.dart';
 import 'package:sheersync/features/client/reviews/review_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -18,23 +17,25 @@ class MyBookingsScreen extends StatefulWidget {
 }
 
 class _MyBookingsScreenState extends State<MyBookingsScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
-  final List<String> _tabTitles = [
-    'Upcoming',
-    'Pending',
-    'Completed',
-    'Cancelled'
-  ];
 
   // Filter states
   String _searchQuery = '';
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _initializeData();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshData();
+    }
   }
 
   void _initializeData() {
@@ -50,6 +51,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         appointmentsProvider
             .loadClientUpcomingAppointments(authProvider.user!.id);
       }
+      _refreshData();
     });
   }
 
@@ -60,108 +62,51 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          // Search and Filter Bar
-          (_buildSearchFilterBar)(),
-          // Tab Bar
-          _buildTabBar(),
-          // Tab Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Upcoming Tab
-                _buildAppointmentsList(
-                  _filterAppointments(
-                    appointmentsProvider.allAppointments,
-                    statusFilter: ['confirmed'],
-                    isUpcoming: true,
-                  ),
-                  appointmentsProvider.isLoading,
-                  'No upcoming appointments',
-                  'You don\'t have any upcoming appointments scheduled.',
-                ),
-                // Pending Tab
-                _buildAppointmentsList(
-                  _filterAppointments(
-                    appointmentsProvider.allAppointments,
-                    statusFilter: ['pending'],
-                  ),
-                  appointmentsProvider.isLoading,
-                  'No pending appointments',
-                  'You don\'t have any pending appointment requests.',
-                ),
-                // Completed Tab
-                _buildAppointmentsList(
-                  _filterAppointments(
-                    appointmentsProvider.allAppointments,
-                    statusFilter: ['completed'],
-                  ),
-                  appointmentsProvider.isLoading,
-                  'No completed appointments',
-                  'Your completed appointments will appear here.',
-                ),
-                // Cancelled Tab
-                _buildAppointmentsList(
-                  _filterAppointments(
-                    appointmentsProvider.allAppointments,
-                    statusFilter: ['cancelled'],
-                  ),
-                  appointmentsProvider.isLoading,
-                  'No cancelled appointments',
-                  'Your cancelled appointments will appear here.',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchFilterBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Search Bar
-          TextField(
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-            decoration: InputDecoration(
-              hintText: 'Search appointments...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: AppColors.background,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border),
-        ),
-      ),
-      child: TabBar(
+      body: TabBarView(
         controller: _tabController,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.textSecondary,
-        indicatorColor: AppColors.primary,
-        indicatorWeight: 3,
-        tabs: _tabTitles.map((title) => Tab(text: title)).toList(),
+        children: [
+          // Upcoming Tab - Only confirmed future appointments
+          _buildAppointmentsList(
+            _filterAppointments(
+              appointmentsProvider.allAppointments,
+              statusFilter: ['confirmed'],
+              isUpcoming: true,
+            ),
+            appointmentsProvider.isLoading,
+            'No upcoming appointments',
+            'You don\'t have any upcoming appointments scheduled.',
+          ),
+          // Pending Tab - Only pending appointments
+          _buildAppointmentsList(
+            _filterAppointments(
+              appointmentsProvider.allAppointments,
+              statusFilter: ['pending'],
+            ),
+            appointmentsProvider.isLoading,
+            'No pending appointments',
+            'You don\'t have any pending appointment requests.',
+          ),
+          // Completed Tab
+          _buildAppointmentsList(
+            _filterAppointments(
+              appointmentsProvider.allAppointments,
+              statusFilter: ['completed'],
+            ),
+            appointmentsProvider.isLoading,
+            'No completed appointments',
+            'Your completed appointments will appear here.',
+          ),
+          // Cancelled Tab
+          _buildAppointmentsList(
+            _filterAppointments(
+              appointmentsProvider.allAppointments,
+              statusFilter: ['cancelled'],
+            ),
+            appointmentsProvider.isLoading,
+            'No cancelled appointments',
+            'Your cancelled appointments will appear here.',
+          ),
+        ],
       ),
     );
   }
@@ -193,13 +138,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
+  // Enhanced appointment card with better status display
   Widget _buildAppointmentCard(AppointmentModel appointment) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () => _viewAppointmentDetails(appointment),
         borderRadius: BorderRadius.circular(12),
@@ -212,23 +156,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color:
-                          _getStatusColor(appointment.status).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      appointment.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _getStatusColor(appointment.status),
-                      ),
-                    ),
-                  ),
+                  _buildStatusBadge(appointment.status),
                   Text(
                     DateFormat('MMM d, yyyy').format(appointment.date),
                     style: TextStyle(
@@ -239,17 +167,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 ],
               ),
               const SizedBox(height: 12),
+
               // Professional Info
               Row(
                 children: [
                   CircleAvatar(
                     radius: 20,
                     backgroundColor: Colors.grey[200],
-                    child: Icon(
-                      Icons.person,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
+                    child: Icon(Icons.person,
+                        size: 20, color: AppColors.textSecondary),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -276,17 +202,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 ],
               ),
               const SizedBox(height: 12),
+
               // Time and Price
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: AppColors.textSecondary,
-                      ),
+                      Icon(Icons.access_time,
+                          size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         DateFormat('h:mm a').format(appointment.date),
@@ -308,13 +232,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                     ),
                 ],
               ),
-              // Actions based on status
-              if (appointment.status == 'pending')
-                ..._buildPendingActions(appointment),
-              if (appointment.status == 'confirmed')
-                ..._buildConfirmedActions(appointment),
-              if (appointment.status == 'completed')
-                ..._buildCompletedActions(appointment),
+
+              // Status-specific actions
+              if (appointment.status == 'pending' ||
+                  appointment.status == 'confirmed' ||
+                  appointment.status == 'completed')
+                ..._buildAppointmentActions(appointment),
             ],
           ),
         ),
@@ -322,100 +245,119 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  List<Widget> _buildPendingActions(AppointmentModel appointment) {
-    return [
-      const SizedBox(height: 12),
-      const Divider(),
-      const SizedBox(height: 8),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => _cancelAppointment(appointment),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: BorderSide(color: AppColors.error),
-              ),
-              child: const Text('Cancel Request'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _rescheduleAppointment(appointment),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
-              ),
-              child: const Text('Reschedule'),
-            ),
-          ),
-        ],
+  ////##############################################################################################
+  Widget _buildStatusBadge(String status) {
+    // Explicitly type the map with proper types
+    final Map<String, Map<String, dynamic>> statusConfig = {
+      'pending': {'color': AppColors.accent, 'text': 'PENDING'},
+      'confirmed': {'color': AppColors.success, 'text': 'CONFIRMED'},
+      'completed': {'color': AppColors.primary, 'text': 'COMPLETED'},
+      'cancelled': {'color': AppColors.error, 'text': 'CANCELLED'},
+    };
+
+    final config = statusConfig[status] ??
+        {'color': Colors.grey, 'text': status.toUpperCase()};
+
+    // Safely extract color and text with proper casting
+    final Color color =
+        config['color'] is Color ? config['color'] as Color : Colors.grey;
+    final String text = config['text'] is String
+        ? config['text'] as String
+        : status.toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
       ),
-    ];
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
   }
 
-  List<Widget> _buildConfirmedActions(AppointmentModel appointment) {
+  List<Widget> _buildAppointmentActions(AppointmentModel appointment) {
     return [
       const SizedBox(height: 12),
       const Divider(),
       const SizedBox(height: 8),
       Row(
         children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => _cancelAppointment(appointment),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: BorderSide(color: AppColors.error),
+          if (appointment.status == 'pending') ...[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _cancelAppointment(appointment),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(color: AppColors.error),
+                ),
+                child: const Text('Cancel Request'),
               ),
-              child: const Text('Cancel'),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _viewAppointmentDetails(appointment),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _rescheduleAppointment(appointment),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                ),
+                child: const Text('Reschedule'),
               ),
-              child: const Text('View Details'),
             ),
-          ),
-        ],
-      ),
-    ];
-  }
-
-  List<Widget> _buildCompletedActions(AppointmentModel appointment) {
-    return [
-      const SizedBox(height: 12),
-      const Divider(),
-      const SizedBox(height: 8),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => _bookAgain(appointment),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
+          ],
+          if (appointment.status == 'confirmed') ...[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _cancelAppointment(appointment),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(color: AppColors.error),
+                ),
+                child: const Text('Cancel'),
               ),
-              child: const Text('Book Again'),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _leaveReview(appointment),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.black,
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _viewAppointmentDetails(appointment),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                ),
+                child: const Text('View Details'),
               ),
-              child: const Text('Leave Review'),
             ),
-          ),
+          ],
+          if (appointment.status == 'completed') ...[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _bookAgain(appointment),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary),
+                ),
+                child: const Text('Book Again'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _leaveReview(appointment),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text('Leave Review'),
+              ),
+            ),
+          ],
         ],
       ),
     ];
@@ -555,28 +497,74 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         return false;
       }
 
+      // Date filter
+      if (_selectedDate != null) {
+        if (_selectedDate!.day == DateTime.now().day) {
+          // Today filter
+          final appointmentDate = DateTime(
+            appointment.date.year,
+            appointment.date.month,
+            appointment.date.day,
+          );
+          final today = DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+          );
+          if (appointmentDate != today) return false;
+        } else if (_isSameWeek(_selectedDate!, appointment.date)) {
+          // This week filter
+          if (!_isSameWeek(appointment.date, DateTime.now())) return false;
+        }
+      }
+
       // Search filter
+      // Search filter - enhanced to include more fields
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final matchesBarber =
             appointment.barberName?.toLowerCase().contains(query) ?? false;
         final matchesService =
             appointment.serviceName?.toLowerCase().contains(query) ?? false;
-        if (!matchesBarber && !matchesService) return false;
+        final matchesDate = DateFormat('MMM d, yyyy')
+            .format(appointment.date)
+            .toLowerCase()
+            .contains(query);
+        final matchesTime = DateFormat('h:mm a')
+            .format(appointment.date)
+            .toLowerCase()
+            .contains(query);
+
+        if (!matchesBarber && !matchesService && !matchesDate && !matchesTime) {
+          return false;
+        }
       }
 
       // Upcoming filter
-      if (isUpcoming && appointment.date.isBefore(DateTime.now())) {
-        return false;
+      if (isUpcoming) {
+        final now = DateTime.now();
+        if (appointment.date.isBefore(now) ||
+            appointment.status != 'confirmed') {
+          return false;
+        }
       }
 
       return true;
     }).toList();
 
-    // Sort by date
-    filtered.sort((a, b) => a.date.compareTo(b.date));
-
+    // Sort by date - upcoming first for upcoming tab, recent first for others
+    if (isUpcoming) {
+      filtered.sort((a, b) => a.date.compareTo(b.date));
+    } else {
+      filtered.sort((a, b) => b.date.compareTo(a.date));
+    }
     return filtered;
+  }
+
+  bool _isSameWeek(DateTime a, DateTime b) {
+    final startOfWeekA = a.subtract(Duration(days: a.weekday - 1));
+    final startOfWeekB = b.subtract(Duration(days: b.weekday - 1));
+    return startOfWeekA.difference(startOfWeekB).inDays == 0;
   }
 
   // Action methods
@@ -585,7 +573,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     final appointmentsProvider = context.read<AppointmentsProvider>();
 
     if (authProvider.user != null) {
-      appointmentsProvider.loadClientAppointments(authProvider.user!.id);
+      try {
+        appointmentsProvider.loadClientAppointments(authProvider.user!.id);
+        appointmentsProvider.startRealtimeUpdates(authProvider.user!.id);
+      } catch (e) {
+        print('Error refreshing appointments: $e');
+      }
     }
   }
 
@@ -674,31 +667,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   }
 
   void _bookNewAppointment() {
-    Navigator.push(
+    // This will be handled by the FAB in the client shell
+    showCustomSnackBar(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SelectBarberScreen(),
-      ),
+      'Use the + button to book a new appointment',
+      type: SnackBarType.info,
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'confirmed':
-        return AppColors.success;
-      case 'pending':
-        return AppColors.accent;
-      case 'completed':
-        return AppColors.primary;
-      case 'cancelled':
-        return AppColors.error;
-      default:
-        return Colors.grey;
-    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }

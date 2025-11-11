@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/data/models/service_model.dart';
 import 'package:sheersync/data/models/user_model.dart';
 import 'package:sheersync/data/repositories/service_repository.dart';
 import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
 import 'package:sheersync/features/client/bookings/confirm_booking_screen.dart';
+import 'package:sheersync/features/shared/chat/chat_screen.dart';
+import 'package:sheersync/data/providers/chat_provider.dart';
+import 'package:sheersync/data/providers/auth_provider.dart';
 
 class SelectServiceScreen extends StatefulWidget {
   final UserModel barber;
@@ -147,29 +151,111 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
               ],
             ),
           ),
+          // Message Button
+          _buildMessageButton(),
+          const SizedBox(width: 8),
           // View Profile Button
-          OutlinedButton(
-            onPressed: () => _viewBarberProfile(),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: BorderSide(color: AppColors.primary),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'View Profile',
-              style: TextStyle(fontSize: 12),
-            ),
-          ),
+          _buildViewProfileButton(),
         ],
       ),
     );
   }
 
+  Widget _buildMessageButton() {
+    return IconButton(
+      onPressed: () => _startChatWithBarber(),
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.primary.withOpacity(0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(8),
+      ),
+      icon: Icon(
+        Icons.message,
+        size: 20,
+        color: AppColors.primary,
+      ),
+      tooltip: 'Message ${widget.barber.fullName}',
+    );
+  }
+
+  Widget _buildViewProfileButton() {
+    return OutlinedButton(
+      onPressed: () => _viewBarberProfile(),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        side: BorderSide(color: AppColors.primary),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: const Text(
+        'View Profile',
+        style: TextStyle(fontSize: 12),
+      ),
+    );
+  }
+
+  // Method to start chat with barber
+  Future<void> _startChatWithBarber() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final chatProvider = context.read<ChatProvider>();
+
+      if (authProvider.user == null) {
+        _showErrorSnackBar('Please login to start a conversation');
+        return;
+      }
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Get or create chat room
+      final chatRoom = await chatProvider.getOrCreateChatRoom(
+        clientId: authProvider.user!.id,
+        clientName: authProvider.user!.fullName,
+        barberId: widget.barber.id,
+        barberName: widget.barber.fullName,
+      );
+
+      // Navigate to chat screen
+      if (mounted) {
+        Navigator.pop(context); // Remove loading dialog
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(chatRoom: chatRoom),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Remove loading dialog
+        _showErrorSnackBar('Failed to start conversation: ${e.toString()}');
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _viewBarberProfile() {
-    //Navigate to a profile screen like:
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -366,6 +452,17 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
               style: TextStyle(
                 color: AppColors.textSecondary,
               ),
+            ),
+            const SizedBox(height: 16),
+            // Add message button in empty state too
+            ElevatedButton.icon(
+              onPressed: () => _startChatWithBarber(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              icon: const Icon(Icons.message, size: 18),
+              label: const Text('Message Professional'),
             ),
           ],
         ),

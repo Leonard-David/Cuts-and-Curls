@@ -14,7 +14,7 @@ import 'package:sheersync/features/barber/earnings/barber_earning_screen.dart';
 import 'package:sheersync/features/barber/marketing/marketing_screen.dart';
 import 'package:sheersync/features/barber/onboarding/stripe_connect_screen.dart';
 import 'package:sheersync/features/barber/profile/barber_profile_screen.dart';
-import 'package:sheersync/features/barber/services/barber_services_screen.dart';
+import 'package:sheersync/features/barber/services/add_edit_service_screen.dart';
 import 'package:sheersync/features/barber/services/manage_availability_screen.dart';
 import 'package:sheersync/features/shared/chat/chat_screen.dart';
 import 'package:sheersync/features/shared/notification/notification_center_screen.dart';
@@ -52,6 +52,9 @@ class _BarberShellState extends State<BarberShell> {
   // Track if we're showing a detail screen (to show back button)
   bool _showBackButton = false;
 
+  // Track if we're in chat list screen
+  bool _isInChatList = true;
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -75,7 +78,7 @@ class _BarberShellState extends State<BarberShell> {
     return AppBar(
       title: Row(
         children: [
-          if (_showBackButton)
+          if (_showBackButton && !(_currentIndex == 1 && _isInChatList))
             IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: _handleBackPress,
@@ -85,7 +88,7 @@ class _BarberShellState extends State<BarberShell> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              _currentTitle,
+              _currentIndex == 1 && _isInChatList ? 'Messages' : _currentTitle,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -100,25 +103,33 @@ class _BarberShellState extends State<BarberShell> {
       elevation: 1,
       centerTitle: false,
       titleSpacing: 16,
-      actions: _buildAppBarActions(),
-      leading: IconButton(
-        icon: const Icon(Icons.menu),
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        tooltip: 'Menu',
-      ),
+      actions: _currentIndex == 1 && _isInChatList
+          ? _buildChatListAppBarActions(notificationProvider)
+          : _buildAppBarActions(notificationProvider),
+      leading: _currentIndex == 1 && _isInChatList
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => _onTabTapped(0), // Go back to dashboard
+              tooltip: 'Back',
+            )
+          : IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              tooltip: 'Menu',
+            ),
     );
   }
 
-  List<Widget> _buildAppBarActions() {
+  List<Widget> _buildAppBarActions(NotificationProvider notificationProvider) {
     // Different actions based on current screen
     switch (_currentIndex) {
       case 0: // Dashboard
         return [
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
       case 1: // Messages
         return [
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
       case 2: // Appointments
         return [
@@ -127,20 +138,28 @@ class _BarberShellState extends State<BarberShell> {
             tooltip: 'Refresh Appointments',
             onPressed: _refreshAppointments,
           ),
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
       case 3: // Earnings
         return [
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
       default:
         return [
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
     }
   }
 
-  Widget _buildNotificationAction() {
+  // Special app bar actions for chat list screen (without call icons)
+  List<Widget> _buildChatListAppBarActions(
+      NotificationProvider notificationProvider) {
+    return [
+      _buildNotificationAction(notificationProvider),
+    ];
+  }
+
+  Widget _buildNotificationAction(NotificationProvider notificationProvider) {
     return Stack(
       children: [
         IconButton(
@@ -148,7 +167,27 @@ class _BarberShellState extends State<BarberShell> {
           onPressed: _navigateToNotifications,
           tooltip: 'Notifications',
         ),
-        // Unread notification indicator would go here
+        // Green dot indicator for unread notifications - UPDATED
+        if (notificationProvider.hasUnread)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: const BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -196,9 +235,17 @@ class _BarberShellState extends State<BarberShell> {
               case '/chat':
                 final chatRoom = settings.arguments as ChatRoom;
                 screen = ChatScreen(chatRoom: chatRoom);
+                // Update state when navigating to chat screen
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _updateChatListState(false);
+                });
                 break;
               default:
                 screen = const BarberChatListScreen();
+                // Update state when navigating to chat list
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _updateChatListState(true);
+                });
             }
 
             return MaterialPageRoute(
@@ -266,7 +313,12 @@ class _BarberShellState extends State<BarberShell> {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
+  Widget? _buildBottomNavigationBar() {
+    // Hide bottom navigation bar when we're in the messages tab and showing chat list
+    if (_currentIndex == 1 && _isInChatList) {
+      return null;
+    }
+
     return BottomNavigationBar(
       currentIndex: _currentIndex,
       onTap: _onTabTapped,
@@ -320,13 +372,13 @@ class _BarberShellState extends State<BarberShell> {
     }
   }
 
-  Widget _buildDrawer(AuthProvider authProvider, NotificationProvider notificationProvider) {
+  Widget _buildDrawer(
+      AuthProvider authProvider, NotificationProvider notificationProvider) {
     return Drawer(
       backgroundColor: AppColors.background,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Updated Drawer Header to match client shell
           _buildDrawerHeader(authProvider),
 
           // Main Navigation Section
@@ -475,11 +527,7 @@ class _BarberShellState extends State<BarberShell> {
 
   // Helper method to close drawer and then execute navigation
   void _closeDrawerAndNavigate(VoidCallback navigationCallback) {
-    // Close the drawer first
     Navigator.of(context).pop();
-
-    // Then execute the navigation callback after a small delay
-    // to ensure the drawer is fully closed
     Future.delayed(const Duration(milliseconds: 100), navigationCallback);
   }
 
@@ -488,6 +536,10 @@ class _BarberShellState extends State<BarberShell> {
     if (index == _currentIndex) {
       // Pop to first route if same tab is tapped
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      // Update chat list state when tapping messages tab
+      if (index == 1) {
+        _updateChatListState(true);
+      }
     }
     _setCurrentIndex(index);
   }
@@ -497,11 +549,21 @@ class _BarberShellState extends State<BarberShell> {
       _currentIndex = index;
       _currentTitle = _baseTitles[index];
       _showBackButton = false;
+      // Update chat list state when switching to messages tab
+      if (index == 1) {
+        final canPop = _navigatorKeys[1].currentState?.canPop() == true;
+        _isInChatList = !canPop;
+      }
     });
   }
 
-  void _navigateToMarketing() {
-    _pushScreen(const MarketingScreen(), 'Marketing Tools');
+  // Helper method to update chat list state
+  void _updateChatListState(bool isInChatList) {
+    if (mounted) {
+      setState(() {
+        _isInChatList = isInChatList;
+      });
+    }
   }
 
   Future<bool> _onWillPop() async {
@@ -546,8 +608,6 @@ class _BarberShellState extends State<BarberShell> {
   }
 
   void _updateTitleAfterPop() {
-    // This would need to be more sophisticated in a real app
-    // For now, we'll reset to base title after a short delay
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         final currentNavigator = _navigatorKeys[_currentIndex];
@@ -556,6 +616,10 @@ class _BarberShellState extends State<BarberShell> {
           _showBackButton = canPop;
           if (!canPop) {
             _currentTitle = _baseTitles[_currentIndex];
+          }
+          // Update chat list state
+          if (_currentIndex == 1) {
+            _isInChatList = !canPop;
           }
         });
       }
@@ -573,7 +637,7 @@ class _BarberShellState extends State<BarberShell> {
   }
 
   void _navigateToServices() {
-    _pushScreen(const BarberServicesScreen(), 'My Services');
+    _pushScreen(const AddEditServiceScreen(), 'My Services');
   }
 
   void _navigateToAvailability() {
@@ -592,12 +656,20 @@ class _BarberShellState extends State<BarberShell> {
     _pushScreen(const NotificationCenterScreen(), 'Notifications');
   }
 
+  void _navigateToMarketing() {
+    _pushScreen(const MarketingScreen(), 'Marketing Tools');
+  }
+
   void _pushScreen(Widget screen, String title) {
     final currentNavigator = _navigatorKeys[_currentIndex];
 
     setState(() {
       _currentTitle = title;
       _showBackButton = true;
+      // Update chat list state when pushing a screen in messages tab
+      if (_currentIndex == 1) {
+        _isInChatList = false;
+      }
     });
 
     currentNavigator.currentState?.push(
@@ -730,7 +802,6 @@ class _BarberShellState extends State<BarberShell> {
   }
 
   void _refreshAppointments() {
-    // This would typically refresh the appointments data
     showCustomSnackBar(
       context,
       'Refreshing System Data...',
@@ -744,7 +815,10 @@ class _BarberShellState extends State<BarberShell> {
       builder: (context) => AlertDialog(
         title: const Text('Help & Support'),
         content:
-            const Text('Help and support resources will be available here.'),
+            const Text('For assistance, please contact our support team:\n\n'
+                '📧 Email: daviddranoel@gmail.com.com\n'
+                '📞 Phone: +264 81 288 3053\n\n'
+                'We\'re here to help you with any questions or issues!'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

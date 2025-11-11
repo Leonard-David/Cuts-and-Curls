@@ -50,7 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _startEarningsTracking(String barberId) {
-    // Real-time earnings stream
+    // Real-time earnings stream - this should always be active
     FirebaseFirestore.instance
         .collection('payments')
         .where('barberId', isEqualTo: barberId)
@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double todayEarnings = 0.0;
     double totalEarnings = 0.0;
 
-    // Calculate earnings from payments
+    // Calculate earnings from payments (this ensures data persists even if appointments are deleted)
     for (final doc in paymentDocs) {
       final payment = doc.data() as Map<String, dynamic>;
       final amount = payment['amount']?.toDouble() ?? 0.0;
@@ -88,7 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    // Get appointment counts from provider
+    // Get appointment counts from provider (this is separate from earnings)
     final appointments = _appointmentsProvider.allAppointments;
     final metrics = _calculateAppointmentMetrics(appointments);
 

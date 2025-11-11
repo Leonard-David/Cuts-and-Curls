@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:sheersync/data/models/payment_model.dart';
+import 'package:sheersync/data/providers/payment_provider.dart';
 import 'package:sheersync/core/constants/colors.dart';
 import 'package:sheersync/core/widgets/custom_snackbar.dart';
 import 'package:sheersync/data/adapters/hive_adapters.dart';
@@ -28,7 +30,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
 
   Future<void> _updateAppointmentStatus(String status, {String? reason}) async {
     final authProvider = context.read<AuthProvider>();
-    final currentUserId = authProvider.user!.id; 
+    final currentUserId = authProvider.user!.id;
     setState(() {
       _isLoading = true;
     });
@@ -148,6 +150,48 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
 
     if (confirmed == true) {
       await _updateAppointmentStatus('completed');
+
+      // Create payment record for completed appointment
+      await _createPaymentRecord();
+    }
+  }
+
+  // Add new method to create payment record
+  Future<void> _createPaymentRecord() async {
+    try {
+      final paymentProvider = context.read<PaymentProvider>();
+      final authProvider = context.read<AuthProvider>();
+
+      final payment = PaymentModel(
+        id: 'pay_${DateTime.now().millisecondsSinceEpoch}',
+        appointmentId: widget.appointment.id,
+        clientId: widget.appointment.clientId,
+        barberId: authProvider.user!.id,
+        amount: widget.appointment.price ?? 0.0,
+        status: 'completed',
+        paymentMethod: 'cash', // Default for walk-in appointments
+        transactionId: 'cash_${DateTime.now().millisecondsSinceEpoch}',
+        createdAt: DateTime.now(),
+        completedAt: DateTime.now(),
+      );
+
+      await paymentProvider.createPayment(payment);
+
+      if (mounted) {
+        showCustomSnackBar(
+          context,
+          'Payment recorded successfully!',
+          type: SnackBarType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showCustomSnackBar(
+          context,
+          'Failed to record payment: $e',
+          type: SnackBarType.error,
+        );
+      }
     }
   }
 

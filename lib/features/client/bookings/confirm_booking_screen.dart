@@ -28,8 +28,9 @@ class ConfirmBookingScreen extends StatefulWidget {
 
 class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   final BookingRepository _bookingRepository = BookingRepository();
-  final NotificationRepository _notificationRepository = NotificationRepository();
-  
+  final NotificationRepository _notificationRepository =
+      NotificationRepository();
+
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
   final TextEditingController _notesController = TextEditingController();
@@ -60,19 +61,19 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                   // Booking Summary
                   _buildBookingSummary(),
                   const SizedBox(height: 24),
-                  
+
                   // Date & Time Selection
                   _buildDateTimeSection(),
                   const SizedBox(height: 24),
-                  
+
                   // Additional Notes
                   _buildNotesSection(),
                   const SizedBox(height: 24),
-                  
+
                   // Reminder Settings
                   _buildReminderSection(),
                   const SizedBox(height: 32),
-                  
+
                   // Book Button
                   _buildBookButton(client),
                 ],
@@ -114,7 +115,9 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                         ),
                       ),
                       Text(
-                        widget.barber.userType == 'barber' ? 'Professional Barber' : 'Hairstylist',
+                        widget.barber.userType == 'barber'
+                            ? 'Professional Barber'
+                            : 'Hairstylist',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                         ),
@@ -204,7 +207,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                   child: _buildDateTimeTile(
                     icon: Icons.calendar_today_rounded,
                     title: 'Date',
-                    subtitle: DateFormat('EEE, MMM d, yyyy').format(_selectedDate),
+                    subtitle:
+                        DateFormat('EEE, MMM d, yyyy').format(_selectedDate),
                     onTap: _selectDate,
                   ),
                 ),
@@ -289,7 +293,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
               controller: _notesController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Any special requests or notes for the professional...',
+                hintText:
+                    'Any special requests or notes for the professional...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -320,7 +325,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.notifications_active_rounded, color: AppColors.primary),
+                Icon(Icons.notifications_active_rounded,
+                    color: AppColors.primary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -334,7 +340,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
                         ),
                       ),
                       Text(
-                        _hasReminder 
+                        _hasReminder
                             ? 'You will be reminded before the appointment'
                             : 'No reminder set',
                         style: TextStyle(
@@ -474,6 +480,20 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         return;
       }
 
+      // Check if barber is available
+      final isAvailable = await _bookingRepository.checkBarberAvailability(
+        widget.barber.id,
+        appointmentDateTime,
+      );
+      if (!isAvailable) {
+        showCustomSnackBar(
+          context,
+          'Selected time is not available. Please choose another time.',
+          type: SnackBarType.error,
+        );
+        return;
+      }
+
       final appointment = AppointmentModel(
         id: 'appt_${DateTime.now().millisecondsSinceEpoch}_${client.id}',
         barberId: widget.barber.id,
@@ -484,10 +504,13 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         serviceName: widget.service.name,
         price: widget.service.price,
         status: 'pending',
-        notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
+        notes: _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null,
         createdAt: DateTime.now(),
         hasReminder: _hasReminder,
         reminderMinutes: _hasReminder ? _reminderMinutes : null,
+        
       );
 
       // Create appointment in Firestore

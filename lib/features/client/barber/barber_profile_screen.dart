@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +11,7 @@ import 'package:sheersync/data/models/service_model.dart';
 import 'package:sheersync/data/models/review_model.dart';
 import 'package:sheersync/data/providers/auth_provider.dart';
 import 'package:sheersync/data/providers/chat_provider.dart';
+import 'package:sheersync/data/repositories/availability_repository.dart';
 import 'package:sheersync/features/client/bookings/select_service_screen.dart';
 import 'package:sheersync/features/shared/chat/chat_screen.dart';
 
@@ -23,7 +26,9 @@ class BarberProfileScreen extends StatefulWidget {
 
 class _BarberProfileScreenState extends State<BarberProfileScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+  final AvailabilityRepository _availabilityRepository =
+      AvailabilityRepository();
+
   List<ServiceModel> _services = [];
   List<ReviewModel> _reviews = [];
   List<Map<String, dynamic>> _discounts = [];
@@ -31,11 +36,33 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
   double _averageRating = 0.0;
   int _totalReviews = 0;
   bool _isLoading = true;
+  StreamSubscription<Map<String, dynamic>>? _availabilitySubscription;
 
   @override
   void initState() {
     super.initState();
     _loadBarberData();
+    _setupRealTimeAvailability();
+  }
+
+  @override
+  void dispose() {
+    _availabilitySubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupRealTimeAvailability() {
+    _availabilitySubscription = _availabilityRepository
+        .getAvailabilityStream(widget.barber.id)
+        .listen((availability) {
+      if (mounted) {
+        setState(() {
+          _availability = availability;
+        });
+      }
+    }, onError: (error) {
+      print('Error in availability stream: $error');
+    });
   }
 
   Future<void> _loadBarberData() async {
@@ -66,9 +93,9 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
 
       // Calculate average rating
       if (_reviews.isNotEmpty) {
-        _averageRating = _reviews
-            .map((review) => review.rating)
-            .reduce((a, b) => a + b) / _reviews.length;
+        _averageRating =
+            _reviews.map((review) => review.rating).reduce((a, b) => a + b) /
+                _reviews.length;
         _totalReviews = _reviews.length;
       }
 
@@ -77,20 +104,15 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
           .collection('discounts')
           .where('barberId', isEqualTo: widget.barber.id)
           .where('isActive', isEqualTo: true)
-          .where('expiresAt', isGreaterThan: DateTime.now().millisecondsSinceEpoch)
+          .where('expiresAt',
+              isGreaterThan: DateTime.now().millisecondsSinceEpoch)
           .get();
 
       _discounts = discountsSnapshot.docs.map((doc) => doc.data()).toList();
 
-      // Load availability
-      final availabilityDoc = await _firestore
-          .collection('barber_availability')
-          .doc(widget.barber.id)
-          .get();
-
-      if (availabilityDoc.exists) {
-        _availability = availabilityDoc.data() ?? {};
-      }
+      // Load initial availability
+      _availability =
+          await _availabilityRepository.getAvailability(widget.barber.id);
 
       setState(() => _isLoading = false);
     } catch (e) {
@@ -114,7 +136,7 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                     // Services Section
                     _buildServicesSection(),
                     // Availability Section
-                    _buildAvailabilitySection(),
+                    if (_availability.isNotEmpty) _buildAvailabilitySection(),
                     // Discounts Section
                     if (_discounts.isNotEmpty) _buildDiscountsSection(),
                     // Reviews Section
@@ -165,7 +187,8 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                             ? NetworkImage(widget.barber.profileImage!)
                             : null,
                         child: widget.barber.profileImage == null
-                            ? Icon(Icons.person, size: 40, color: AppColors.primary)
+                            ? Icon(Icons.person,
+                                size: 40, color: AppColors.primary)
                             : null,
                       ),
                       const SizedBox(width: 16),
@@ -184,8 +207,8 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              widget.barber.userType == 'barber' 
-                                  ? 'Professional Barber' 
+                              widget.barber.userType == 'barber'
+                                  ? 'Professional Barber'
                                   : 'Hairstylist',
                               style: const TextStyle(
                                 fontSize: 16,
@@ -200,7 +223,9 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                                   width: 8,
                                   height: 8,
                                   decoration: BoxDecoration(
-                                    color: widget.barber.isOnline ? Colors.green : Colors.grey,
+                                    color: widget.barber.isOnline
+                                        ? Colors.green
+                                        : Colors.grey,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -246,8 +271,6 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
     );
   }
 
-  
-
   Widget _buildServicesSection() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -275,7 +298,9 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                 )
               else
                 Column(
-                  children: _services.map((service) => _buildServiceItem(service)).toList(),
+                  children: _services
+                      .map((service) => _buildServiceItem(service))
+                      .toList(),
                 ),
             ],
           ),
@@ -325,6 +350,11 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
   }
 
   Widget _buildAvailabilitySection() {
+    final isCurrentlyAvailable =
+        _availabilityRepository.isCurrentlyAvailable(_availability);
+    final todayAvailability =
+        _availabilityRepository.getTodaysAvailability(_availability);
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Card(
@@ -334,15 +364,71 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Availability',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  const Text(
+                    'Availability',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildAvailabilitySchedule(),
+                  const Spacer(),
+                  // Current status indicator
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isCurrentlyAvailable
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color:
+                            isCurrentlyAvailable ? Colors.green : Colors.grey,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isCurrentlyAvailable
+                                ? Colors.green
+                                : Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isCurrentlyAvailable
+                              ? 'Available Now'
+                              : 'Currently Offline',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isCurrentlyAvailable
+                                ? Colors.green
+                                : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              _buildAvailabilitySchedule(),
+
+              // Today's availability
+              if (todayAvailability['isAvailable'])
+                _buildTodaysAvailability(todayAvailability),
+
+              // Weekly schedule
+              _buildWeeklySchedule(),
             ],
           ),
         ),
@@ -350,13 +436,154 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
     );
   }
 
+  Widget _buildWeeklySchedule() {
+    final days = [
+      {'key': 'monday', 'name': 'Monday'},
+      {'key': 'tuesday', 'name': 'Tuesday'},
+      {'key': 'wednesday', 'name': 'Wednesday'},
+      {'key': 'thursday', 'name': 'Thursday'},
+      {'key': 'friday', 'name': 'Friday'},
+      {'key': 'saturday', 'name': 'Saturday'},
+      {'key': 'sunday', 'name': 'Sunday'},
+    ];
+
+    return Column(
+      children: days.map((day) {
+        final dayData =
+            _availability[day['key']] ?? {'isAvailable': false, 'slots': []};
+        final isAvailable = dayData['isAvailable'] == true;
+        final slots = List<Map<String, dynamic>>.from(dayData['slots'] ?? []);
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 80,
+                child: Text(
+                  day['name']!,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color:
+                        isAvailable ? AppColors.text : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: isAvailable
+                    ? slots.isEmpty
+                        ? Text(
+                            'Available all day',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
+                          )
+                        : Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: slots.map((slot) {
+                              return Text(
+                                '${slot['start']}-${slot['end']}',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  backgroundColor:
+                                      AppColors.primary.withOpacity(0.1),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              );
+                            }).toList(),
+                          )
+                    : Text(
+                        'Not available',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: isAvailable ? Colors.green : Colors.grey,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTodaysAvailability(Map<String, dynamic> todayAvailability) {
+    final slots =
+        List<Map<String, dynamic>>.from(todayAvailability['slots'] ?? []);
+    final dayName = _capitalizeFirstLetter(todayAvailability['day'].toString());
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Today ($dayName)',
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (slots.isEmpty)
+          Text(
+            'Available all day',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: slots.map((slot) {
+              return Chip(
+                label: Text(
+                  '${slot['start']} - ${slot['end']}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                labelStyle: TextStyle(color: AppColors.primary),
+              );
+            }).toList(),
+          ),
+        const SizedBox(height: 16),
+        const Divider(),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  String _capitalizeFirstLetter(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
   Widget _buildAvailabilitySchedule() {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    
+
     return Column(
       children: days.map((day) {
         final dayAvailability = _availability[day.toLowerCase()];
-        final isAvailable = dayAvailability != null && dayAvailability['isAvailable'] == true;
+        final isAvailable =
+            dayAvailability != null && dayAvailability['isAvailable'] == true;
         final slots = dayAvailability?['slots'] ?? [];
 
         return ListTile(
@@ -373,7 +600,9 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
           ),
           title: isAvailable && slots.isNotEmpty
               ? Text(
-                  slots.map((slot) => '${slot['start']} - ${slot['end']}').join(', '),
+                  slots
+                      .map((slot) => '${slot['start']} - ${slot['end']}')
+                      .join(', '),
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 14,
@@ -417,7 +646,9 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              ..._discounts.map((discount) => _buildDiscountItem(discount)).toList(),
+              ..._discounts
+                  .map((discount) => _buildDiscountItem(discount))
+                  .toList(),
             ],
           ),
         ),
@@ -626,7 +857,8 @@ class _BarberProfileScreenState extends State<BarberProfileScreen> {
     final chatProvider = context.read<ChatProvider>();
 
     if (authProvider.user == null) {
-      showCustomSnackBar(context, 'Please login to start chatting', type: SnackBarType.error);
+      showCustomSnackBar(context, 'Please login to start chatting',
+          type: SnackBarType.error);
       return;
     }
 

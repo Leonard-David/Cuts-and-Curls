@@ -44,6 +44,9 @@ class _ClientShellState extends State<ClientShell> {
     GlobalKey<NavigatorState>(), // Payments
   ];
 
+  // Track current route for each tab
+  final List<String> _currentRoutes = ['/', '/', '/', '/'];
+
   // Current screen titles based on navigation state
   String _currentTitle = 'Home';
   final List<String> _baseTitles = [
@@ -53,7 +56,7 @@ class _ClientShellState extends State<ClientShell> {
     'Payments'
   ];
 
-  // Track if we're showing a detail screen (to show back button)
+  // Track if showing a detail screen (to show back button)
   bool _showBackButton = false;
 
   @override
@@ -84,11 +87,20 @@ class _ClientShellState extends State<ClientShell> {
         backgroundColor: AppColors.background,
         appBar: _buildAppBar(notificationProvider),
         body: _buildBody(),
-        bottomNavigationBar: _buildBottomNavigationBar(),
-        floatingActionButton: _buildFloatingActionButton(),
-        drawer: _buildDrawer(authProvider, notificationProvider),
+        bottomNavigationBar:
+            _shouldShowBottomNav() ? _buildBottomNavigationBar() : null,
+        floatingActionButton:
+            _shouldShowBottomNav() ? _buildFloatingActionButton() : null,
+        drawer: _shouldShowBottomNav()
+            ? _buildDrawer(authProvider, notificationProvider)
+            : null,
       ),
     );
+  }
+
+  bool _shouldShowBottomNav() {
+    // Hide bottom nav when we're in chat list screen or any nested chat screens
+    return _currentIndex != 2 || _currentRoutes[2] == '/';
   }
 
   PreferredSizeWidget _buildAppBar(NotificationProvider notificationProvider) {
@@ -120,16 +132,22 @@ class _ClientShellState extends State<ClientShell> {
       elevation: 1,
       centerTitle: false,
       titleSpacing: 16,
-      actions: _buildAppBarActions(),
-      leading: IconButton(
-        icon: const Icon(Icons.menu),
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        tooltip: 'Menu',
-      ),
+      actions: _buildAppBarActions(notificationProvider),
+      leading: _shouldShowBottomNav()
+          ? IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              tooltip: 'Menu',
+            )
+          : IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _handleBackPress,
+              tooltip: 'Back',
+            ),
     );
   }
 
-  List<Widget> _buildAppBarActions() {
+  List<Widget> _buildAppBarActions(NotificationProvider notificationProvider) {
     // Different actions based on current screen
     switch (_currentIndex) {
       case 0: // Home
@@ -139,7 +157,7 @@ class _ClientShellState extends State<ClientShell> {
             tooltip: 'Special Offers',
             onPressed: _navigateToSpecialOffers,
           ),
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
       case 1: // Bookings
         return [
@@ -148,12 +166,15 @@ class _ClientShellState extends State<ClientShell> {
             tooltip: 'Refresh Bookings',
             onPressed: _refreshBookings,
           ),
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
-      case 2: // Messages
-        return [
-          _buildNotificationAction(),
-        ];
+      case 2: // Messages - Only show notification action in chat list
+        if (_currentRoutes[2] == '/') {
+          return [
+            _buildNotificationAction(notificationProvider),
+          ];
+        }
+        return []; // No actions in chat screen
       case 3: // Payments
         return [
           _buildAppBarAction(
@@ -161,18 +182,16 @@ class _ClientShellState extends State<ClientShell> {
             tooltip: 'Payment History',
             onPressed: _navigateToPaymentHistory,
           ),
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
       default:
         return [
-          _buildNotificationAction(),
+          _buildNotificationAction(notificationProvider),
         ];
     }
   }
 
-  Widget _buildNotificationAction() {
-    final notificationProvider = Provider.of<NotificationProvider>(context);
-
+  Widget _buildNotificationAction(NotificationProvider notificationProvider) {
     return Stack(
       children: [
         IconButton(
@@ -180,28 +199,24 @@ class _ClientShellState extends State<ClientShell> {
           onPressed: _navigateToNotifications,
           tooltip: 'Notifications',
         ),
+        // Green dot indicator for unread notifications - UPDATED
         if (notificationProvider.hasUnread)
           Positioned(
             right: 8,
             top: 8,
             child: Container(
-              padding: const EdgeInsets.all(2),
+              width: 12,
+              height: 12,
               decoration: const BoxDecoration(
-                color: Colors.red,
+                color: Colors.green,
                 shape: BoxShape.circle,
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
-              child: Text(
-                notificationProvider.unreadNotifications.length.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
               ),
             ),
           ),
@@ -262,6 +277,7 @@ class _ClientShellState extends State<ClientShell> {
               )
             ];
           },
+          observers: [_RouteObserver((route) => _updateRoute(0, route))],
         ),
         // Bookings Tab
         Navigator(
@@ -314,6 +330,7 @@ class _ClientShellState extends State<ClientShell> {
               )
             ];
           },
+          observers: [_RouteObserver((route) => _updateRoute(1, route))],
         ),
         // Messages Tab
         Navigator(
@@ -342,6 +359,7 @@ class _ClientShellState extends State<ClientShell> {
               )
             ];
           },
+          observers: [_RouteObserver((route) => _updateRoute(2, route))],
         ),
         // Payments Tab
         Navigator(
@@ -369,9 +387,33 @@ class _ClientShellState extends State<ClientShell> {
               )
             ];
           },
+          observers: [_RouteObserver((route) => _updateRoute(3, route))],
         ),
       ],
     );
+  }
+
+  void _updateRoute(int tabIndex, Route<dynamic>? route) {
+    if (route != null && route is ModalRoute) {
+      final routeName = route.settings.name ?? '/';
+      if (mounted) {
+        setState(() {
+          _currentRoutes[tabIndex] = routeName;
+          // Update back button visibility
+          _showBackButton =
+              _navigatorKeys[tabIndex].currentState?.canPop() == true;
+
+          // Update title based on current route
+          if (tabIndex == _currentIndex) {
+            if (routeName == '/') {
+              _currentTitle = _baseTitles[tabIndex];
+            } else if (routeName == '/chat') {
+              _currentTitle = 'Chat';
+            }
+          }
+        });
+      }
+    }
   }
 
   Widget _buildBottomNavigationBar() {
@@ -657,6 +699,9 @@ class _ClientShellState extends State<ClientShell> {
     if (currentNavigator.currentState?.canPop() == true) {
       currentNavigator.currentState?.pop();
       _updateTitleAfterPop();
+    } else if (!_shouldShowBottomNav()) {
+      // If we're in chat screen without bottom nav, go back to messages tab
+      _setCurrentIndex(2);
     }
   }
 
@@ -770,15 +815,6 @@ class _ClientShellState extends State<ClientShell> {
                   _pushScreen(const SelectBarberScreen(), 'Find Professional');
                 },
               ),
-              _buildActionOption(
-                icon: Icons.history_rounded,
-                title: 'Repeat Last Booking',
-                subtitle: 'Book the same service as last time',
-                onTap: () {
-                  Navigator.pop(context);
-                  _repeatLastBooking();
-                },
-              ),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
@@ -852,14 +888,6 @@ class _ClientShellState extends State<ClientShell> {
     }
   }
 
-  void _repeatLastBooking() {
-    showCustomSnackBar(
-      context,
-      'Repeat booking functionality will be implemented',
-      type: SnackBarType.info,
-    );
-  }
-
   void _showHelpSupport() {
     showDialog(
       context: context,
@@ -867,9 +895,8 @@ class _ClientShellState extends State<ClientShell> {
         title: const Text('Help & Support'),
         content: const Text(
           'For assistance, please contact our support team:\n\n'
-          '📧 Email: support@sheersync.com\n'
-          '📞 Phone: +1-555-HELP-NOW\n'
-          '💬 Live Chat: Available 24/7\n\n'
+          '📧 Email: daviddranoel@gmail.com.com\n'
+          '📞 Phone: +264 81 288 3053\n\n'
           'We\'re here to help you with any questions or issues!',
         ),
         actions: [
@@ -937,5 +964,32 @@ class _ClientShellState extends State<ClientShell> {
         );
       },
     );
+  }
+}
+
+// Route observer to track navigation changes
+class _RouteObserver extends NavigatorObserver {
+  final Function(Route<dynamic>?) onRouteChanged;
+
+  _RouteObserver(this.onRouteChanged);
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    onRouteChanged(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    onRouteChanged(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    onRouteChanged(newRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    onRouteChanged(previousRoute);
   }
 }
