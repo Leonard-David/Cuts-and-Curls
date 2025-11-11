@@ -199,16 +199,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.phone, color: Colors.white),
-          onPressed: _callProfessional,
-          tooltip: 'Call',
-        ),
-        IconButton(
-          icon: const Icon(Icons.videocam, color: Colors.white),
-          onPressed: _videoCallProfessional,
-          tooltip: 'Video Call',
-        ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: Colors.white),
           onSelected: (value) => _handleMenuAction(value),
@@ -746,22 +736,6 @@ class _ChatScreenState extends State<ChatScreen> {
     showCustomSnackBar(
       context,
       'Document picker will be implemented',
-      type: SnackBarType.info,
-    );
-  }
-
-  void _callProfessional() {
-    showCustomSnackBar(
-      context,
-      'Call functionality will be implemented',
-      type: SnackBarType.info,
-    );
-  }
-
-  void _videoCallProfessional() {
-    showCustomSnackBar(
-      context,
-      'Video call functionality will be implemented',
       type: SnackBarType.info,
     );
   }
