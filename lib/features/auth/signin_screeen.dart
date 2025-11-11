@@ -136,7 +136,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your UNAM student email';
                     }
-                    if (!value.contains('@')) {
+                    if (!value.contains('@students.unam.na')) {
                       return 'Please enter a valid student email.';
                     }
                     return null;
